@@ -14,9 +14,9 @@ const FULL_ROTATION = Math.PI * 2
 // 配置参数
 export const galaxyVortexEffectParams = {
   armCount: 8, // 星系臂数量
-  particlesPerArm: 300, // 每臂粒子数
-  coreParticles: 250, // 核心粒子数
-  haloParticles: 200, // 光晕粒子数
+  particlesPerArm: 500, // 每臂粒子数
+  coreParticles: 450, // 核心粒子数
+  haloParticles: 400, // 光晕粒子数
   alpha: 0.85, // 透明度
   alphaHash: true, // 是否启用 alphaHash
   rotationSpeed: 0.0003, // 整体旋转速度

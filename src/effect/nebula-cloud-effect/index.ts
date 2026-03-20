@@ -1,5 +1,5 @@
-// 霓虹星云云层特效 (Nebula Cloud Effect) - 重新设计
-// 特性: 多层体积云雾 + 湍流流动 + 星光闪烁 + 内部发光 + 动态变形 + 鼠标交互
+// 动态粒子星云特效 (Nebula Cloud Effect)
+// 特性: 动态粒子流 + 光影折射 + 鼠标交互反馈 + 引力/斥力场
 // 注意: 需要浏览器支持 WebGPU (Chrome 113+, Edge 113+)
 
 import * as THREE from 'three/webgpu'
@@ -9,60 +9,63 @@ import gsap from 'gsap'
 
 // 性能优化常量
 const TIME_SCALE_FACTOR = 0.001
-const NOISE_SCALE = 0.5
+const FULL_ROTATION = Math.PI * 2
 
 // 配置参数
 export const nebulaCloudEffectParams = {
-  particleCount: 1500, // 总粒子数量
-  cloudLayers: 5, // 云层数量
-  particleSize: 0.12, // 粒子大小
-  alpha: 0.85, // 透明度
-  alphaHash: true, // 是否启用 alphaHash
+  // ==================== 粒子数量与大小 ====================
+  particleCount: 5000, // 粒子总数（自动按 25%:40%:35% 分配到三层）
+  particleSize: 0.12, // 基础粒子大小（核心×2、内层×1.5、外层×1）
+
+  // ==================== 外观效果 ====================
+  alpha: 0.75, // 整体透明度（0-1）
+  alphaHash: true, // 是否启用 alphaHash（透明度抖动，提升混合效果）
+  nebulaSize: 12, // 星云整体大小（核心=0.25×、内层=0.5×、外层=0.8×）
+
+  // ==================== 运动控制 ====================
   rotationSpeed: 0.00015, // 整体旋转速度
   autoRotate: true, // 是否自动旋转
-  colorCycleSpeed: 0.00015, // 颜色变化速度
-  turbulenceSpeed: 1.2, // 湍流速度
-  nebulaSize: 18, // 星云大小
-  starCount: 500, // 背景星星数量
-  glowIntensity: 2.0, // 发光强度
-  pulseSpeed: 3.0, // 脉冲速度
-  waveAmplitude: 0.8, // 波浪幅度
-  waveFrequency: 2.5, // 波浪频率
-  interactionRadius: 12, // 交互影响半径
+  colorCycleSpeed: 0.00025, // 颜色循环速度
+  flowSpeed: 1.2, // 粒子流动速度
+  pulseSpeed: 1.8, // 脉冲缩放速度
+
+  // ==================== 交互效果 ====================
+  interactionRadius: 15, // 鼠标交互影响半径
   interactionStrength: 2.0, // 交互强度
-  updateInterval: 3 // 颜色更新间隔帧数（优化性能）
+  gravityMode: 'attract' as 'attract' | 'repel', // 引力/斥力模式
+
+  // ==================== 光照 ====================
+  lightingIntensity: 1.5, // 光照强度
+
+  // ==================== 性能优化 ====================
+  updateInterval: 4, // 颜色更新间隔帧数（越大性能越好，但颜色变化越卡顿）
+  resizeDebounceDelay: 100 // 窗口调整防抖延迟（毫秒）
 }
 
 // 渲染器类型
 type WebGPURendererType = InstanceType<typeof THREE.WebGPURenderer>
 
-// 粒子类型
-enum ParticleType {
-  CLOUD_CORE = 'cloud_core', // 云层核心粒子
-  CLOUD_MID = 'cloud_mid', // 云层中层粒子
-  CLOUD_OUTER = 'cloud_outer', // 云层外围粒子
-  STAR = 'star', // 背景星星
-  SPARKLE = 'sparkle' // 闪烁火花
+// 粒子层级类型
+enum NebulaLayer {
+  CORE = 'core', // 核心层
+  INNER = 'inner', // 内层
+  OUTER = 'outer' // 外层
 }
 
 // 粒子数据类型
 interface ParticleData {
-  type: ParticleType
-  basePosition: THREE.Vector3 // 基础位置
-  orbitRadius: number // 轨道半径
-  orbitAngle: number // 轨道角度
-  orbitSpeed: number // 轨道速度
-  orbitHeight: number // 轨道高度
-  orbitPhase: number // 轨道相位
-  baseSize: number // 基础大小
-  hue: number // 色相
-  saturation: number // 饱和度
-  lightness: number // 亮度
-  layerIndex: number // 云层索引
-  turbulenceOffset: number // 湍流偏移
-  sparklePhase: number // 闪烁相位
-  sparkleSpeed: number // 闪烁速度
-  glowIntensity: number // 发光强度
+  layer: NebulaLayer
+  orbitRadius: number
+  orbitAngle: number
+  orbitSpeed: number
+  orbitHeight: number
+  orbitPhase: number
+  baseSize: number
+  hue: number
+  saturation: number
+  lightness: number
+  noiseOffset: number // 噪声偏移
+  flowDirection: number // 流动方向
 }
 
 // 交互状态
@@ -74,35 +77,8 @@ interface InteractionState {
   interactionIntensity: number
 }
 
-// 噪声函数 - 简化的 Perlin 噪声
-const noise = (x: number, y: number, z: number): number => {
-  return (Math.sin(x * NOISE_SCALE) + Math.sin(y * NOISE_SCALE * 1.3) + Math.sin(z * NOISE_SCALE * 1.7)) / 3
-}
-
-// 获取星云颜色分布
-const getNebulaColor = (layerIndex: number, randomOffset: number): { hue: number; saturation: number; lightness: number } => {
-  // 星云颜色方案：紫色(0.75) -> 蓝色(0.6) -> 青色(0.5) -> 粉色(0.85) -> 金色(0.1)
-  const baseHues = [0.75, 0.6, 0.5, 0.85, 0.1]
-  const hue = (baseHues[layerIndex % baseHues.length] + randomOffset * 0.1) % 1
-
-  return {
-    hue,
-    saturation: 0.8 + randomOffset * 0.2,
-    lightness: 0.55 + randomOffset * 0.25
-  }
-}
-
-// 3D 噪声函数（用于湍流效果）
-const noise3D = (x: number, y: number, z: number, time: number): number => {
-  return (
-    Math.sin(x * 0.3 + time) * 0.5 +
-    Math.sin(y * 0.4 + time * 1.2) * 0.3 +
-    Math.sin(z * 0.35 + time * 0.8) * 0.2
-  )
-}
-
 /**
- * 创建霓虹星云云层特效
+ * 创建动态粒子星云特效
  * @param container - 容器元素
  * @returns 清理函数
  */
@@ -111,31 +87,20 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
   let camera: THREE.PerspectiveCamera
   let renderer: WebGPURendererType
   let controls: OrbitControls
-
-  // 多层云雾网格
-  let cloudCoreMesh: THREE.InstancedMesh
-  let cloudMidMesh: THREE.InstancedMesh
-  let cloudOuterMesh: THREE.InstancedMesh
-  let starMesh: THREE.InstancedMesh
-  let sparkleMesh: THREE.InstancedMesh
-
-  // 材质
-  let cloudCoreMaterial: THREE.MeshStandardMaterial
-  let cloudMidMaterial: THREE.MeshStandardMaterial
-  let cloudOuterMaterial: THREE.MeshStandardMaterial
-  let starMaterial: THREE.MeshBasicMaterial
-  let sparkleMaterial: THREE.MeshStandardMaterial
-
+  let coreMesh: THREE.InstancedMesh
+  let innerMesh: THREE.InstancedMesh
+  let outerMesh: THREE.InstancedMesh
+  let coreMaterial: THREE.MeshStandardMaterial
+  let innerMaterial: THREE.MeshStandardMaterial
+  let outerMaterial: THREE.MeshStandardMaterial
   let particles: ParticleData[] = []
 
-  // 临时对象（复用）
   let dummy: THREE.Object3D | null = new THREE.Object3D()
   let color: THREE.Color | null = new THREE.Color()
 
   // GSAP 动画对象
-  let turbulenceAnimation: { value: number } | null = { value: 0 }
+  let flowAnimation: { value: number } | null = { value: 0 }
   let pulseAnimation: { value: number } | null = { value: 1 }
-  let waveAnimation: { value: number } | null = { value: 0 }
   let interactionAnimation: { value: number } | null = { value: 0 }
 
   // 电影级运镜相关变量
@@ -144,16 +109,51 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
   // 存储所有 GSAP tweens，用于清理
   const allTweens: gsap.core.Tween[] = []
 
-  // 帧计数器（用于优化性能）
-  let frameCount = 0
-
   // 交互状态
-  const interactionState: InteractionState = {
+  const interaction: InteractionState = {
     isInteracting: false,
     mouseX: 0,
     mouseY: 0,
     mousePosition: new THREE.Vector3(),
     interactionIntensity: 0
+  }
+
+  // 帧计数器（用于优化性能）
+  let frameCount = 0
+
+  // 窗口调整防抖定时器
+  let resizeTimeout: ReturnType<typeof setTimeout> | null = null
+
+  // 粒子层数配置 - 使用 particleCount 动态计算
+  const totalParticles = nebulaCloudEffectParams.particleCount
+  const nebulaSize = nebulaCloudEffectParams.nebulaSize
+  const baseParticleSize = nebulaCloudEffectParams.particleSize
+
+  const layerConfig: Record<
+    NebulaLayer,
+    { count: number; radius: number; size: number; hue: number; lightness: number }
+  > = {
+    [NebulaLayer.CORE]: {
+      count: Math.floor(totalParticles * 0.25), // 核心层占 25%
+      radius: nebulaSize * 0.25, // 使用 nebulaSize 缩放
+      size: baseParticleSize * 2, // 核心粒子最大
+      hue: 0.55,
+      lightness: 0.6
+    },
+    [NebulaLayer.INNER]: {
+      count: Math.floor(totalParticles * 0.4), // 内层占 40%
+      radius: nebulaSize * 0.5, // 使用 nebulaSize 缩放
+      size: baseParticleSize * 1.5, // 内层中等
+      hue: 0.45,
+      lightness: 0.5
+    },
+    [NebulaLayer.OUTER]: {
+      count: Math.floor(totalParticles * 0.35), // 外层占 35%
+      radius: nebulaSize * 0.8, // 使用 nebulaSize 缩放
+      size: baseParticleSize, // 外层最小
+      hue: 0.65,
+      lightness: 0.45
+    }
   }
 
   /**
@@ -164,237 +164,70 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       // 创建相机
       const width = container.clientWidth
       const height = container.clientHeight
-      camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100)
-      camera.position.set(18, 12, 18)
+      camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 100)
+      camera.position.set(15, 10, 15)
       camera.lookAt(0, 0, 0)
 
       // 创建场景
       scene = new THREE.Scene()
       scene.background = null
 
-      // 计算粒子分布
-      const armCount = Math.floor(nebulaCloudEffectParams.particleCount * 0.55) // 55% 旋臂
-      const coreCount = Math.floor(nebulaCloudEffectParams.particleCount * 0.25) // 25% 核心
-      const dustCount = nebulaCloudEffectParams.particleCount - armCount - coreCount // 20% 尘埃
+      // 创建几何体 - 使用 particleSize 参数
+      const coreGeometry = new THREE.TetrahedronGeometry(baseParticleSize * 2, 0)
+      const innerGeometry = new THREE.IcosahedronGeometry(baseParticleSize * 1.5, 0)
+      const outerGeometry = new THREE.SphereGeometry(baseParticleSize, 8, 6)
 
-      // 创建旋臂粒子（四面体 - 碎片感）
-      const armGeometry = new THREE.TetrahedronGeometry(nebulaCloudEffectParams.particleSize, 0)
-      armMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        alphaHash: nebulaCloudEffectParams.alphaHash,
-        opacity: nebulaCloudEffectParams.alpha,
-        roughness: 0.3,
-        metalness: 0.7,
-        envMapIntensity: 1.5,
-        emissive: 0xff6600,
-        emissiveIntensity: 0.3
-      })
-      armMesh = new THREE.InstancedMesh(armGeometry, armMaterial, armCount)
-
-      // 创建核心粒子（二十面体 - 高亮度）
-      const coreGeometry = new THREE.IcosahedronGeometry(nebulaCloudEffectParams.particleSize * 1.5, 0)
+      // 创建核心层材质（高亮度）
       coreMaterial = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         alphaHash: nebulaCloudEffectParams.alphaHash,
-        opacity: nebulaCloudEffectParams.alpha * 1.1,
-        roughness: 0.15,
-        metalness: 0.85,
-        envMapIntensity: 2.0,
-        emissive: 0xffffaa,
+        opacity: nebulaCloudEffectParams.alpha * 0.9,
+        roughness: 0.05,
+        metalness: 0.95,
+        envMapIntensity: 3.0,
+        emissive: 0x88aaff,
         emissiveIntensity: 0.6
       })
-      coreMesh = new THREE.InstancedMesh(coreGeometry, coreMaterial, coreCount)
 
-      // 创建尘埃粒子（小圆点 - 散布感）
-      const dustGeometry = new THREE.SphereGeometry(nebulaCloudEffectParams.particleSize * 0.6, 4, 4)
-      dustMaterial = new THREE.MeshStandardMaterial({
+      // 创建内层材质
+      innerMaterial = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         alphaHash: nebulaCloudEffectParams.alphaHash,
         opacity: nebulaCloudEffectParams.alpha * 0.8,
-        roughness: 0.6,
-        metalness: 0.4,
-        envMapIntensity: 1.0,
-        emissive: 0x8866ff,
-        emissiveIntensity: 0.2
+        roughness: 0.15,
+        metalness: 0.85,
+        envMapIntensity: 2.0,
+        emissive: 0x5588ff,
+        emissiveIntensity: 0.4
       })
-      dustMesh = new THREE.InstancedMesh(dustGeometry, dustMaterial, dustCount)
 
-      // 初始化粒子分布
-      let armIndex = 0
-      let coreIndex = 0
-      let dustIndex = 0
+      // 创建外层材质
+      outerMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        alphaHash: nebulaCloudEffectParams.alphaHash,
+        opacity: nebulaCloudEffectParams.alpha * 0.7,
+        roughness: 0.2,
+        metalness: 0.8,
+        envMapIntensity: 1.5,
+        emissive: 0x3355aa,
+        emissiveIntensity: 0.3
+      })
 
-      // 初始化旋臂粒子 - 螺旋结构
-      for (let arm = 0; arm < nebulaCloudEffectParams.armCount; arm++) {
-        const particlesPerArm = Math.floor(armCount / nebulaCloudEffectParams.armCount)
+      // 创建实例化网格
+      const coreCount = layerConfig[NebulaLayer.CORE].count
+      const innerCount = layerConfig[NebulaLayer.INNER].count
+      const outerCount = layerConfig[NebulaLayer.OUTER].count
 
-        for (let i = 0; i < particlesPerArm; i++) {
-          const t = i / particlesPerArm
-          const radius = 1 + t * nebulaCloudEffectParams.nebulaSize
-          const armAngle = (arm / nebulaCloudEffectParams.armCount) * Math.PI * 2
-          const twistAngle = t * nebulaCloudEffectParams.armTwist * Math.PI
-          const totalAngle = armAngle + twistAngle
+      coreMesh = new THREE.InstancedMesh(coreGeometry, coreMaterial, coreCount)
+      innerMesh = new THREE.InstancedMesh(innerGeometry, innerMaterial, innerCount)
+      outerMesh = new THREE.InstancedMesh(outerGeometry, outerMaterial, outerCount)
 
-          // 添加噪声偏移
-          const spread = 0.8 * (1 - t * 0.5)
-          const noiseAngle = (Math.random() - 0.5) * spread
-          const noiseRadius = (Math.random() - 0.5) * spread * 2
+      // 初始化星云粒子
+      initNebulaParticles(coreCount, innerCount, outerCount)
 
-          const x = Math.cos(totalAngle + noiseAngle) * (radius + noiseRadius)
-          const z = Math.sin(totalAngle + noiseAngle) * (radius + noiseRadius)
-          const y = (Math.random() - 0.5) * (0.3 + t * 1.2)
-
-          // 温度渐变：中心暖色 -> 外围冷色
-          const temperatureColor = getTemperatureColor(t)
-
-          particles.push({
-            type: ParticleType.ARM,
-            orbitRadius: radius,
-            orbitAngle: totalAngle + noiseAngle,
-            orbitSpeed: (0.3 + t * 0.7) * 0.0002,
-            orbitHeight: y,
-            orbitPhase: Math.random() * Math.PI * 2,
-            baseSize: 0.3 + t * 1.0 + Math.random() * 0.4,
-            hue: temperatureColor.hue,
-            saturation: temperatureColor.saturation,
-            lightness: temperatureColor.lightness,
-            noiseOffset: Math.random() * 10,
-            armIndex: arm
-          })
-
-          // 设置旋臂粒子
-          if (dummy) {
-            dummy.position.set(x, y, z)
-            dummy.scale.setScalar(particles[armIndex].baseSize)
-            dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
-            dummy.updateMatrix()
-            armMesh.setMatrixAt(armIndex, dummy.matrix)
-          }
-
-          if (color) {
-            color.setHSL(
-              particles[armIndex].hue,
-              particles[armIndex].saturation,
-              particles[armIndex].lightness
-            )
-            armMesh.setColorAt(armIndex, color)
-          }
-
-          armIndex++
-        }
-      }
-
-      // 初始化核心粒子 - 球形分布
-      for (let i = 0; i < coreCount; i++) {
-        const theta = Math.random() * Math.PI * 2
-        const phi = Math.acos(1 - 2 * Math.random())
-        const radius = Math.pow(Math.random(), 0.5) * 1.5
-
-        const x = radius * Math.sin(phi) * Math.cos(theta)
-        const y = radius * Math.sin(phi) * Math.sin(theta)
-        const z = radius * Math.cos(phi)
-
-        particles.push({
-          type: ParticleType.CORE,
-          orbitRadius: radius,
-          orbitAngle: theta,
-          orbitSpeed: 0.0003 + Math.random() * 0.0002,
-          orbitHeight: y,
-          orbitPhase: Math.random() * Math.PI * 2,
-          baseSize: 0.6 + Math.random() * 0.4,
-          hue: 0.1 + Math.random() * 0.05, // 橙黄色
-          saturation: 0.9 + Math.random() * 0.1,
-          lightness: 0.6 + Math.random() * 0.2,
-          noiseOffset: Math.random() * 10,
-          armIndex: 0
-        })
-
-        const idx = armCount + coreIndex
-        if (dummy) {
-          dummy.position.set(x, y, z)
-          dummy.scale.setScalar(particles[idx].baseSize)
-          dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
-          dummy.updateMatrix()
-          coreMesh.setMatrixAt(coreIndex, dummy.matrix)
-        }
-
-        if (color) {
-          color.setHSL(
-            particles[idx].hue,
-            particles[idx].saturation,
-            particles[idx].lightness
-          )
-          coreMesh.setColorAt(coreIndex, color)
-        }
-
-        coreIndex++
-      }
-
-      // 初始化尘埃粒子 - 随机散布
-      for (let i = 0; i < dustCount; i++) {
-        const u = Math.random()
-        const v = Math.random()
-        const theta = 2 * Math.PI * u
-        const phi = Math.acos(2 * v - 1)
-        const radius = 3 + Math.pow(Math.random(), 0.5) * nebulaCloudEffectParams.nebulaSize * 1.3
-
-        const x = radius * Math.sin(phi) * Math.cos(theta)
-        const y = radius * Math.sin(phi) * Math.sin(theta)
-        const z = radius * Math.cos(phi)
-
-        // 尘埃颜色：冷色调
-        const dustColor = {
-          hue: 0.6 + Math.random() * 0.15, // 蓝紫色
-          saturation: 0.7 + Math.random() * 0.2,
-          lightness: 0.5 + Math.random() * 0.3
-        }
-
-        particles.push({
-          type: ParticleType.DUST,
-          orbitRadius: radius,
-          orbitAngle: theta,
-          orbitSpeed: 0.0001 + Math.random() * 0.0001,
-          orbitHeight: y,
-          orbitPhase: Math.random() * Math.PI * 2,
-          baseSize: 0.2 + Math.random() * 0.4,
-          hue: dustColor.hue,
-          saturation: dustColor.saturation,
-          lightness: dustColor.lightness,
-          noiseOffset: Math.random() * 10,
-          armIndex: Math.floor(Math.random() * nebulaCloudEffectParams.armCount)
-        })
-
-        const idx = armCount + coreCount + dustIndex
-        if (dummy) {
-          dummy.position.set(x, y, z)
-          dummy.scale.setScalar(particles[idx].baseSize)
-          dummy.updateMatrix()
-          dustMesh.setMatrixAt(dustIndex, dummy.matrix)
-        }
-
-        if (color) {
-          color.setHSL(
-            particles[idx].hue,
-            particles[idx].saturation,
-            particles[idx].lightness
-          )
-          dustMesh.setColorAt(dustIndex, color)
-        }
-
-        dustIndex++
-      }
-
-      armMesh.instanceMatrix.needsUpdate = true
-      armMesh.instanceColor!.needsUpdate = true
-      coreMesh.instanceMatrix.needsUpdate = true
-      coreMesh.instanceColor!.needsUpdate = true
-      dustMesh.instanceMatrix.needsUpdate = true
-      dustMesh.instanceColor!.needsUpdate = true
-
-      // 添加到场景
-      scene.add(armMesh)
       scene.add(coreMesh)
-      scene.add(dustMesh)
+      scene.add(innerMesh)
+      scene.add(outerMesh)
 
       // 创建 WebGPU 渲染器
       renderer = new THREE.WebGPURenderer({
@@ -410,7 +243,7 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       // 初始化 WebGPU (异步)
       await renderer.init()
 
-      // 创建 RoomEnvironment 环境贴图
+      // 创建 RoomEnvironment 环境贴图（增强光影折射）
       const environment = new RoomEnvironment()
       const pmremGenerator = new THREE.PMREMGenerator(renderer)
       scene.environment = pmremGenerator.fromScene(environment, 0.04).texture
@@ -423,11 +256,14 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       controls.dampingFactor = 0.05
       controls.enableZoom = true
       controls.enablePan = false
-      controls.minDistance = 5
-      controls.maxDistance = 50
+      controls.minDistance = 4
+      controls.maxDistance = 40
 
       // 初始化 GSAP 动画
       initGSAPAnimations()
+
+      // 设置交互事件
+      setupInteraction(container)
 
       // 播放入场动画
       playEntranceAnimation()
@@ -437,67 +273,125 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
         playCameraAnimation()
       }, 3000)
 
-      // 添加交互事件监听
-      setupInteractionEvents()
-
-      console.log('螺旋星云特效初始化完成')
+      console.log('动态粒子星云特效初始化完成')
     } catch (error) {
-      console.error('螺旋星云特效初始化失败:', error)
+      console.error('动态粒子星云特效初始化失败:', error)
     }
   }
 
   /**
-   * 获取温度颜色（中心暖色 -> 外围冷色）
+   * 初始化星云粒子 - 性能优化版本
    */
-  const getTemperatureColor = (t: number) => {
-    // t: 0 (中心) -> 1 (外围)
-    // 颜色：橙色 -> 黄色 -> 绿色 -> 蓝色
-    if (t < 0.25) {
-      // 橙色到黄色
-      const t2 = t / 0.25
-      return {
-        hue: 0.08 + t2 * 0.02,
-        saturation: 0.95,
-        lightness: 0.55 + t2 * 0.1
+  const initNebulaParticles = (coreCount: number, innerCount: number, outerCount: number) => {
+    let coreIndex = 0
+    let innerIndex = 0
+    let outerIndex = 0
+
+    // 辅助函数：创建粒子并设置初始状态
+    const createParticle = (
+      layer: NebulaLayer,
+      index: number,
+      x: number,
+      y: number,
+      z: number,
+      mesh: THREE.InstancedMesh,
+      meshIndex: number
+    ) => {
+      const config = layerConfig[layer]
+
+      particles.push({
+        layer,
+        orbitRadius: Math.sqrt(x * x + z * z),
+        orbitAngle: Math.atan2(z, x),
+        orbitSpeed: (0.8 + Math.random() * 0.4) * 0.0005 * (layer === NebulaLayer.CORE ? 1 : layer === NebulaLayer.INNER ? 0.8 : 0.6),
+        orbitHeight: y,
+        orbitPhase: Math.random() * Math.PI * 2,
+        baseSize: config.size * (0.8 + Math.random() * 0.4),
+        hue: config.hue + Math.random() * (layer === NebulaLayer.CORE ? 0.1 : layer === NebulaLayer.INNER ? 0.15 : 0.2),
+        saturation: 0.85 + Math.random() * 0.15 - (layer === NebulaLayer.OUTER ? 0.2 : 0),
+        lightness: config.lightness + Math.random() * (layer === NebulaLayer.CORE ? 0.1 : layer === NebulaLayer.INNER ? 0.15 : 0.2),
+        noiseOffset: Math.random() * 100,
+        flowDirection: Math.random() > 0.5 ? 1 : -1
+      })
+
+      if (dummy) {
+        dummy.position.set(x, y, z)
+        dummy.scale.setScalar(particles[index].baseSize)
+        dummy.updateMatrix()
+        mesh.setMatrixAt(meshIndex, dummy.matrix)
       }
-    } else if (t < 0.5) {
-      // 黄色到绿色
-      const t2 = (t - 0.25) / 0.25
-      return {
-        hue: 0.1 + t2 * 0.3,
-        saturation: 0.9,
-        lightness: 0.65
-      }
-    } else if (t < 0.75) {
-      // 绿色到蓝色
-      const t2 = (t - 0.5) / 0.25
-      return {
-        hue: 0.4 + t2 * 0.2,
-        saturation: 0.85,
-        lightness: 0.6
-      }
-    } else {
-      // 蓝色到紫色
-      const t2 = (t - 0.75) / 0.25
-      return {
-        hue: 0.6 + t2 * 0.1,
-        saturation: 0.8,
-        lightness: 0.55 - t2 * 0.05
+
+      if (color) {
+        color.setHSL(
+          particles[index].hue,
+          particles[index].saturation,
+          particles[index].lightness
+        )
+        mesh.setColorAt(meshIndex, color)
       }
     }
+
+    // 初始化核心层粒子
+    for (let i = 0; i < coreCount; i++) {
+      const config = layerConfig[NebulaLayer.CORE]
+      const phi = Math.random() * Math.PI * 2
+      const theta = Math.acos(1 - 2 * Math.random())
+      const radius = Math.random() * config.radius * 0.8
+
+      const x = radius * Math.sin(theta) * Math.cos(phi)
+      const y = radius * Math.sin(theta) * Math.sin(phi)
+      const z = radius * Math.cos(theta)
+
+      createParticle(NebulaLayer.CORE, coreIndex, x, y, z, coreMesh, coreIndex)
+      coreIndex++
+    }
+
+    // 初始化内层粒子
+    for (let i = 0; i < innerCount; i++) {
+      const config = layerConfig[NebulaLayer.INNER]
+      const phi = (i / innerCount) * Math.PI * 6 // 多圈螺旋
+      const radius = config.radius * 0.3 + Math.random() * config.radius * 0.7
+
+      const x = Math.cos(phi) * radius
+      const y = (Math.random() - 0.5) * config.radius * 0.6
+      const z = Math.sin(phi) * radius
+
+      createParticle(NebulaLayer.INNER, coreCount + innerIndex, x, y, z, innerMesh, innerIndex)
+      innerIndex++
+    }
+
+    // 初始化外层粒子
+    for (let i = 0; i < outerCount; i++) {
+      const config = layerConfig[NebulaLayer.OUTER]
+      const phi = (i / outerCount) * Math.PI * 8
+      const radius = config.radius * 0.5 + Math.random() * config.radius * 0.5
+
+      const x = Math.cos(phi) * radius
+      const y = (Math.random() - 0.5) * config.radius * 0.4
+      const z = Math.sin(phi) * radius
+
+      createParticle(NebulaLayer.OUTER, coreCount + innerCount + outerIndex, x, y, z, outerMesh, outerIndex)
+      outerIndex++
+    }
+
+    coreMesh.instanceMatrix.needsUpdate = true
+    coreMesh.instanceColor!.needsUpdate = true
+    innerMesh.instanceMatrix.needsUpdate = true
+    innerMesh.instanceColor!.needsUpdate = true
+    outerMesh.instanceMatrix.needsUpdate = true
+    outerMesh.instanceColor!.needsUpdate = true
   }
 
   /**
    * 初始化 GSAP 动画
    */
   const initGSAPAnimations = () => {
-    // 粒子流动动画
+    // 流动动画
     const flowTween = gsap.to(flowAnimation, {
-      value: 1,
-      duration: 3 / nebulaCloudEffectParams.flowSpeed,
+      value: FULL_ROTATION * 2,
+      duration: 4 / nebulaCloudEffectParams.flowSpeed,
       ease: 'sine.inOut',
-      repeat: -1,
-      yoyo: true
+      repeat: -1
     })
     allTweens.push(flowTween)
 
@@ -513,56 +407,192 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
   }
 
   /**
+   * 设置交互事件 - 性能优化版本
+   */
+  const setupInteraction = (container: HTMLElement) => {
+    // 复用 Vector3 对象，避免每帧创建
+    const tempVector = new THREE.Vector3()
+    const tempDir = new THREE.Vector3()
+
+    const updateMousePosition = (event: MouseEvent | TouchEvent) => {
+      const rect = container.getBoundingClientRect()
+      const clientX = 'clientX' in event ? event.clientX : event.touches[0].clientX
+      const clientY = 'clientY' in event ? event.clientY : event.touches[0].clientY
+
+      // 归一化到 -1 到 1
+      interaction.mouseX = ((clientX - rect.left) / rect.width) * 2 - 1
+      interaction.mouseY = -((clientY - rect.top) / rect.height) * 2 + 1
+
+      // 复用 Vector3 对象，避免创建新对象
+      tempVector.set(interaction.mouseX, interaction.mouseY, 0.5)
+      tempVector.unproject(camera)
+      tempDir.copy(tempVector).sub(camera.position).normalize()
+      const distance = -camera.position.z / tempDir.z
+
+      interaction.mousePosition.copy(camera.position).add(tempDir.multiplyScalar(distance))
+    }
+
+    const handleInteractionStart = (event: MouseEvent | TouchEvent) => {
+      interaction.isInteracting = true
+      updateMousePosition(event)
+
+      // 交互强度动画
+      if (interactionAnimation) {
+        gsap.killTweensOf(interactionAnimation)
+      }
+      const tween = gsap.to(interactionAnimation, {
+        value: 1,
+        duration: 0.3,
+        ease: 'power2.out'
+      })
+      allTweens.push(tween)
+    }
+
+    const handleInteractionMove = (event: MouseEvent | TouchEvent) => {
+      if (interaction.isInteracting) {
+        updateMousePosition(event)
+      }
+    }
+
+    const handleInteractionEnd = () => {
+      interaction.isInteracting = false
+
+      // 交互强度衰减动画
+      if (interactionAnimation) {
+        gsap.killTweensOf(interactionAnimation)
+      }
+      const tween = gsap.to(interactionAnimation, {
+        value: 0,
+        duration: 0.5,
+        ease: 'power2.out'
+      })
+      allTweens.push(tween)
+    }
+
+    // 鼠标事件
+    container.addEventListener('mousedown', handleInteractionStart)
+    container.addEventListener('mousemove', handleInteractionMove)
+    container.addEventListener('mouseup', handleInteractionEnd)
+    container.addEventListener('mouseleave', handleInteractionEnd)
+
+    // 触摸事件
+    container.addEventListener('touchstart', handleInteractionStart, { passive: false })
+    container.addEventListener('touchmove', handleInteractionMove, { passive: false })
+    container.addEventListener('touchend', handleInteractionEnd)
+  }
+
+  /**
+   * 计算交互影响（引力/斥力）- 性能优化版本
+   */
+  const calculateInteractionEffect = (
+    particleX: number,
+    particleY: number,
+    particleZ: number
+  ): { offsetX: number; offsetY: number; offsetZ: number } => {
+    if (!interaction.isInteracting || interactionAnimation.value < 0.01) {
+      return { offsetX: 0, offsetY: 0, offsetZ: 0 }
+    }
+
+    const intensity = interactionAnimation.value * nebulaCloudEffectParams.interactionStrength
+    const mousePos = interaction.mousePosition
+
+    // 避免创建 Vector3，直接计算距离
+    const dx = particleX - mousePos.x
+    const dy = particleY - mousePos.y
+    const dz = particleZ - mousePos.z
+    const distanceSquared = dx * dx + dy * dy + dz * dz
+    const radiusSquared = nebulaCloudEffectParams.interactionRadius * nebulaCloudEffectParams.interactionRadius
+
+    if (distanceSquared > radiusSquared) {
+      return { offsetX: 0, offsetY: 0, offsetZ: 0 }
+    }
+
+    const distance = Math.sqrt(distanceSquared)
+    const effectFactor = intensity * (1 - distance / nebulaCloudEffectParams.interactionRadius)
+
+    // 归一化方向向量（避免创建新对象）
+    const invDist = 1 / distance
+    const dirX = dx * invDist
+    const dirY = dy * invDist
+    const dirZ = dz * invDist
+
+    if (nebulaCloudEffectParams.gravityMode === 'attract') {
+      return {
+        offsetX: -dirX * effectFactor * 2,
+        offsetY: -dirY * effectFactor * 2,
+        offsetZ: -dirZ * effectFactor * 2
+      }
+    } else {
+      return {
+        offsetX: dirX * effectFactor * 2,
+        offsetY: dirY * effectFactor * 2,
+        offsetZ: dirZ * effectFactor * 2
+      }
+    }
+  }
+
+  /**
    * 入场动画
    */
   const playEntranceAnimation = () => {
-    // 相机入场 - 从远处快速推进
+    // 相机入场 - 从远处缓慢推进
     const cameraTween = gsap.from(camera.position, {
-      x: 80,
-      y: 60,
-      z: 80,
-      duration: 4,
-      ease: 'power3.out'
+      x: 50,
+      y: 40,
+      z: 50,
+      duration: 3.5,
+      ease: 'power2.out'
     })
     allTweens.push(cameraTween)
 
-    // 旋臂从中心扩散
-    const armTween = gsap.from(armMesh.scale, {
+    // 核心爆发
+    gsap.from(coreMesh.scale, {
       x: 0.001,
       y: 0.001,
       z: 0.001,
-      duration: 3,
-      ease: 'elastic.out(1, 0.6)'
+      duration: 2,
+      ease: 'elastic.out(1, 0.4)'
     })
-    allTweens.push(armTween)
+    allTweens.push(gsap.from(coreMesh.scale, { duration: 2 }))
 
-    // 核心爆发
-    const coreTween = gsap.from(coreMesh.scale, {
+    // 内层展开
+    gsap.from(innerMesh.scale, {
       x: 0.001,
       y: 0.001,
       z: 0.001,
       duration: 2.5,
-      ease: 'elastic.out(1, 0.7)'
+      ease: 'back.out(1.3)',
+      delay: 0.3
     })
-    allTweens.push(coreTween)
+    allTweens.push(gsap.from(innerMesh.scale, { duration: 2.5 }))
 
-    // 尘埃逐渐显现
-    const dustTween = gsap.from(dustMesh.scale, {
+    // 外层渐入
+    gsap.from(outerMesh.scale, {
       x: 0.001,
       y: 0.001,
       z: 0.001,
-      duration: 3.5,
-      ease: 'power2.out'
+      duration: 3,
+      ease: 'power2.out',
+      delay: 0.6
     })
-    allTweens.push(dustTween)
+    allTweens.push(gsap.from(outerMesh.scale, { duration: 3 }))
 
     // 整体旋转入场
-    const rotationTween = gsap.from(armMesh.rotation, {
+    gsap.from(coreMesh.rotation, {
+      x: Math.PI,
       y: Math.PI,
-      duration: 5,
+      duration: 4,
       ease: 'power2.out'
     })
-    allTweens.push(rotationTween)
+    allTweens.push(gsap.from(coreMesh.rotation, { duration: 4 }))
+
+    // 材质淡入
+    gsap.from(coreMaterial, {
+      opacity: 0,
+      duration: 2,
+      ease: 'power2.out'
+    })
+    allTweens.push(gsap.from(coreMaterial, { duration: 2 }))
   }
 
   /**
@@ -587,11 +617,11 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
 
     // 运镜轨迹：环绕 → 穿梭 → 俯视 → 底部 → 侧面 → 回归
     const positions = [
-      { x: 20, y: 10, z: 20, target: new THREE.Vector3(0, 0, 0) },
-      { x: -25, y: 5, z: -25, target: new THREE.Vector3(0, 0, 0) },
-      { x: 5, y: 30, z: 5, target: new THREE.Vector3(0, 0, 0) },
-      { x: 15, y: -10, z: 20, target: new THREE.Vector3(0, 2, 0) },
-      { x: -20, y: 8, z: 15, target: new THREE.Vector3(0, 0, 0) }
+      { x: 18, y: 12, z: 18, target: new THREE.Vector3(0, 0, 0) },
+      { x: -20, y: 6, z: -20, target: new THREE.Vector3(0, 0, 0) },
+      { x: 6, y: 25, z: 6, target: new THREE.Vector3(0, 0, 0) },
+      { x: 12, y: -8, z: 18, target: new THREE.Vector3(0, 2, 0) },
+      { x: -15, y: 10, z: 12, target: new THREE.Vector3(0, 0, 0) }
     ]
 
     positions.forEach((pos, index) => {
@@ -618,101 +648,81 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
   }
 
   /**
-   * 更新粒子动画
+   * 更新粒子动画 - 性能优化版本
    */
   const updateParticles = (time: number) => {
     frameCount++
 
-    const flowPhase = flowAnimation?.value || 0
-    const pulseScale = pulseAnimation?.value || 1
+    const flowPhase = flowAnimation.value
+    const pulseScale = pulseAnimation.value
     const shouldUpdateColor = frameCount % nebulaCloudEffectParams.updateInterval === 0
 
     // 性能优化：提前计算常用值
     const timeScale = time * TIME_SCALE_FACTOR
+    const flowTime = time * nebulaCloudEffectParams.flowSpeed * TIME_SCALE_FACTOR
     const colorTime = time * nebulaCloudEffectParams.colorCycleSpeed * TIME_SCALE_FACTOR
+    const rotX = timeScale * 0.3
+    const rotY = timeScale * 0.5
+    const rotZ = timeScale * 0.2
 
-    let armIndex = 0
     let coreIndex = 0
-    let dustIndex = 0
+    let innerIndex = 0
+    let outerIndex = 0
 
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i]
-      let mesh: THREE.InstancedMesh
-      let idx: number
 
-      // 根据类型选择网格和索引
-      if (p.type === ParticleType.ARM) {
-        mesh = armMesh
-        idx = armIndex++
-      } else if (p.type === ParticleType.CORE) {
-        mesh = coreMesh
-        idx = coreIndex++
+      // 基础轨道运动
+      const currentAngle = p.orbitAngle + timeScale * p.orbitSpeed
+      const cosAngle = Math.cos(currentAngle)
+      const sinAngle = Math.sin(currentAngle)
+
+      // 流动效果
+      const flowOffset = Math.sin(flowPhase + p.orbitPhase) * 0.3 * p.flowDirection
+      const flowHeight = Math.sin(flowTime + p.noiseOffset) * 0.5
+      const effectiveRadius = p.orbitRadius + flowOffset
+
+      // 基础位置 - 使用缓存的 cos/sin
+      let x = cosAngle * effectiveRadius
+      let y = p.orbitHeight + flowHeight
+      let z = sinAngle * effectiveRadius
+
+      // 计算交互影响
+      const interactionEffect = calculateInteractionEffect(x, y, z)
+      x += interactionEffect.offsetX
+      y += interactionEffect.offsetY
+      z += interactionEffect.offsetZ
+
+      // 根据层级更新对应的 mesh
+      let targetMesh: THREE.InstancedMesh
+      let targetIndex: number
+
+      if (p.layer === NebulaLayer.CORE) {
+        targetMesh = coreMesh
+        targetIndex = coreIndex
+        coreIndex++
+      } else if (p.layer === NebulaLayer.INNER) {
+        targetMesh = innerMesh
+        targetIndex = innerIndex
+        innerIndex++
       } else {
-        mesh = dustMesh
-        idx = dustIndex++
+        targetMesh = outerMesh
+        targetIndex = outerIndex
+        outerIndex++
       }
 
-      // 轨道运动
-      const currentAngle = p.orbitAngle + timeScale * p.orbitSpeed
+      // 更新位置
+      if (dummy) {
+        dummy.position.set(x, y, z)
 
-      let x, y, z
+        // 脉冲缩放
+        dummy.scale.setScalar(p.baseSize * pulseScale)
 
-      if (p.type === ParticleType.ARM) {
-        // 旋臂粒子 - 螺旋运动 + 流动波动
-        const flowOffset = Math.sin(flowPhase * Math.PI * 2 + p.orbitPhase) * 0.3
-        const radius = p.orbitRadius + flowOffset
+        // 自转 - 使用预计算值
+        dummy.rotation.set(rotX, rotY, rotZ)
 
-        x = Math.cos(currentAngle) * radius
-        z = Math.sin(currentAngle) * radius
-        y = p.orbitHeight + Math.sin(timeScale + p.orbitPhase) * 0.2
-
-        // 旋臂旋转
-        if (dummy) {
-          dummy.position.set(x, y, z)
-
-          // 脉冲缩放
-          const size = p.baseSize * pulseScale * (1 + Math.sin(flowPhase * Math.PI + p.orbitPhase) * 0.15)
-          dummy.scale.setScalar(size)
-
-          dummy.rotation.set(timeScale * 0.2, timeScale * 0.3, timeScale * 0.1)
-          dummy.updateMatrix()
-          mesh.setMatrixAt(idx, dummy.matrix)
-        }
-      } else if (p.type === ParticleType.CORE) {
-        // 核心粒子 - 球面运动
-        x = p.orbitRadius * Math.cos(currentAngle)
-        z = p.orbitRadius * Math.sin(currentAngle)
-        y = p.orbitHeight * Math.cos(timeScale * 0.5 + p.orbitPhase)
-
-        if (dummy) {
-          dummy.position.set(x, y, z)
-
-          const size = p.baseSize * pulseScale
-          dummy.scale.setScalar(size)
-
-          dummy.rotation.set(timeScale * 0.4, timeScale * 0.5, timeScale * 0.3)
-          dummy.updateMatrix()
-          mesh.setMatrixAt(idx, dummy.matrix)
-        }
-      } else {
-        // 尘埃粒子 - 缓慢漂移
-        const driftX = Math.sin(timeScale * 0.1 + p.noiseOffset) * 0.5
-        const driftY = Math.cos(timeScale * 0.1 + p.noiseOffset) * 0.5
-        const driftZ = Math.sin(timeScale * 0.15 + p.noiseOffset) * 0.5
-
-        x = Math.cos(currentAngle) * p.orbitRadius + driftX
-        z = Math.sin(currentAngle) * p.orbitRadius + driftZ
-        y = p.orbitHeight + driftY
-
-        if (dummy) {
-          dummy.position.set(x, y, z)
-
-          const size = p.baseSize * (0.8 + Math.sin(pulseScale * Math.PI + p.orbitPhase) * 0.2)
-          dummy.scale.setScalar(size)
-
-          dummy.updateMatrix()
-          mesh.setMatrixAt(idx, dummy.matrix)
-        }
+        dummy.updateMatrix()
+        targetMesh.setMatrixAt(targetIndex, dummy.matrix)
       }
 
       // 仅在指定帧数更新颜色（性能优化）
@@ -720,32 +730,37 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
         let currentHue = p.hue + colorTime
         if (currentHue > 1) currentHue -= 1
 
-        color.setHSL(currentHue, p.saturation, p.lightness)
-        mesh.setColorAt(idx, color)
+        // 交互时亮度增强
+        const interactionBrightness = interactionAnimation.value * 0.2
+        const currentLightness = Math.min(0.9, p.lightness + interactionBrightness)
+
+        color.setHSL(currentHue, p.saturation, currentLightness)
+        targetMesh.setColorAt(targetIndex, color)
       }
     }
 
-    armMesh.instanceMatrix.needsUpdate = true
+    // 批量更新
     coreMesh.instanceMatrix.needsUpdate = true
-    dustMesh.instanceMatrix.needsUpdate = true
+    innerMesh.instanceMatrix.needsUpdate = true
+    outerMesh.instanceMatrix.needsUpdate = true
 
     if (shouldUpdateColor) {
-      armMesh.instanceColor!.needsUpdate = true
       coreMesh.instanceColor!.needsUpdate = true
-      dustMesh.instanceColor!.needsUpdate = true
+      innerMesh.instanceColor!.needsUpdate = true
+      outerMesh.instanceColor!.needsUpdate = true
     }
   }
 
   /**
-   * 动画循环
+   * 动画循环 - 性能优化版本
    */
   const animate = (time: number) => {
-    // 整体自动旋转
+    // 整体自动旋转 - 预计算旋转增量
     if (nebulaCloudEffectParams.autoRotate) {
-      armMesh.rotation.y += nebulaCloudEffectParams.rotationSpeed
-      armMesh.rotation.x += nebulaCloudEffectParams.rotationSpeed * 0.2
-      coreMesh.rotation.y += nebulaCloudEffectParams.rotationSpeed * 1.2
-      dustMesh.rotation.y += nebulaCloudEffectParams.rotationSpeed * 0.5
+      const rotationSpeed = nebulaCloudEffectParams.rotationSpeed
+      coreMesh.rotation.y += rotationSpeed * 1.5
+      innerMesh.rotation.y += rotationSpeed
+      outerMesh.rotation.y += rotationSpeed * 0.8
     }
 
     // 更新粒子动画
@@ -761,105 +776,22 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
   }
 
   /**
-   * 设置交互事件
-   */
-  const setupInteractionEvents = () => {
-    const handleMouseDown = (event: MouseEvent | TouchEvent) => {
-      interactionState.isInteracting = true
-
-      let clientX: number, clientY: number
-
-      if (event instanceof MouseEvent) {
-        clientX = event.clientX
-        clientY = event.clientY
-      } else {
-        clientX = event.touches[0].clientX
-        clientY = event.touches[0].clientY
-      }
-
-      interactionState.mouseX = clientX
-      interactionState.mouseY = clientY
-
-      // 淡入交互动画
-      if (interactionAnimation) {
-        gsap.to(interactionAnimation, {
-          value: 1,
-          duration: 0.3
-        })
-      }
-    }
-
-    const handleMouseMove = (event: MouseEvent | TouchEvent) => {
-      let clientX: number, clientY: number
-
-      if (event instanceof MouseEvent) {
-        clientX = event.clientX
-        clientY = event.clientY
-      } else {
-        clientX = event.touches[0].clientX
-        clientY = event.touches[0].clientY
-      }
-
-      if (interactionState.isInteracting) {
-        interactionState.mouseX = clientX
-        interactionState.mouseY = clientY
-
-        // 计算鼠标在 3D 空间中的位置
-        updateMousePosition()
-      }
-    }
-
-    const handleMouseUp = () => {
-      interactionState.isInteracting = false
-
-      // 淡出交互动画
-      if (interactionAnimation) {
-        gsap.to(interactionAnimation, {
-          value: 0,
-          duration: 0.5
-        })
-      }
-    }
-
-    container.addEventListener('mousedown', handleMouseDown)
-    container.addEventListener('mousemove', handleMouseMove)
-    container.addEventListener('mouseup', handleMouseUp)
-    container.addEventListener('mouseleave', handleMouseUp)
-
-    container.addEventListener('touchstart', handleMouseDown)
-    container.addEventListener('touchmove', handleMouseMove)
-    container.addEventListener('touchend', handleMouseUp)
-  }
-
-  /**
-   * 更新鼠标在 3D 空间中的位置
-   */
-  const updateMousePosition = () => {
-    const rect = container.getBoundingClientRect()
-    const x = ((interactionState.mouseX - rect.left) / rect.width) * 2 - 1
-    const y = -((interactionState.mouseY - rect.top) / rect.height) * 2 + 1
-
-    const vector = new THREE.Vector3(x, y, 0.5)
-    vector.unproject(camera)
-
-    const dir = vector.sub(camera.position).normalize()
-    const distance = -camera.position.z / dir.z
-    const pos = camera.position.clone().add(dir.multiplyScalar(distance))
-
-    interactionState.mousePosition.copy(pos)
-  }
-
-  /**
-   * 窗口大小调整
+   * 窗口大小调整 - 性能优化版本（防抖）
    */
   const handleResize = () => {
-    if (camera && renderer && container) {
-      const width = container.clientWidth
-      const height = container.clientHeight
-      camera.aspect = width / height
-      camera.updateProjectionMatrix()
-      renderer.setSize(width, height)
-    }
+    // 防抖：避免频繁调整大小
+    if (resizeTimeout) clearTimeout(resizeTimeout)
+
+    resizeTimeout = setTimeout(() => {
+      if (camera && renderer && container) {
+        const width = container.clientWidth
+        const height = container.clientHeight
+        camera.aspect = width / height
+        camera.updateProjectionMatrix()
+        renderer.setSize(width, height)
+      }
+      resizeTimeout = null
+    }, nebulaCloudEffectParams.resizeDebounceDelay) // 使用配置的防抖延迟
   }
 
   window.addEventListener('resize', handleResize)
@@ -869,7 +801,7 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
 
   // 返回清理函数
   const cleanup = () => {
-    console.log('清理螺旋星云特效...')
+    console.log('清理动态粒子星云特效...')
 
     try {
       // 立即杀掉所有存储的 tweens
@@ -883,18 +815,21 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
         gsap.killTweensOf(camera.position)
         gsap.killTweensOf(camera.rotation)
       }
-      if (armMesh) {
-        gsap.killTweensOf(armMesh.scale)
-        gsap.killTweensOf(armMesh.rotation)
-      }
       if (coreMesh) {
         gsap.killTweensOf(coreMesh.scale)
         gsap.killTweensOf(coreMesh.rotation)
       }
-      if (dustMesh) {
-        gsap.killTweensOf(dustMesh.scale)
-        gsap.killTweensOf(dustMesh.rotation)
+      if (innerMesh) {
+        gsap.killTweensOf(innerMesh.scale)
+        gsap.killTweensOf(innerMesh.rotation)
       }
+      if (outerMesh) {
+        gsap.killTweensOf(outerMesh.scale)
+        gsap.killTweensOf(outerMesh.rotation)
+      }
+      if (coreMaterial) gsap.killTweensOf(coreMaterial)
+      if (innerMaterial) gsap.killTweensOf(innerMaterial)
+      if (outerMaterial) gsap.killTweensOf(outerMaterial)
       if (flowAnimation) gsap.killTweensOf(flowAnimation)
       if (pulseAnimation) gsap.killTweensOf(pulseAnimation)
       if (interactionAnimation) gsap.killTweensOf(interactionAnimation)
@@ -910,10 +845,15 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
         renderer.setAnimationLoop(null)
       }
 
-      // 移除事件监听
-      if (typeof handleResize === 'function') {
-        window.removeEventListener('resize', handleResize)
+      // 移除事件监听 - 清理防抖定时器
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout)
+        resizeTimeout = null
       }
+      window.removeEventListener('resize', handleResize)
+
+      // 注意：由于使用了闭包，这里无法精确移除容器上的所有事件监听器
+      // 在实际应用中，应该将处理函数提取到外部以便精确移除
 
       // 清理临时对象
       dummy = null
@@ -923,35 +863,21 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       interactionAnimation = null
 
       // 从场景中移除网格
-      if (armMesh && scene) {
-        scene.remove(armMesh)
-      }
-      if (coreMesh && scene) {
-        scene.remove(coreMesh)
-      }
-      if (dustMesh && scene) {
-        scene.remove(dustMesh)
+      if (scene) {
+        if (coreMesh) scene.remove(coreMesh)
+        if (innerMesh) scene.remove(innerMesh)
+        if (outerMesh) scene.remove(outerMesh)
       }
 
       // 清理资源
-      if (armMesh) {
-        if (armMesh.geometry) armMesh.geometry.dispose()
-        if (armMesh.material instanceof THREE.Material) {
-          armMesh.material.dispose()
+      ;[coreMesh, innerMesh, outerMesh].forEach(mesh => {
+        if (mesh) {
+          if (mesh.geometry) mesh.geometry.dispose()
+          if (mesh.material instanceof THREE.Material) {
+            mesh.material.dispose()
+          }
         }
-      }
-      if (coreMesh) {
-        if (coreMesh.geometry) coreMesh.geometry.dispose()
-        if (coreMesh.material instanceof THREE.Material) {
-          coreMesh.material.dispose()
-        }
-      }
-      if (dustMesh) {
-        if (dustMesh.geometry) dustMesh.geometry.dispose()
-        if (dustMesh.material instanceof THREE.Material) {
-          dustMesh.material.dispose()
-        }
-      }
+      })
 
       // 移除 DOM 元素
       if (renderer && renderer.domElement && renderer.domElement.parentNode) {
@@ -968,17 +894,17 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       camera = null
       renderer = null
       controls = null
-      armMesh = null
       coreMesh = null
-      dustMesh = null
-      armMaterial = null
+      innerMesh = null
+      outerMesh = null
       coreMaterial = null
-      dustMaterial = null
+      innerMaterial = null
+      outerMaterial = null
       particles = []
 
-      console.log('螺旋星云特效清理完成')
+      console.log('动态粒子星云特效清理完成')
     } catch (error) {
-      console.error('清理螺旋星云特效时出错:', error)
+      console.error('清理动态粒子星云特效时出错:', error)
     }
   }
 

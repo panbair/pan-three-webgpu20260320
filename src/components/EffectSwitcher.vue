@@ -74,7 +74,7 @@ const handleSwitch = (effectId: string) => {
   font-size: 14px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(9, 141, 137, 0.62);
   text-align: center;
   letter-spacing: 0.5px;
 }
