@@ -7,7 +7,9 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    AutoCameraToggle: typeof import('./../components/AutoCameraToggle.vue')['default']
     DebugPanorama: typeof import('./../components/DebugPanorama.vue')['default']
+    EffectSwitcher: typeof import('./../components/EffectSwitcher.vue')['default']
     ElAvatar: typeof import('element-plus/es')['ElAvatar']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElCard: typeof import('element-plus/es')['ElCard']
@@ -33,5 +35,6 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SimplePanorama: typeof import('./../components/SimplePanorama.vue')['default']
+    WebGPUNotSupported: typeof import('./../components/WebGPUNotSupported.vue')['default']
   }
 }

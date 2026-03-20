@@ -7,25 +7,28 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import gsap from 'gsap'
 
+// 性能优化常量
+const TIME_SCALE_FACTOR = 0.001
+const FULL_ROTATION = Math.PI * 2
+
 // 配置参数
 export const galaxyVortexEffectParams = {
-  armCount: 5,                  // 星系臂数量
-  particlesPerArm: 200,         // 每臂粒子数
-  coreParticles: 150,           // 核心粒子数
-  haloParticles: 100,           // 光晕粒子数
-  alpha: 0.85,                  // 透明度
-  alphaHash: true,              // 是否启用 alphaHash
-  rotationSpeed: 0.0003,        // 整体旋转速度
-  autoRotate: true,             // 是否自动旋转
-  colorShiftSpeed: 0.00015,     // 颜色变化速度
-  vortexStrength: 0.8,          // 漩涡强度
-  particleSize: 0.15,           // 粒子大小
-  coreGlowSpeed: 2.0,           // 核心光晕速度
-  armSpread: 0.6,               // 臂扩展度
-  armTwist: 3.5,                // 臂扭曲度
-  pulseIntensity: 0.3,         // 脉冲强度
-  pulseSpeed: 1.8,              // 脉冲速度
-  updateInterval: 4             // 颜色更新间隔帧数（优化性能）
+  armCount: 8, // 星系臂数量
+  particlesPerArm: 300, // 每臂粒子数
+  coreParticles: 250, // 核心粒子数
+  haloParticles: 200, // 光晕粒子数
+  alpha: 0.85, // 透明度
+  alphaHash: true, // 是否启用 alphaHash
+  rotationSpeed: 0.0003, // 整体旋转速度
+  autoRotate: true, // 是否自动旋转
+  colorShiftSpeed: 0.00015, // 颜色变化速度
+  particleSize: 0.15, // 粒子大小
+  coreGlowSpeed: 2.0, // 核心光晕速度
+  armSpread: 0.6, // 臂扩展度
+  armTwist: 3.5, // 臂扭曲度
+  pulseIntensity: 0.3, // 脉冲强度
+  pulseSpeed: 1.8, // 脉冲速度
+  updateInterval: 4 // 颜色更新间隔帧数（优化性能）
 }
 
 // 渲染器类型
@@ -33,15 +36,14 @@ type WebGPURendererType = InstanceType<typeof THREE.WebGPURenderer>
 
 // 粒子类型
 enum ParticleType {
-  ARM = 'arm',           // 星系臂粒子
-  CORE = 'core',         // 核心粒子
-  HALO = 'halo'          // 光晕粒子
+  ARM = 'arm', // 星系臂粒子
+  CORE = 'core', // 核心粒子
+  HALO = 'halo' // 光晕粒子
 }
 
 // 粒子数据
 interface ParticleData {
   type: ParticleType
-  initialPosition: THREE.Vector3
   orbitRadius: number
   orbitAngle: number
   orbitSpeed: number
@@ -51,9 +53,6 @@ interface ParticleData {
   hue: number
   saturation: number
   lightness: number
-  armIndex: number
-  armProgress: number
-  verticalOffset: number
 }
 
 /**
@@ -75,13 +74,30 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
   let haloMaterial: THREE.MeshStandardMaterial
   let particles: ParticleData[] = []
 
-  const dummy = new THREE.Object3D()
-  const color = new THREE.Color()
-  const tempColor = new THREE.Color()
+  let dummy: THREE.Object3D | null = new THREE.Object3D()
+  let color: THREE.Color | null = new THREE.Color()
 
   // GSAP 动画对象
-  let pulseAnimation: { value: number } = { value: 0 }
-  let coreGlowAnimation: { value: number } = { value: 0 }
+  let pulseAnimation: { value: number } | null = { value: 0 }
+  let coreGlowAnimation: { value: number } | null = { value: 0 }
+
+  // 电影级运镜相关变量
+  let cameraTimeline: gsap.core.Timeline | null = null
+
+  // 存储所有 GSAP tweens，用于清理
+  const allTweens: gsap.core.Tween[] = []
+  const entranceCameraPositions = [
+    // 入场镜头1: 极远距离仰望 - 宇宙尺度
+    { position: new THREE.Vector3(80, 60, 80), target: new THREE.Vector3(0, 0, 0) },
+    // 入场镜头2: 快速俯冲 - 冲击感
+    { position: new THREE.Vector3(30, 25, 30), target: new THREE.Vector3(0, 0, 0) },
+    // 入场镜头3: 侧面环绕 - 展示漩涡结构
+    { position: new THREE.Vector3(20, 8, -20), target: new THREE.Vector3(0, 0, 0) },
+    // 入场镜头4: 核心仰望 - 戏剧性
+    { position: new THREE.Vector3(5, 3, 15), target: new THREE.Vector3(0, 5, 0) },
+    // 入场镜头5: 最终位置 - 经典视角
+    { position: new THREE.Vector3(15, 12, 15), target: new THREE.Vector3(0, 0, 0) }
+  ]
 
   /**
    * 初始化场景
@@ -101,8 +117,16 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
 
       // 创建三种几何体
       const armGeometry = new THREE.SphereGeometry(galaxyVortexEffectParams.particleSize, 12, 8)
-      const coreGeometry = new THREE.SphereGeometry(galaxyVortexEffectParams.particleSize * 1.5, 16, 12)
-      const haloGeometry = new THREE.SphereGeometry(galaxyVortexEffectParams.particleSize * 2, 12, 8)
+      const coreGeometry = new THREE.SphereGeometry(
+        galaxyVortexEffectParams.particleSize * 1.5,
+        16,
+        12
+      )
+      const haloGeometry = new THREE.SphereGeometry(
+        galaxyVortexEffectParams.particleSize * 2,
+        12,
+        8
+      )
 
       // 创建三种材质
       armMaterial = new THREE.MeshStandardMaterial({
@@ -156,11 +180,11 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
 
       // 创建 WebGPU 渲染器
       renderer = new THREE.WebGPURenderer({
-        antialias: false,  // 禁用原生抗锯齿，使用SSAA代替
+        antialias: false,
         alpha: true,
-        samples: 1  // 固定采样数为1
+        samples: 1
       })
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0))  // 降低像素比以提升性能
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)) // 降低像素比以提升性能
       renderer.setSize(width, height)
       renderer.setAnimationLoop(animate)
       container.appendChild(renderer.domElement)
@@ -191,7 +215,6 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
       playEntranceAnimation()
 
       console.log('星系漩涡特效初始化完成')
-
     } catch (error) {
       console.error('星系漩涡特效初始化失败:', error)
     }
@@ -211,7 +234,7 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
 
       for (let i = 0; i < galaxyVortexEffectParams.particlesPerArm; i++) {
         const progress = i / galaxyVortexEffectParams.particlesPerArm
-        const radius = 1 + progress * 9  // 半径从 1 到 10
+        const radius = 1 + progress * 9 // 半径从 1 到 10
 
         // 漩涡扭曲
         const twistAngle = progress * galaxyVortexEffectParams.armTwist
@@ -228,7 +251,6 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
 
         particles.push({
           type: ParticleType.ARM,
-          initialPosition: new THREE.Vector3(x, y, z),
           orbitRadius: radius,
           orbitAngle: totalAngle + noiseAngle,
           orbitSpeed: (0.5 + progress * 0.5) * 0.0003,
@@ -237,20 +259,25 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
           baseSize: 0.3 + progress * 0.7 + Math.random() * 0.3,
           hue: (progress * 0.4 + arm * 0.1 + Math.random() * 0.05) % 1,
           saturation: 0.8 + Math.random() * 0.2,
-          lightness: 0.55 + Math.random() * 0.15,
-          armIndex: arm,
-          armProgress: progress,
-          verticalOffset: y
+          lightness: 0.55 + Math.random() * 0.15
         })
 
         // 设置臂粒子
-        dummy.position.set(x, y, z)
-        dummy.scale.setScalar(particles[armIndex].baseSize)
-        dummy.updateMatrix()
-        armMesh.setMatrixAt(armIndex, dummy.matrix)
+        if (dummy) {
+          dummy.position.set(x, y, z)
+          dummy.scale.setScalar(particles[armIndex].baseSize)
+          dummy.updateMatrix()
+          armMesh.setMatrixAt(armIndex, dummy.matrix)
+        }
 
-        color.setHSL(particles[armIndex].hue, particles[armIndex].saturation, particles[armIndex].lightness)
-        armMesh.setColorAt(armIndex, color)
+        if (color) {
+          color.setHSL(
+            particles[armIndex].hue,
+            particles[armIndex].saturation,
+            particles[armIndex].lightness
+          )
+          armMesh.setColorAt(armIndex, color)
+        }
 
         armIndex++
       }
@@ -268,28 +295,32 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
 
       particles.push({
         type: ParticleType.CORE,
-        initialPosition: new THREE.Vector3(x, y, z),
         orbitRadius: radius,
         orbitAngle: theta,
         orbitSpeed: 0.001 + Math.random() * 0.002,
         orbitHeight: y,
         orbitPhase: Math.random() * Math.PI * 2,
         baseSize: 0.8 + Math.random() * 1.5,
-        hue: 0.08 + Math.random() * 0.12,  // 金黄色
+        hue: 0.08 + Math.random() * 0.12,
         saturation: 0.9 + Math.random() * 0.1,
-        lightness: 0.6 + Math.random() * 0.2,
-        armIndex: -1,
-        armProgress: 0,
-        verticalOffset: y
+        lightness: 0.6 + Math.random() * 0.2
       })
 
-      dummy.position.set(x, y, z)
-      dummy.scale.setScalar(particles[armIndex].baseSize)
-      dummy.updateMatrix()
-      coreMesh.setMatrixAt(coreIndex, dummy.matrix)
+      if (dummy) {
+        dummy.position.set(x, y, z)
+        dummy.scale.setScalar(particles[armCount + coreIndex].baseSize)
+        dummy.updateMatrix()
+        coreMesh.setMatrixAt(coreIndex, dummy.matrix)
+      }
 
-      color.setHSL(particles[armIndex].hue, particles[armIndex].saturation, particles[armIndex].lightness)
-      coreMesh.setColorAt(coreIndex, color)
+      if (color) {
+        color.setHSL(
+          particles[armCount + coreIndex].hue,
+          particles[armCount + coreIndex].saturation,
+          particles[armCount + coreIndex].lightness
+        )
+        coreMesh.setColorAt(coreIndex, color)
+      }
 
       coreIndex++
     }
@@ -301,33 +332,37 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
       const radius = 10 + Math.random() * 5
 
       const x = radius * Math.sin(phi) * Math.cos(theta)
-      const y = radius * Math.sin(phi) * Math.sin(theta) * 0.3  // 压扁
+      const y = radius * Math.sin(phi) * Math.sin(theta) * 0.3 // 压扁
       const z = radius * Math.cos(phi)
 
       particles.push({
         type: ParticleType.HALO,
-        initialPosition: new THREE.Vector3(x, y, z),
         orbitRadius: radius,
         orbitAngle: theta,
         orbitSpeed: 0.0001 + Math.random() * 0.0002,
         orbitHeight: y,
         orbitPhase: Math.random() * Math.PI * 2,
         baseSize: 2 + Math.random() * 2,
-        hue: 0.5 + Math.random() * 0.2,  // 青蓝色
+        hue: 0.5 + Math.random() * 0.2,
         saturation: 0.6 + Math.random() * 0.3,
-        lightness: 0.4 + Math.random() * 0.2,
-        armIndex: -1,
-        armProgress: 0,
-        verticalOffset: y
+        lightness: 0.4 + Math.random() * 0.2
       })
 
-      dummy.position.set(x, y, z)
-      dummy.scale.setScalar(particles[armIndex].baseSize)
-      dummy.updateMatrix()
-      haloMesh.setMatrixAt(haloIndex, dummy.matrix)
+      if (dummy) {
+        dummy.position.set(x, y, z)
+        dummy.scale.setScalar(particles[armCount + coreCount + haloIndex].baseSize)
+        dummy.updateMatrix()
+        haloMesh.setMatrixAt(haloIndex, dummy.matrix)
+      }
 
-      color.setHSL(particles[armIndex].hue, particles[armIndex].saturation, particles[armIndex].lightness)
-      haloMesh.setColorAt(haloIndex, color)
+      if (color) {
+        color.setHSL(
+          particles[armCount + coreCount + haloIndex].hue,
+          particles[armCount + coreCount + haloIndex].saturation,
+          particles[armCount + coreCount + haloIndex].lightness
+        )
+        haloMesh.setColorAt(haloIndex, color)
+      }
 
       haloIndex++
     }
@@ -345,35 +380,31 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
    */
   const initGSAPAnimations = () => {
     // 脉冲动画
-    gsap.to(pulseAnimation, {
-      value: Math.PI * 2,
+    const pulseTween = gsap.to(pulseAnimation, {
+      value: FULL_ROTATION,
       duration: 2 / galaxyVortexEffectParams.pulseSpeed,
       ease: 'sine.inOut',
       repeat: -1
     })
+    allTweens.push(pulseTween)
 
     // 核心光晕动画
-    gsap.to(coreGlowAnimation, {
+    const coreGlowTween = gsap.to(coreGlowAnimation, {
       value: 1,
       duration: 1 / galaxyVortexEffectParams.coreGlowSpeed,
       ease: 'sine.inOut',
       repeat: -1,
       yoyo: true
     })
+    allTweens.push(coreGlowTween)
   }
 
   /**
    * 入场动画
    */
   const playEntranceAnimation = () => {
-    // 相机入场
-    gsap.from(camera.position, {
-      x: 25,
-      y: 20,
-      z: 25,
-      duration: 3,
-      ease: 'power2.out'
-    })
+    // 电影级震撼运镜
+    playCameraEntranceAnimation()
 
     // 星系臂展开
     gsap.from(armMesh.scale, {
@@ -426,11 +457,119 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
     })
   }
 
+  /**
+   * 电影级震撼入场运镜动画
+   */
+  const playCameraEntranceAnimation = () => {
+    if (cameraTimeline) {
+      cameraTimeline.kill()
+    }
+
+    // 创建运镜时间线
+    cameraTimeline = gsap.timeline({
+      onComplete: () => {
+        // 运镜结束后自动清理
+        if (cameraTimeline) {
+          cameraTimeline.kill()
+          cameraTimeline = null
+        }
+        console.log('电影级运镜动画完成')
+      }
+    })
+
+    // 镜头1: 极远距离 → 镜头2: 快速俯冲（宇宙尺度感）
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: entranceCameraPositions[1].position.x,
+        y: entranceCameraPositions[1].position.y,
+        z: entranceCameraPositions[1].position.z,
+        duration: 3,
+        ease: 'power4.in',
+        onUpdate: () => {
+          camera.lookAt(0, 0, 0)
+        }
+      },
+      0
+    )
+
+    // 镜头2: 快速俯冲 → 镜头3: 侧面环绕（冲击感）
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: entranceCameraPositions[2].position.x,
+        y: entranceCameraPositions[2].position.y,
+        z: entranceCameraPositions[2].position.z,
+        duration: 2.5,
+        ease: 'expo.inOut',
+        onUpdate: () => {
+          camera.lookAt(0, 0, 0)
+        }
+      },
+      '>'
+    )
+
+    // 镜头3: 侧面环绕 → 镜头4: 核心仰望（展示漩涡结构）
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: entranceCameraPositions[3].position.x,
+        y: entranceCameraPositions[3].position.y,
+        z: entranceCameraPositions[3].position.z,
+        duration: 3,
+        ease: 'circ.inOut',
+        onUpdate: () => {
+          camera.lookAt(0, 5, 0)
+        }
+      },
+      '>'
+    )
+
+    // 镜头4: 核心仰望 → 镜头5: 最终位置（戏剧性到经典视角）
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: entranceCameraPositions[4].position.x,
+        y: entranceCameraPositions[4].position.y,
+        z: entranceCameraPositions[4].position.z,
+        duration: 3.5,
+        ease: 'power3.out',
+        onUpdate: () => {
+          camera.lookAt(0, 0, 0)
+        }
+      },
+      '>'
+    )
+
+    // 相机FOV动态变化（从超广角到标准视角）
+    gsap.to(camera, {
+      fov: 70, // 初始超广角
+      duration: 0,
+      ease: 'none',
+      onUpdate: () => {
+        camera.updateProjectionMatrix()
+      }
+    })
+
+    cameraTimeline.to(
+      camera,
+      {
+        fov: 55, // 恢复到标准视角
+        duration: 12, // 整个运镜过程
+        ease: 'power3.out',
+        onUpdate: () => {
+          camera.updateProjectionMatrix()
+        }
+      },
+      0
+    )
+  }
+
   // 帧计数器（用于优化性能）
   let frameCount = 0
 
   /**
-   * 更新粒子动画
+   * 更新粒子动画（极致性能优化版）
    */
   const updateParticles = (time: number) => {
     frameCount++
@@ -440,80 +579,93 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
 
     const shouldUpdateColor = frameCount % galaxyVortexEffectParams.updateInterval === 0
 
+    // 缓存常用计算
+    const timeScale = time * TIME_SCALE_FACTOR
+    const colorShift = galaxyVortexEffectParams.colorShiftSpeed * timeScale
+
     let armIndex = 0
     let coreIndex = 0
     let haloIndex = 0
+    const plen = particles.length
 
-    // 更新臂粒子
-    for (let i = 0; i < particles.length; i++) {
-      const particle = particles[i]
+    // 分别遍历三种粒子类型，避免条件判断
+    for (let i = 0; i < plen; i++) {
+      const p = particles[i]
 
-      if (particle.type === ParticleType.ARM) {
-        // 漩涡运动
-        const currentAngle = particle.orbitAngle + time * particle.orbitSpeed
-        const x = Math.cos(currentAngle) * particle.orbitRadius
-        const z = Math.sin(currentAngle) * particle.orbitRadius
+      if (p.type === ParticleType.ARM) {
+        // 漩涡运动 - 优化计算
+        const angle = p.orbitAngle + timeScale * p.orbitSpeed
+        const cosA = Math.cos(angle)
+        const sinA = Math.sin(angle)
+        const radius = p.orbitRadius
 
-        // 垂直波动
-        const waveY = particle.verticalOffset +
-                     Math.sin(time * 0.002 + particle.orbitPhase) * 0.3
-
-        dummy.position.set(x, waveY, z)
-        dummy.scale.setScalar(particle.baseSize * pulseScale)
-        dummy.rotation.set(0, time * 0.0005 * particle.orbitSpeed, 0)
-        dummy.updateMatrix()
-        armMesh.setMatrixAt(armIndex, dummy.matrix)
-
-        // 仅在指定帧数更新颜色（性能优化）
-        if (shouldUpdateColor) {
-          const currentHue = (particle.hue + time * galaxyVortexEffectParams.colorShiftSpeed * 0.001) % 1
-          tempColor.setHSL(currentHue, particle.saturation, particle.lightness)
-          armMesh.setColorAt(armIndex, tempColor)
+        if (dummy) {
+          dummy.position.set(cosA * radius, p.orbitHeight, sinA * radius)
+          dummy.scale.setScalar(p.baseSize * pulseScale)
+          dummy.rotation.set(0, timeScale * 0.5 * p.orbitSpeed, 0)
+          dummy.updateMatrix()
+          armMesh.setMatrixAt(armIndex, dummy.matrix)
         }
 
+        if (shouldUpdateColor && color) {
+          let hue = p.hue + colorShift
+          if (hue > 1) hue -= 1 // 比 % 1 更快
+          color.setHSL(hue, p.saturation, p.lightness)
+          armMesh.setColorAt(armIndex, color)
+        }
         armIndex++
-      } else if (particle.type === ParticleType.CORE) {
-        // 核心粒子运动
-        const currentAngle = particle.orbitAngle + time * particle.orbitSpeed
-        const x = Math.cos(currentAngle) * particle.orbitRadius * coreGlowScale
-        const y = Math.sin(particle.orbitPhase + time * 0.001) * particle.orbitRadius * coreGlowScale
-        const z = Math.sin(currentAngle) * particle.orbitRadius * coreGlowScale
+      } else if (p.type === ParticleType.CORE) {
+        // 核心粒子运动 - 优化计算
+        const angle = p.orbitAngle + timeScale * p.orbitSpeed
+        const cosA = Math.cos(angle)
+        const sinA = Math.sin(angle)
+        const radius = p.orbitRadius * coreGlowScale
+        const phaseY = Math.sin(p.orbitPhase + timeScale) * radius
 
-        dummy.position.set(x, y, z)
-        dummy.scale.setScalar(particle.baseSize * coreGlowScale)
-        dummy.rotation.set(time * 0.001, time * 0.0015, 0)
-        dummy.updateMatrix()
-        coreMesh.setMatrixAt(coreIndex, dummy.matrix)
-
-        if (shouldUpdateColor) {
-          const currentHue = (particle.hue + time * galaxyVortexEffectParams.colorShiftSpeed * 0.0005) % 1
-          tempColor.setHSL(currentHue, particle.saturation, particle.lightness)
-          coreMesh.setColorAt(coreIndex, tempColor)
+        if (dummy) {
+          dummy.position.set(cosA * radius, phaseY, sinA * radius)
+          dummy.scale.setScalar(p.baseSize * coreGlowScale)
+          dummy.rotation.set(timeScale, timeScale * 1.5, 0)
+          dummy.updateMatrix()
+          coreMesh.setMatrixAt(coreIndex, dummy.matrix)
         }
 
+        if (shouldUpdateColor && color) {
+          let hue = p.hue + colorShift * 0.5
+          if (hue > 1) hue -= 1
+          color.setHSL(hue, p.saturation, p.lightness)
+          coreMesh.setColorAt(coreIndex, color)
+        }
         coreIndex++
-      } else if (particle.type === ParticleType.HALO) {
-        // 光晕粒子运动
-        const currentAngle = particle.orbitAngle + time * particle.orbitSpeed
-        const x = Math.cos(currentAngle) * particle.orbitRadius
-        const z = Math.sin(currentAngle) * particle.orbitRadius
+      } else {
+        // 光晕粒子运动 - 优化计算
+        const angle = p.orbitAngle + timeScale * p.orbitSpeed
+        const cosA = Math.cos(angle)
+        const sinA = Math.sin(angle)
+        const radius = p.orbitRadius
+        const scale = p.baseSize * (1 + Math.sin(timeScale + p.orbitPhase) * 0.2)
 
-        dummy.position.set(x, particle.orbitHeight, z)
-        dummy.scale.setScalar(particle.baseSize * (1 + Math.sin(time * 0.001 + particle.orbitPhase) * 0.2))
-        dummy.updateMatrix()
-        haloMesh.setMatrixAt(haloIndex, dummy.matrix)
-
-        if (shouldUpdateColor) {
-          const currentHue = (particle.hue + time * galaxyVortexEffectParams.colorShiftSpeed * 0.0003) % 1
-          tempColor.setHSL(currentHue, particle.saturation * 0.7, particle.lightness)
-          haloMesh.setColorAt(haloIndex, tempColor)
+        if (dummy) {
+          dummy.position.set(cosA * radius, p.orbitHeight, sinA * radius)
+          dummy.scale.setScalar(scale)
+          dummy.updateMatrix()
+          haloMesh.setMatrixAt(haloIndex, dummy.matrix)
         }
 
+        if (shouldUpdateColor && color) {
+          let hue = p.hue + colorShift * 0.3
+          if (hue > 1) hue -= 1
+          color.setHSL(hue, p.saturation * 0.7, p.lightness)
+          haloMesh.setColorAt(haloIndex, color)
+        }
         haloIndex++
       }
     }
 
+    // 批量更新矩阵
     armMesh.instanceMatrix.needsUpdate = true
+    coreMesh.instanceMatrix.needsUpdate = true
+    haloMesh.instanceMatrix.needsUpdate = true
 
     // 仅在颜色更新时标记颜色需要更新
     if (shouldUpdateColor) {
@@ -521,9 +673,6 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
       coreMesh.instanceColor!.needsUpdate = true
       haloMesh.instanceColor!.needsUpdate = true
     }
-
-    coreMesh.instanceMatrix.needsUpdate = true
-    haloMesh.instanceMatrix.needsUpdate = true
   }
 
   /**
@@ -550,23 +699,6 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
   }
 
   /**
-   * 更新参数
-   */
-  const updateParams = (params: Partial<typeof galaxyVortexEffectParams>) => {
-    Object.assign(galaxyVortexEffectParams, params)
-
-    // 更新材质参数
-    [armMaterial, coreMaterial, haloMaterial].forEach(material => {
-      material.alphaHash = galaxyVortexEffectParams.alphaHash
-      material.needsUpdate = true
-    })
-
-    armMaterial.opacity = galaxyVortexEffectParams.alpha * 0.9
-    coreMaterial.opacity = galaxyVortexEffectParams.alpha
-    haloMaterial.opacity = galaxyVortexEffectParams.alpha * 0.4
-  }
-
-  /**
    * 窗口大小调整
    */
   const handleResize = () => {
@@ -585,41 +717,102 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
   init()
 
   // 返回清理函数
-  return () => {
-    // 清理 GSAP 动画
-    gsap.killTweensOf(pulseAnimation)
-    gsap.killTweensOf(coreGlowAnimation)
+  const cleanup = () => {
+    console.log('清理星系漩涡特效...')
 
-    // 取消动画循环
-    if (renderer) {
-      renderer.setAnimationLoop(null)
-    }
+    try {
+      // 立即杀掉所有存储的 tweens
+      allTweens.forEach(tween => {
+        if (tween && tween.kill) tween.kill()
+      })
+      allTweens.length = 0
 
-    // 移除事件监听
-    window.removeEventListener('resize', handleResize)
-
-    // 清理资源
-    [armMesh, coreMesh, haloMesh].forEach(mesh => {
-      mesh.geometry.dispose()
-      if (mesh.material instanceof THREE.Material) {
-        mesh.material.dispose()
+      // 立即杀掉所有相机相关的 GSAP 动画
+      if (camera) {
+        gsap.killTweensOf(camera.position)
+        gsap.killTweensOf(camera.rotation)
       }
-    })
+      if (armMesh) {
+        gsap.killTweensOf(armMesh.scale)
+        gsap.killTweensOf(armMesh.rotation)
+      }
+      if (coreMesh) {
+        gsap.killTweensOf(coreMesh.scale)
+      }
+      if (haloMesh) {
+        gsap.killTweensOf(haloMesh.scale)
+        gsap.killTweensOf(haloMesh.material)
+      }
+      if (pulseAnimation) gsap.killTweensOf(pulseAnimation)
+      if (coreGlowAnimation) gsap.killTweensOf(coreGlowAnimation)
 
-    if (renderer) {
-      renderer.dispose()
+      // 清理相机时间线
+      if (cameraTimeline) {
+        cameraTimeline.kill()
+        cameraTimeline = null
+      }
+
+      // 取消动画循环
+      if (renderer) {
+        renderer.setAnimationLoop(null)
+      }
+
+      // 移除事件监听
+      if (typeof handleResize === 'function') {
+        window.removeEventListener('resize', handleResize)
+      }
+
+      // 清理临时对象
+      dummy = null
+      color = null
+      pulseAnimation = null
+      coreGlowAnimation = null
+
+      // 从场景中移除网格
+      if (scene) {
+        if (armMesh) scene.remove(armMesh)
+        if (coreMesh) scene.remove(coreMesh)
+        if (haloMesh) scene.remove(haloMesh)
+      }
+
+      // 清理资源
+      ;[armMesh, coreMesh, haloMesh].forEach(mesh => {
+        if (mesh) {
+          if (mesh.geometry) mesh.geometry.dispose()
+          if (mesh.material instanceof THREE.Material) {
+            mesh.material.dispose()
+          }
+        }
+      })
+
+      // 移除 DOM 元素
+      if (renderer && renderer.domElement && renderer.domElement.parentNode) {
+        renderer.domElement.parentNode.removeChild(renderer.domElement)
+      }
+
+      // 释放渲染器
+      if (renderer) {
+        renderer.dispose()
+      }
+
+      // 清空引用
+      scene = null
+      camera = null
+      renderer = null
+      controls = null
+      armMesh = null
+      coreMesh = null
+      haloMesh = null
+      armMaterial = null
+      coreMaterial = null
+      haloMaterial = null
+      particles = []
+
+      console.log('星系漩涡特效清理完成')
+    } catch (error) {
+      console.error('清理星系漩涡特效时出错:', error)
     }
-
-    scene = null
-    camera = null
-    renderer = null
-    controls = null
-    armMesh = null
-    coreMesh = null
-    haloMesh = null
-    armMaterial = null
-    coreMaterial = null
-    haloMaterial = null
-    particles = []
   }
+
+  return cleanup
 }
