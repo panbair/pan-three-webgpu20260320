@@ -1,0 +1,57 @@
+{
+  "name": "universal-animation-library",
+  "version": "1.0.0",
+  "description": "Universal Animation Library - A comprehensive CSS animation library with 105+ animations across 7 versions",
+  "main": "dist/index.css",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "animation",
+    "css-animation",
+    "css",
+    "ui",
+    "frontend",
+    "web",
+    "animation-library",
+    "transitions",
+    "keyframes",
+    "vue",
+    "react",
+    "angular",
+    "svelte",
+    "javascript",
+    "typescript"
+  ],
+  "author": "Universal Animation Library Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/universal-animation-library.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/universal-animation-library/issues"
+  },
+  "homepage": "https://github.com/your-username/universal-animation-library#readme",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "devDependencies": {
+    "cssnano": "^7.0.6",
+    "postcss": "^8.4.49",
+    "postcss-cli": "^11.0.0"
+  },
+  "browserslist": [
+    ">= 0.5%",
+    "last 2 versions",
+    "not dead",
+    "Chrome >= 87",
+    "Firefox >= 78",
+    "Safari >= 14",
+    "Edge >= 88"
+  ]
+}
