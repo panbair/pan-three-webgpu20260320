@@ -34,9 +34,6 @@ export const nebulaCloudEffectParams = {
   interactionStrength: 2.0, // 交互强度
   gravityMode: 'attract' as 'attract' | 'repel', // 引力/斥力模式
 
-  // ==================== 光照 ====================
-  lightingIntensity: 1.5, // 光照强度
-
   // ==================== 性能优化 ====================
   updateInterval: 4, // 颜色更新间隔帧数（越大性能越好，但颜色变化越卡顿）
   resizeDebounceDelay: 100 // 窗口调整防抖延迟（毫秒）
