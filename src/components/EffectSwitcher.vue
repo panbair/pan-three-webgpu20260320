@@ -32,7 +32,10 @@ const effects: Effect[] = [
   { id: 'alphaHash', name: '星系螺旋', icon: '🌟' },
   { id: 'galaxyVortex', name: '星系漩涡', icon: '🌌' },
   { id: 'quantumWave', name: '量子波动', icon: '⚛️' },
-  { id: 'nebulaCloud', name: '星云流', icon: '🌠' }
+  { id: 'nebulaCloud', name: '星云流', icon: '🌠' },
+  { id: 'dynamicFlowField', name: '动态流场', icon: '🌊' },
+  { id: 'gpuParticleFlock', name: 'GPU 粒子群', icon: '🐦' },
+  { id: 'clothSimulation', name: 'GPU 布料模拟', icon: '🧵' }
 ]
 
 const currentEffectId = ref('galaxyVortex')

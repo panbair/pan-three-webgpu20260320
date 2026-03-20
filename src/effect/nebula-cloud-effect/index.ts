@@ -169,10 +169,12 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       scene = new THREE.Scene()
       scene.background = null
 
-      // 创建几何体 - 使用 particleSize 参数
-      const coreGeometry = new THREE.TetrahedronGeometry(baseParticleSize * 2, 0)
-      const innerGeometry = new THREE.IcosahedronGeometry(baseParticleSize * 1.5, 0)
-      const outerGeometry = new THREE.SphereGeometry(baseParticleSize, 8, 6)
+      // 创建几何体 - 使用 plane 几何体配合纹理
+      const textureLoader = new THREE.TextureLoader()
+      const butterflyTexture = textureLoader.load('/images/hudie.jpg')
+      butterflyTexture.colorSpace = THREE.SRGBColorSpace
+
+      const planeGeometry = new THREE.PlaneGeometry(baseParticleSize * 3, baseParticleSize * 2)
 
       // 创建核心层材质（高亮度）
       coreMaterial = new THREE.MeshStandardMaterial({
@@ -183,7 +185,11 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
         metalness: 0.95,
         envMapIntensity: 3.0,
         emissive: 0x88aaff,
-        emissiveIntensity: 0.6
+        emissiveIntensity: 0.6,
+        map: butterflyTexture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false
       })
 
       // 创建内层材质
@@ -195,7 +201,11 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
         metalness: 0.85,
         envMapIntensity: 2.0,
         emissive: 0x5588ff,
-        emissiveIntensity: 0.4
+        emissiveIntensity: 0.4,
+        map: butterflyTexture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false
       })
 
       // 创建外层材质
@@ -207,7 +217,11 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
         metalness: 0.8,
         envMapIntensity: 1.5,
         emissive: 0x3355aa,
-        emissiveIntensity: 0.3
+        emissiveIntensity: 0.3,
+        map: butterflyTexture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false
       })
 
       // 创建实例化网格
@@ -215,9 +229,9 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       const innerCount = layerConfig[NebulaLayer.INNER].count
       const outerCount = layerConfig[NebulaLayer.OUTER].count
 
-      coreMesh = new THREE.InstancedMesh(coreGeometry, coreMaterial, coreCount)
-      innerMesh = new THREE.InstancedMesh(innerGeometry, innerMaterial, innerCount)
-      outerMesh = new THREE.InstancedMesh(outerGeometry, outerMaterial, outerCount)
+      coreMesh = new THREE.InstancedMesh(planeGeometry, coreMaterial, coreCount)
+      innerMesh = new THREE.InstancedMesh(planeGeometry, innerMaterial, innerCount)
+      outerMesh = new THREE.InstancedMesh(planeGeometry, outerMaterial, outerCount)
 
       // 初始化星云粒子
       initNebulaParticles(coreCount, innerCount, outerCount)
@@ -715,8 +729,8 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
         // 脉冲缩放
         dummy.scale.setScalar(p.baseSize * pulseScale)
 
-        // 自转 - 使用预计算值
-        dummy.rotation.set(rotX, rotY, rotZ)
+        // Billboard 效果：让粒子始终朝向相机
+        dummy.lookAt(camera.position)
 
         dummy.updateMatrix()
         targetMesh.setMatrixAt(targetIndex, dummy.matrix)

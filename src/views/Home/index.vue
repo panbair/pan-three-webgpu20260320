@@ -14,7 +14,15 @@ import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import PanoramaViewer from '@/components/PanoramaViewer.vue'
 import EffectSwitcher from '@/components/EffectSwitcher.vue'
 import WebGPUNotSupported from '@/components/WebGPUNotSupported.vue'
-import { alphaHashEffect, galaxyVortexEffect, quantumWaveEffect, nebulaCloudEffect } from '@/effect'
+import {
+  alphaHashEffect,
+  galaxyVortexEffect,
+  quantumWaveEffect,
+  nebulaCloudEffect,
+  dynamicFlowFieldEffect,
+  gpuParticleFlockEffect,
+  clothSimulationEffect
+} from '@/effect'
 
 const effectRef = ref<HTMLDivElement>()
 
@@ -58,6 +66,12 @@ const switchEffect = async (effectId: string) => {
       cleanupEffect = quantumWaveEffect(effectRef.value)
     } else if (effectId === 'nebulaCloud') {
       cleanupEffect = nebulaCloudEffect(effectRef.value)
+    } else if (effectId === 'dynamicFlowField') {
+      cleanupEffect = dynamicFlowFieldEffect(effectRef.value)
+    } else if (effectId === 'gpuParticleFlock') {
+      cleanupEffect = gpuParticleFlockEffect(effectRef.value)
+    } else if (effectId === 'clothSimulation') {
+      cleanupEffect = clothSimulationEffect(effectRef.value)
     }
   }
 }
