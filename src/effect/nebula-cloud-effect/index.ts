@@ -92,13 +92,13 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
   let outerMaterial: THREE.MeshStandardMaterial
   let particles: ParticleData[] = []
 
-  let dummy: THREE.Object3D | null = new THREE.Object3D()
-  let color: THREE.Color | null = new THREE.Color()
+  const dummy = new THREE.Object3D()
+  const color = new THREE.Color()
 
   // GSAP 动画对象
-  let flowAnimation: { value: number } | null = { value: 0 }
-  let pulseAnimation: { value: number } | null = { value: 1 }
-  let interactionAnimation: { value: number } | null = { value: 0 }
+  const flowAnimation = { value: 0 }
+  const pulseAnimation = { value: 1 }
+  const interactionAnimation = { value: 0 }
 
   // 电影级运镜相关变量
   let cameraTimeline: gsap.core.Timeline | null = null
@@ -279,11 +279,6 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       // 播放入场动画
       playEntranceAnimation()
 
-      // 启动电影级自动运镜
-      setTimeout(() => {
-        playCameraAnimation()
-      }, 3000)
-
       console.log('动态粒子星云特效初始化完成')
     } catch (error) {
       console.error('动态粒子星云特效初始化失败:', error)
@@ -325,21 +320,17 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
         flowDirection: Math.random() > 0.5 ? 1 : -1
       })
 
-      if (dummy) {
-        dummy.position.set(x, y, z)
-        dummy.scale.setScalar(particles[index].baseSize)
-        dummy.updateMatrix()
-        mesh.setMatrixAt(meshIndex, dummy.matrix)
-      }
+      dummy.position.set(x, y, z)
+      dummy.scale.setScalar(particles[index].baseSize)
+      dummy.updateMatrix()
+      mesh.setMatrixAt(meshIndex, dummy.matrix)
 
-      if (color) {
-        color.setHSL(
-          particles[index].hue,
-          particles[index].saturation,
-          particles[index].lightness
-        )
-        mesh.setColorAt(meshIndex, color)
-      }
+      color.setHSL(
+        particles[index].hue,
+        particles[index].saturation,
+        particles[index].lightness
+      )
+      mesh.setColorAt(meshIndex, color)
     }
 
     // 初始化核心层粒子
@@ -394,7 +385,71 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
   }
 
   /**
-   * 初始化 GSAP 动画
+   * 相机运镜动画
+   */
+  const playCameraAnimation = () => {
+    if (!nebulaCloudEffectParams.autoRotate) return
+    if (!camera) return
+
+    if (cameraTimeline) {
+      cameraTimeline.kill()
+    }
+
+    // 创建电影级运镜时间线
+    cameraTimeline = gsap.timeline({
+      repeatDelay: 0.3,
+      duration: 35,
+      repeat: 0,
+      onComplete: () => {
+        console.log('[星云特效] 运镜动画完成，开始清理特效')
+        clearEffect()
+      }
+    })
+
+    // 运镜轨迹：环绕 → 穿梭 → 俯视 → 底部 → 侧面 → 回归
+    const positions = [
+      { x: 18, y: 12, z: 18, target: new THREE.Vector3(0, 0, 0) },
+      { x: -20, y: 6, z: -20, target: new THREE.Vector3(0, 0, 0) },
+      { x: 6, y: 25, z: 6, target: new THREE.Vector3(0, 0, 0) },
+      { x: 12, y: -8, z: 18, target: new THREE.Vector3(0, 2, 0) },
+      { x: -15, y: 10, z: 12, target: new THREE.Vector3(0, 0, 0) }
+    ]
+
+    positions.forEach((pos, index) => {
+      const nextPos = positions[(index + 1) % positions.length]
+
+      // 在每次更新时检查 camera 是否存在
+      cameraTimeline.to(
+        camera.position,
+        {
+          x: nextPos.x,
+          y: nextPos.y,
+          z: nextPos.z,
+          duration: 7,
+          ease: 'sine.inOut',
+          onUpdate: () => {
+            if (camera) {
+              camera.lookAt(nextPos.target)
+            }
+          }
+        },
+        index > 0 ? '>' : 0
+      )
+    })
+  }
+
+  /**
+   * 停止运镜动画
+   */
+  const stopCameraAnimation = () => {
+    if (cameraTimeline) {
+      cameraTimeline.kill()
+      cameraTimeline = null
+    }
+  }
+
+  /**
+   * 初始化 GSAP 呼吸动画
    */
   const initGSAPAnimations = () => {
     // 流动动画
@@ -448,9 +503,7 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       updateMousePosition(event)
 
       // 交互强度动画
-      if (interactionAnimation) {
-        gsap.killTweensOf(interactionAnimation)
-      }
+      gsap.killTweensOf(interactionAnimation)
       const tween = gsap.to(interactionAnimation, {
         value: 1,
         duration: 0.3,
@@ -469,9 +522,7 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       interaction.isInteracting = false
 
       // 交互强度衰减动画
-      if (interactionAnimation) {
-        gsap.killTweensOf(interactionAnimation)
-      }
+      gsap.killTweensOf(interactionAnimation)
       const tween = gsap.to(interactionAnimation, {
         value: 0,
         duration: 0.5,
@@ -551,111 +602,64 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       x: 50,
       y: 40,
       z: 50,
-      duration: 3.5,
+      duration: 3,
       ease: 'power2.out'
     })
     allTweens.push(cameraTween)
 
     // 核心爆发
-    gsap.from(coreMesh.scale, {
+    const t1 = gsap.from(coreMesh.scale, {
+      x: 0.001,
+      y: 0.001,
+      z: 0.001,
+      duration: 1.8,
+      ease: 'elastic.out(1, 0.4)'
+    })
+    allTweens.push(t1)
+
+    // 内层展开
+    const t2 = gsap.from(innerMesh.scale, {
       x: 0.001,
       y: 0.001,
       z: 0.001,
       duration: 2,
-      ease: 'elastic.out(1, 0.4)'
+      ease: 'back.out(1.3)',
+      delay: 0.3
     })
-    allTweens.push(gsap.from(coreMesh.scale, { duration: 2 }))
+    allTweens.push(t2)
 
-    // 内层展开
-    gsap.from(innerMesh.scale, {
+    // 外层渐入
+    const t3 = gsap.from(outerMesh.scale, {
       x: 0.001,
       y: 0.001,
       z: 0.001,
       duration: 2.5,
-      ease: 'back.out(1.3)',
-      delay: 0.3
-    })
-    allTweens.push(gsap.from(innerMesh.scale, { duration: 2.5 }))
-
-    // 外层渐入
-    gsap.from(outerMesh.scale, {
-      x: 0.001,
-      y: 0.001,
-      z: 0.001,
-      duration: 3,
       ease: 'power2.out',
-      delay: 0.6
+      delay: 0.5
     })
-    allTweens.push(gsap.from(outerMesh.scale, { duration: 3 }))
+    allTweens.push(t3)
 
     // 整体旋转入场
-    gsap.from(coreMesh.rotation, {
+    const t4 = gsap.from(coreMesh.rotation, {
       x: Math.PI,
       y: Math.PI,
-      duration: 4,
+      duration: 3.5,
       ease: 'power2.out'
     })
-    allTweens.push(gsap.from(coreMesh.rotation, { duration: 4 }))
+    allTweens.push(t4)
 
     // 材质淡入
-    gsap.from(coreMaterial, {
+    const t5 = gsap.from(coreMaterial, {
       opacity: 0,
       duration: 2,
       ease: 'power2.out'
     })
-    allTweens.push(gsap.from(coreMaterial, { duration: 2 }))
-  }
+    allTweens.push(t5)
 
-  /**
-   * 电影级运镜动画
-   */
-  const playCameraAnimation = () => {
-    // 检查是否已清理
-    if (!camera) return
-
-    if (cameraTimeline) {
-      cameraTimeline.kill()
-    }
-
-    // 创建电影级运镜时间线
-    cameraTimeline = gsap.timeline({
-      repeat: -1,
-      repeatDelay: 0.5,
-      onComplete: () => {
-        cameraTimeline = null
-      }
-    })
-
-    // 运镜轨迹：环绕 → 穿梭 → 俯视 → 底部 → 侧面 → 回归
-    const positions = [
-      { x: 18, y: 12, z: 18, target: new THREE.Vector3(0, 0, 0) },
-      { x: -20, y: 6, z: -20, target: new THREE.Vector3(0, 0, 0) },
-      { x: 6, y: 25, z: 6, target: new THREE.Vector3(0, 0, 0) },
-      { x: 12, y: -8, z: 18, target: new THREE.Vector3(0, 2, 0) },
-      { x: -15, y: 10, z: 12, target: new THREE.Vector3(0, 0, 0) }
-    ]
-
-    positions.forEach((pos, index) => {
-      const nextPos = positions[(index + 1) % positions.length]
-
-      // 在每次更新时检查 camera 是否存在
-      cameraTimeline.to(
-        camera.position,
-        {
-          x: nextPos.x,
-          y: nextPos.y,
-          z: nextPos.z,
-          duration: 7,
-          ease: 'sine.inOut',
-          onUpdate: () => {
-            if (camera) {
-              camera.lookAt(nextPos.target)
-            }
-          }
-        },
-        index > 0 ? '>' : 0
-      )
-    })
+    // 2.5秒后启动运镜动画
+    setTimeout(() => {
+      playCameraAnimation()
+    }, 2500)
   }
 
   /**
@@ -723,21 +727,19 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       }
 
       // 更新位置
-      if (dummy) {
-        dummy.position.set(x, y, z)
+      dummy.position.set(x, y, z)
 
-        // 脉冲缩放
-        dummy.scale.setScalar(p.baseSize * pulseScale)
+      // 脉冲缩放
+      dummy.scale.setScalar(p.baseSize * pulseScale)
 
-        // Billboard 效果：让粒子始终朝向相机
-        dummy.lookAt(camera.position)
+      // Billboard 效果：让粒子始终朝向相机
+      dummy.lookAt(camera.position)
 
-        dummy.updateMatrix()
-        targetMesh.setMatrixAt(targetIndex, dummy.matrix)
-      }
+      dummy.updateMatrix()
+      targetMesh.setMatrixAt(targetIndex, dummy.matrix)
 
       // 仅在指定帧数更新颜色（性能优化）
-      if (shouldUpdateColor && color) {
+      if (shouldUpdateColor) {
         let currentHue = p.hue + colorTime
         if (currentHue > 1) currentHue -= 1
 
@@ -810,53 +812,37 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
   // 初始化
   init()
 
-  // 返回清理函数
-  const cleanup = () => {
+  // ============================================================
+  // 🧹 内部清理函数（实际执行清理）
+  // ============================================================
+  const performCleanup = () => {
     console.log('清理动态粒子星云特效...')
 
     try {
-      // 立即杀掉所有存储的 tweens
+      // 1. 清理所有tween
       allTweens.forEach(tween => {
         if (tween && tween.kill) tween.kill()
       })
       allTweens.length = 0
 
-      // 立即杀掉所有相机相关的 GSAP 动画
+      // 2. 清理相机动画
       if (camera) {
         gsap.killTweensOf(camera.position)
         gsap.killTweensOf(camera.rotation)
       }
-      if (coreMesh) {
-        gsap.killTweensOf(coreMesh.scale)
-        gsap.killTweensOf(coreMesh.rotation)
-      }
-      if (innerMesh) {
-        gsap.killTweensOf(innerMesh.scale)
-        gsap.killTweensOf(innerMesh.rotation)
-      }
-      if (outerMesh) {
-        gsap.killTweensOf(outerMesh.scale)
-        gsap.killTweensOf(outerMesh.rotation)
-      }
-      if (coreMaterial) gsap.killTweensOf(coreMaterial)
-      if (innerMaterial) gsap.killTweensOf(innerMaterial)
-      if (outerMaterial) gsap.killTweensOf(outerMaterial)
-      if (flowAnimation) gsap.killTweensOf(flowAnimation)
-      if (pulseAnimation) gsap.killTweensOf(pulseAnimation)
-      if (interactionAnimation) gsap.killTweensOf(interactionAnimation)
 
-      // 清理相机时间线
+      // 3. 清理相机timeline
       if (cameraTimeline) {
         cameraTimeline.kill()
         cameraTimeline = null
       }
 
-      // 取消动画循环
+      // 4. 停止动画循环
       if (renderer) {
         renderer.setAnimationLoop(null)
       }
 
-      // 移除事件监听 - 清理防抖定时器
+      // 5. 移除事件监听 - 清理防抖定时器
       if (resizeTimeout) {
         clearTimeout(resizeTimeout)
         resizeTimeout = null
@@ -866,21 +852,18 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       // 注意：由于使用了闭包，这里无法精确移除容器上的所有事件监听器
       // 在实际应用中，应该将处理函数提取到外部以便精确移除
 
-      // 清理临时对象
-      dummy = null
-      color = null
-      flowAnimation = null
-      pulseAnimation = null
-      interactionAnimation = null
+      // 6. 清理临时对象
+      dummy.position.set(0, 0, 0)
+      dummy.scale.set(1, 1, 1)
+      dummy.rotation.set(0, 0, 0)
 
-      // 从场景中移除网格
+      // 7. 清理场景对象 - 星云粒子
       if (scene) {
         if (coreMesh) scene.remove(coreMesh)
         if (innerMesh) scene.remove(innerMesh)
         if (outerMesh) scene.remove(outerMesh)
       }
 
-      // 清理资源
       ;[coreMesh, innerMesh, outerMesh].forEach(mesh => {
         if (mesh) {
           if (mesh.geometry) mesh.geometry.dispose()
@@ -890,19 +873,22 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
         }
       })
 
-      // 移除 DOM 元素
+      // 8. 清理DOM
       if (renderer && renderer.domElement && renderer.domElement.parentNode) {
         renderer.domElement.parentNode.removeChild(renderer.domElement)
       }
 
-      // 释放渲染器
+      // 9. 清理renderer
       if (renderer) {
         renderer.dispose()
       }
 
-      // 清空引用
-      scene = null
-      camera = null
+      // 10. 清空数组
+      particles.length = 0
+
+      // 11. 置null
+      scene = null as any
+      camera = null as any
       renderer = null
       controls = null
       coreMesh = null
@@ -911,7 +897,6 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       coreMaterial = null
       innerMaterial = null
       outerMaterial = null
-      particles = []
 
       console.log('动态粒子星云特效清理完成')
     } catch (error) {
@@ -919,5 +904,48 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
     }
   }
 
-  return cleanup
+  // ============================================================
+  // 🧹 清除特效（淡出后清理）
+  // ============================================================
+  const clearEffect = () => {
+    // 先淡出所有元素
+    const fadeOutTimeline = gsap.timeline({
+      onComplete: () => {
+        // 淡出完成后执行完整清理
+        performCleanup()
+      }
+    })
+
+    // 淡出星云粒子
+    if (coreMaterial) {
+      fadeOutTimeline.to(coreMaterial, {
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.out'
+      }, 0)
+    }
+    if (innerMaterial) {
+      fadeOutTimeline.to(innerMaterial, {
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.out'
+      }, 0.2)
+    }
+    if (outerMaterial) {
+      fadeOutTimeline.to(outerMaterial, {
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.out'
+      }, 0.4)
+    }
+  }
+
+  // ============================================================
+  // 🧹 对外暴露的清理函数
+  // ============================================================
+  const cleanup = () => {
+    performCleanup()
+  }
+
+  return { cleanup, clearEffect, stopCameraAnimation }
 }

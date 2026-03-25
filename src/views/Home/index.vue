@@ -15,30 +15,70 @@ import PanoramaViewer from '@/components/PanoramaViewer.vue'
 import EffectSwitcher from '@/components/EffectSwitcher.vue'
 import WebGPUNotSupported from '@/components/WebGPUNotSupported.vue'
 import {
-  alphaHashEffect,
   galaxyVortexEffect,
   quantumWaveEffect,
   nebulaCloudEffect,
   dynamicFlowFieldEffect,
   gpuParticleFlockEffect,
-  clothSimulationEffect
+  clothSimulationEffect,
+  crystalPalaceEffect,
+  crystalGardenEffect,
+  quantumConsciousnessEffect,
+  dimensionalRiftEffect,
+  quantumDreamWeaverEffect,
+  temporalRiftEyeEffect,
+  neonNebulaEffect
 } from '@/effect'
 
 const effectRef = ref<HTMLDivElement>()
 
-let cleanupEffect: (() => void) | null = null
+// 特效控制器类型
+interface EffectController {
+  cleanup: () => void
+  stopCameraAnimation?: () => void
+  clearEffect?: () => void
+}
+
+let effectController: EffectController | null = null
 
 const clearEffect = () => {
   console.log('清理旧特效...')
-  if (cleanupEffect) {
-    cleanupEffect()
-    cleanupEffect = null
+  if (effectController) {
+    // 如果特效有 clearEffect 方法，使用淡出清理（用于运镜完成自动清理）
+    if (effectController.clearEffect) {
+      console.log('调用 clearEffect 方法（淡出）')
+      effectController.clearEffect()
+    } else {
+      console.log('调用 cleanup 方法（立即清理）')
+      effectController.cleanup()
+      // 立即清空容器
+      if (effectRef.value) {
+        effectRef.value.innerHTML = ''
+      }
+    }
+    effectController = null
+  } else {
+    // 如果没有 effectController，直接清空容器
+    if (effectRef.value) {
+      effectRef.value.innerHTML = ''
+    }
   }
+}
 
-  // 清空容器内容，移除旧的 canvas 元素
-  if (effectRef.value) {
-    effectRef.value.innerHTML = ''
-  }
+let effectList = {
+  galaxyVortex: galaxyVortexEffect,
+  quantumWave: quantumWaveEffect,
+  nebulaCloud: nebulaCloudEffect,
+  dynamicFlowField: dynamicFlowFieldEffect,
+  gpuParticleFlock: gpuParticleFlockEffect,
+  clothSimulation: clothSimulationEffect,
+  crystalPalace: crystalPalaceEffect,
+  crystalGarden: crystalGardenEffect,
+  quantumConsciousness: quantumConsciousnessEffect,
+  dimensionalRift: dimensionalRiftEffect,
+  quantumDreamWeaver: quantumDreamWeaverEffect,
+  temporalRiftEye: temporalRiftEyeEffect,
+  neonNebula: neonNebulaEffect
 }
 
 const switchEffect = async (effectId: string) => {
@@ -50,28 +90,38 @@ const switchEffect = async (effectId: string) => {
     return
   }
 
-  // 清理旧特效
-  clearEffect()
+  // 停止旧特效的运镜动画（如果存在）
+  if (effectController && effectController.stopCameraAnimation) {
+    effectController.stopCameraAnimation()
+  }
+
+  // 清理旧特效（使用 cleanup 立即清理，不等待淡出动画）
+  if (effectController) {
+    console.log('立即清理旧特效（不等待淡出）')
+    effectController.cleanup()
+    effectController = null
+
+    // 立即清空容器
+    if (effectRef.value) {
+      effectRef.value.innerHTML = ''
+    }
+  }
 
   // 等待 DOM 更新完成
   await nextTick()
 
   // 初始化新特效
   if (effectRef.value) {
-    if (effectId === 'alphaHash') {
-      cleanupEffect = alphaHashEffect(effectRef.value)
-    } else if (effectId === 'galaxyVortex') {
-      cleanupEffect = galaxyVortexEffect(effectRef.value)
-    } else if (effectId === 'quantumWave') {
-      cleanupEffect = quantumWaveEffect(effectRef.value)
-    } else if (effectId === 'nebulaCloud') {
-      cleanupEffect = nebulaCloudEffect(effectRef.value)
-    } else if (effectId === 'dynamicFlowField') {
-      cleanupEffect = dynamicFlowFieldEffect(effectRef.value)
-    } else if (effectId === 'gpuParticleFlock') {
-      cleanupEffect = gpuParticleFlockEffect(effectRef.value)
-    } else if (effectId === 'clothSimulation') {
-      cleanupEffect = clothSimulationEffect(effectRef.value)
+    const fn = effectList[effectId as keyof typeof effectList]
+    const result = fn(effectRef.value)
+
+    // 兼容新旧返回值格式
+    if (typeof result === 'function') {
+      // 旧格式：只返回 cleanup 函数
+      effectController = { cleanup: result }
+    } else if (result && typeof result === 'object') {
+      // 新格式：返回控制器对象
+      effectController = result
     }
   }
 }
@@ -87,7 +137,14 @@ onMounted(() => {
 
   // 初始化默认特效（星系漩涡）
   if (effectRef.value) {
-    cleanupEffect = galaxyVortexEffect(effectRef.value)
+    const result = galaxyVortexEffect(effectRef.value)
+
+    // 兼容新旧返回值格式
+    if (typeof result === 'function') {
+      effectController = { cleanup: result }
+    } else if (result && typeof result === 'object') {
+      effectController = result
+    }
   }
 })
 
@@ -119,6 +176,4 @@ onBeforeUnmount(() => {
   opacity: 0.9;
   z-index: 1;
 }
-
 </style>
-

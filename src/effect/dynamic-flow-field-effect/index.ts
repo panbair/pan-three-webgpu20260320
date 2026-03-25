@@ -54,16 +54,17 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
   let renderer: WebGPURendererType
   let controls: OrbitControls
   let mesh: THREE.InstancedMesh
-  let material: THREE.MeshBasicNodeMaterial
+  let material: THREE.MeshStandardMaterial
   let particles: ParticleData[] = []
 
   const count = dynamicFlowFieldEffectParams.particleCount
-  let dummy: THREE.Object3D | null = new THREE.Object3D()
-  let color: THREE.Color | null = new THREE.Color()
+  const dummy = new THREE.Object3D()
+  const color = new THREE.Color()
 
   // GSAP 动画对象
-  let flowIntensity: { value: number } | null = { value: 1 }
+  const flowIntensity = { value: 1 }
   let cameraTimeline: gsap.core.Timeline | null = null
+  let cameraAnimationTimer: number | null = null
   const allTweens: gsap.core.Tween[] = []
 
   let frameCount = 0
@@ -166,23 +167,20 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
         scale
       })
 
-      if (dummy) {
-        dummy.position.set(x, y, z)
-        dummy.scale.setScalar(scale * dynamicFlowFieldEffectParams.baseSize)
-        dummy.updateMatrix()
-        mesh.setMatrixAt(i, dummy.matrix)
-      }
-      if (color) {
-        color.setHSL(hue, saturation, lightness)
-        mesh.setColorAt(i, color)
-      }
+      dummy.position.set(x, y, z)
+      dummy.scale.setScalar(scale * dynamicFlowFieldEffectParams.baseSize)
+      dummy.updateMatrix()
+      mesh.setMatrixAt(i, dummy.matrix)
+      color.setHSL(hue, saturation, lightness)
+      mesh.setColorAt(i, color)
     }
     mesh.instanceMatrix.needsUpdate = true
     mesh.instanceColor!.needsUpdate = true
   }
 
-  // GSAP 动画
+  // 初始化GSAP呼吸动画
   const initGSAPAnimations = () => {
+    // 流场强度呼吸动画
     const tween = gsap.to(flowIntensity, {
       value: 1.5,
       duration: 2,
@@ -191,12 +189,24 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
       yoyo: true
     })
     allTweens.push(tween)
+  }
 
-    // 创建相机运镜动画
+  // 相机运镜动画
+  const playCameraAnimation = () => {
+    // 检查 camera 是否存在（可能在切换特效时已被清理）
+    if (!camera) {
+      console.warn('[动态流场特效] camera 已被清理，跳过运镜动画')
+      return
+    }
+
     cameraTimeline = gsap.timeline({
-      repeat: -1,
       repeatDelay: 1,
-      duration: 8
+      duration: 8,
+      repeat: 0,
+      onComplete: () => {
+        console.log('[动态流场特效] 运镜动画完成，开始清理特效')
+        clearEffect()
+      }
     })
 
     cameraTimeline.to(camera.position, {
@@ -218,6 +228,14 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
     }, 4)
   }
 
+  // 停止运镜动画
+  const stopCameraAnimation = () => {
+    if (cameraTimeline) {
+      cameraTimeline.kill()
+      cameraTimeline = null
+    }
+  }
+
   // 入场动画
   const playEntranceAnimation = () => {
     // 相机从上方俯冲
@@ -225,7 +243,7 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
       x: 30,
       y: 40,
       z: 30,
-      duration: 3,
+      duration: 2.5,
       ease: 'power3.out'
     })
     allTweens.push(t1)
@@ -235,7 +253,7 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
       x: 0.01,
       y: 0.01,
       z: 0.01,
-      duration: 2.5,
+      duration: 2,
       ease: 'elastic.out(1, 0.5)'
     })
     allTweens.push(t2)
@@ -244,10 +262,16 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
     const t3 = gsap.from(mesh.rotation, {
       y: Math.PI * 2,
       x: Math.PI,
-      duration: 3,
+      duration: 2.5,
       ease: 'power2.out'
     })
     allTweens.push(t3)
+
+    // 2.5秒后启动运镜动画
+    cameraAnimationTimer = window.setTimeout(() => {
+      playCameraAnimation()
+      cameraAnimationTimer = null
+    }, 2500)
   }
 
   // 更新粒子位置
@@ -257,7 +281,7 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
     frameCount++
     timeValue += TIME_SCALE_FACTOR
     const shouldUpdateColor = frameCount % dynamicFlowFieldEffectParams.updateInterval === 0
-    const intensity = flowIntensity?.value || 1
+    const intensity = flowIntensity.value
 
     const cosA = Math.cos(timeValue * dynamicFlowFieldEffectParams.flowSpeed)
     const sinA = Math.sin(timeValue * dynamicFlowFieldEffectParams.flowSpeed)
@@ -280,15 +304,13 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
       const y = p.baseY + waveY
       const z = p.baseZ + flowZ
 
-      if (dummy) {
-        dummy.position.set(x, y, z)
-        dummy.scale.setScalar(p.scale * dynamicFlowFieldEffectParams.baseSize * (0.8 + 0.4 * flowIntensity!.value))
-        dummy.updateMatrix()
-        mesh.setMatrixAt(i, dummy.matrix)
-      }
+      dummy.position.set(x, y, z)
+      dummy.scale.setScalar(p.scale * dynamicFlowFieldEffectParams.baseSize * (0.8 + 0.4 * flowIntensity.value))
+      dummy.updateMatrix()
+      mesh.setMatrixAt(i, dummy.matrix)
 
       // 颜色变化
-      if (shouldUpdateColor && color) {
+      if (shouldUpdateColor) {
         let hue = p.hue + time * dynamicFlowFieldEffectParams.colorCycleSpeed * 0.001
         if (hue > 1) hue -= 1
 
@@ -328,9 +350,17 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
   window.addEventListener('resize', handleResize)
   init()
 
-  // 清理函数
-  const cleanup = () => {
+  // ============================================================
+  // 🧹 内部清理函数（实际执行清理）
+  // ============================================================
+  const performCleanup = () => {
     try {
+      // 清除延迟执行的运镜动画 timer
+      if (cameraAnimationTimer !== null) {
+        clearTimeout(cameraAnimationTimer)
+        cameraAnimationTimer = null
+      }
+
       // 第1步: 杀掉所有 tweens
       allTweens.forEach(tween => {
         if (tween && tween.kill) tween.kill()
@@ -347,7 +377,7 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
         gsap.killTweensOf(mesh.rotation)
       }
       if (material) gsap.killTweensOf(material)
-      if (flowIntensity) gsap.killTweensOf(flowIntensity)
+      gsap.killTweensOf(flowIntensity)
 
       // 第3步: 清理相机 Timeline
       if (cameraTimeline) {
@@ -364,9 +394,10 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
       window.removeEventListener('resize', handleResize)
 
       // 第6步: 清理临时对象
-      dummy = null
-      color = null
-      flowIntensity = null
+      dummy.position.set(0, 0, 0)
+      dummy.scale.set(1, 1, 1)
+      dummy.updateMatrix()
+      color.set(0xffffff)
 
       // 第7步: 从场景移除网格
       if (scene && mesh) scene.remove(mesh)
@@ -390,8 +421,8 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
       }
 
       // 第11步: 所有引用置 null
-      scene = null
-      camera = null
+      scene = null as any
+      camera = null as any
       renderer = null
       controls = null
       mesh = null
@@ -404,5 +435,34 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
     }
   }
 
-  return cleanup
+  // ============================================================
+  // 🧹 清除特效（淡出后清理）
+  // ============================================================
+  const clearEffect = () => {
+    // 先淡出所有元素
+    const fadeOutTimeline = gsap.timeline({
+      onComplete: () => {
+        // 淡出完成后执行完整清理
+        performCleanup()
+      }
+    })
+
+    // 淡出粒子
+    if (material) {
+      fadeOutTimeline.to(material, {
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.out'
+      }, 0)
+    }
+  }
+
+  // ============================================================
+  // 🧹 对外暴露的清理函数
+  // ============================================================
+  const cleanup = () => {
+    performCleanup()
+  }
+
+  return { cleanup, clearEffect, stopCameraAnimation }
 }

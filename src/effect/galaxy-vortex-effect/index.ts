@@ -74,15 +74,16 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
   let haloMaterial: THREE.MeshStandardMaterial
   let particles: ParticleData[] = []
 
-  let dummy: THREE.Object3D | null = new THREE.Object3D()
-  let color: THREE.Color | null = new THREE.Color()
+  const dummy = new THREE.Object3D()
+  const color = new THREE.Color()
 
   // GSAP 动画对象
-  let pulseAnimation: { value: number } | null = { value: 0 }
-  let coreGlowAnimation: { value: number } | null = { value: 0 }
+  const pulseAnimation = { value: 0 }
+  const coreGlowAnimation = { value: 0 }
 
   // 电影级运镜相关变量
   let cameraTimeline: gsap.core.Timeline | null = null
+  let cameraAnimationTimer: number | null = null
 
   // 存储所有 GSAP tweens，用于清理
   const allTweens: gsap.core.Tween[] = []
@@ -263,21 +264,17 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
         })
 
         // 设置臂粒子
-        if (dummy) {
-          dummy.position.set(x, y, z)
-          dummy.scale.setScalar(particles[armIndex].baseSize)
-          dummy.updateMatrix()
-          armMesh.setMatrixAt(armIndex, dummy.matrix)
-        }
+        dummy.position.set(x, y, z)
+        dummy.scale.setScalar(particles[armIndex].baseSize)
+        dummy.updateMatrix()
+        armMesh.setMatrixAt(armIndex, dummy.matrix)
 
-        if (color) {
-          color.setHSL(
-            particles[armIndex].hue,
-            particles[armIndex].saturation,
-            particles[armIndex].lightness
-          )
-          armMesh.setColorAt(armIndex, color)
-        }
+        color.setHSL(
+          particles[armIndex].hue,
+          particles[armIndex].saturation,
+          particles[armIndex].lightness
+        )
+        armMesh.setColorAt(armIndex, color)
 
         armIndex++
       }
@@ -306,21 +303,17 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
         lightness: 0.6 + Math.random() * 0.2
       })
 
-      if (dummy) {
-        dummy.position.set(x, y, z)
-        dummy.scale.setScalar(particles[armCount + coreIndex].baseSize)
-        dummy.updateMatrix()
-        coreMesh.setMatrixAt(coreIndex, dummy.matrix)
-      }
+      dummy.position.set(x, y, z)
+      dummy.scale.setScalar(particles[armCount + coreIndex].baseSize)
+      dummy.updateMatrix()
+      coreMesh.setMatrixAt(coreIndex, dummy.matrix)
 
-      if (color) {
-        color.setHSL(
-          particles[armCount + coreIndex].hue,
-          particles[armCount + coreIndex].saturation,
-          particles[armCount + coreIndex].lightness
-        )
-        coreMesh.setColorAt(coreIndex, color)
-      }
+      color.setHSL(
+        particles[armCount + coreIndex].hue,
+        particles[armCount + coreIndex].saturation,
+        particles[armCount + coreIndex].lightness
+      )
+      coreMesh.setColorAt(coreIndex, color)
 
       coreIndex++
     }
@@ -348,21 +341,17 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
         lightness: 0.4 + Math.random() * 0.2
       })
 
-      if (dummy) {
-        dummy.position.set(x, y, z)
-        dummy.scale.setScalar(particles[armCount + coreCount + haloIndex].baseSize)
-        dummy.updateMatrix()
-        haloMesh.setMatrixAt(haloIndex, dummy.matrix)
-      }
+      dummy.position.set(x, y, z)
+      dummy.scale.setScalar(particles[armCount + coreCount + haloIndex].baseSize)
+      dummy.updateMatrix()
+      haloMesh.setMatrixAt(haloIndex, dummy.matrix)
 
-      if (color) {
-        color.setHSL(
-          particles[armCount + coreCount + haloIndex].hue,
-          particles[armCount + coreCount + haloIndex].saturation,
-          particles[armCount + coreCount + haloIndex].lightness
-        )
-        haloMesh.setColorAt(haloIndex, color)
-      }
+      color.setHSL(
+        particles[armCount + coreCount + haloIndex].hue,
+        particles[armCount + coreCount + haloIndex].saturation,
+        particles[armCount + coreCount + haloIndex].lightness
+      )
+      haloMesh.setColorAt(haloIndex, color)
 
       haloIndex++
     }
@@ -376,7 +365,7 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
   }
 
   /**
-   * 初始化 GSAP 动画
+   * 初始化 GSAP 呼吸动画
    */
   const initGSAPAnimations = () => {
     // 脉冲动画
@@ -400,80 +389,25 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
   }
 
   /**
-   * 入场动画
+   * 相机运镜动画
    */
-  const playEntranceAnimation = () => {
-    // 电影级震撼运镜
-    playCameraEntranceAnimation()
+  const playCameraAnimation = () => {
+    // 检查 camera 是否存在（可能在切换特效时已被清理）
+    if (!camera) {
+      console.warn('[星系漩涡特效] camera 已被清理，跳过运镜动画')
+      return
+    }
 
-    // 星系臂展开
-    gsap.from(armMesh.scale, {
-      x: 0.01,
-      y: 0.01,
-      z: 0.01,
-      duration: 2.5,
-      ease: 'back.out(1.5)'
-    })
-
-    // 核心爆发
-    gsap.from(coreMesh.scale, {
-      x: 0.01,
-      y: 0.01,
-      z: 0.01,
-      duration: 2,
-      ease: 'elastic.out(1, 0.4)',
-      delay: 0.3
-    })
-
-    // 光晕渐入
-    gsap.from(haloMesh.scale, {
-      x: 0.01,
-      y: 0.01,
-      z: 0.01,
-      duration: 3,
-      ease: 'power2.out',
-      delay: 0.6
-    })
-
-    // 整体旋转入场
-    gsap.from(armMesh.rotation, {
-      x: Math.PI * 0.5,
-      duration: 4,
-      ease: 'power2.out'
-    })
-
-    // 材质淡入
-    gsap.from(armMaterial, {
-      opacity: 0,
-      duration: 2,
-      ease: 'power2.out'
-    })
-
-    gsap.from(coreMaterial, {
-      opacity: 0,
-      duration: 2,
-      ease: 'power2.out',
-      delay: 0.3
-    })
-  }
-
-  /**
-   * 电影级震撼入场运镜动画
-   */
-  const playCameraEntranceAnimation = () => {
     if (cameraTimeline) {
       cameraTimeline.kill()
     }
 
     // 创建运镜时间线
     cameraTimeline = gsap.timeline({
+      repeat: 0,
       onComplete: () => {
-        // 运镜结束后自动清理
-        if (cameraTimeline) {
-          cameraTimeline.kill()
-          cameraTimeline = null
-        }
-        console.log('电影级运镜动画完成')
+        console.log('[星系漩涡特效] 运镜动画完成，开始清理特效')
+        clearEffect()
       }
     })
 
@@ -506,7 +440,7 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
           camera.lookAt(0, 0, 0)
         }
       },
-      '>'
+      3
     )
 
     // 镜头3: 侧面环绕 → 镜头4: 核心仰望（展示漩涡结构）
@@ -522,7 +456,7 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
           camera.lookAt(0, 5, 0)
         }
       },
-      '>'
+      5.5
     )
 
     // 镜头4: 核心仰望 → 镜头5: 最终位置（戏剧性到经典视角）
@@ -538,18 +472,12 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
           camera.lookAt(0, 0, 0)
         }
       },
-      '>'
+      8.5
     )
 
     // 相机FOV动态变化（从超广角到标准视角）
-    gsap.to(camera, {
-      fov: 70, // 初始超广角
-      duration: 0,
-      ease: 'none',
-      onUpdate: () => {
-        camera.updateProjectionMatrix()
-      }
-    })
+    gsap.set(camera, { fov: 70 })
+    camera.updateProjectionMatrix()
 
     cameraTimeline.to(
       camera,
@@ -563,6 +491,81 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
       },
       0
     )
+  }
+
+  // 停止运镜动画
+  const stopCameraAnimation = () => {
+    if (cameraTimeline) {
+      cameraTimeline.kill()
+      cameraTimeline = null
+    }
+  }
+
+  /**
+   * 入场动画
+   */
+  const playEntranceAnimation = () => {
+    // 星系臂展开
+    const t1 = gsap.from(armMesh.scale, {
+      x: 0.01,
+      y: 0.01,
+      z: 0.01,
+      duration: 2,
+      ease: 'back.out(1.5)'
+    })
+    allTweens.push(t1)
+
+    // 核心爆发
+    const t2 = gsap.from(coreMesh.scale, {
+      x: 0.01,
+      y: 0.01,
+      z: 0.01,
+      duration: 1.5,
+      ease: 'elastic.out(1, 0.4)',
+      delay: 0.2
+    })
+    allTweens.push(t2)
+
+    // 光晕渐入
+    const t3 = gsap.from(haloMesh.scale, {
+      x: 0.01,
+      y: 0.01,
+      z: 0.01,
+      duration: 2.5,
+      ease: 'power2.out',
+      delay: 0.5
+    })
+    allTweens.push(t3)
+
+    // 整体旋转入场
+    const t4 = gsap.from(armMesh.rotation, {
+      x: Math.PI * 0.5,
+      duration: 3,
+      ease: 'power2.out'
+    })
+    allTweens.push(t4)
+
+    // 材质淡入
+    const t5 = gsap.from(armMaterial, {
+      opacity: 0,
+      duration: 1.5,
+      ease: 'power2.out'
+    })
+    allTweens.push(t5)
+
+    const t6 = gsap.from(coreMaterial, {
+      opacity: 0,
+      duration: 1.5,
+      ease: 'power2.out',
+      delay: 0.2
+    })
+    allTweens.push(t6)
+
+    // 2.5秒后启动运镜动画
+    cameraAnimationTimer = window.setTimeout(() => {
+      playCameraAnimation()
+      cameraAnimationTimer = null
+    }, 2500)
   }
 
   // 帧计数器（用于优化性能）
@@ -599,15 +602,13 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
         const sinA = Math.sin(angle)
         const radius = p.orbitRadius
 
-        if (dummy) {
-          dummy.position.set(cosA * radius, p.orbitHeight, sinA * radius)
-          dummy.scale.setScalar(p.baseSize * pulseScale)
-          dummy.rotation.set(0, timeScale * 0.5 * p.orbitSpeed, 0)
-          dummy.updateMatrix()
-          armMesh.setMatrixAt(armIndex, dummy.matrix)
-        }
+        dummy.position.set(cosA * radius, p.orbitHeight, sinA * radius)
+        dummy.scale.setScalar(p.baseSize * pulseScale)
+        dummy.rotation.set(0, timeScale * 0.5 * p.orbitSpeed, 0)
+        dummy.updateMatrix()
+        armMesh.setMatrixAt(armIndex, dummy.matrix)
 
-        if (shouldUpdateColor && color) {
+        if (shouldUpdateColor) {
           let hue = p.hue + colorShift
           if (hue > 1) hue -= 1 // 比 % 1 更快
           color.setHSL(hue, p.saturation, p.lightness)
@@ -622,15 +623,13 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
         const radius = p.orbitRadius * coreGlowScale
         const phaseY = Math.sin(p.orbitPhase + timeScale) * radius
 
-        if (dummy) {
-          dummy.position.set(cosA * radius, phaseY, sinA * radius)
-          dummy.scale.setScalar(p.baseSize * coreGlowScale)
-          dummy.rotation.set(timeScale, timeScale * 1.5, 0)
-          dummy.updateMatrix()
-          coreMesh.setMatrixAt(coreIndex, dummy.matrix)
-        }
+        dummy.position.set(cosA * radius, phaseY, sinA * radius)
+        dummy.scale.setScalar(p.baseSize * coreGlowScale)
+        dummy.rotation.set(timeScale, timeScale * 1.5, 0)
+        dummy.updateMatrix()
+        coreMesh.setMatrixAt(coreIndex, dummy.matrix)
 
-        if (shouldUpdateColor && color) {
+        if (shouldUpdateColor) {
           let hue = p.hue + colorShift * 0.5
           if (hue > 1) hue -= 1
           color.setHSL(hue, p.saturation, p.lightness)
@@ -645,14 +644,12 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
         const radius = p.orbitRadius
         const scale = p.baseSize * (1 + Math.sin(timeScale + p.orbitPhase) * 0.2)
 
-        if (dummy) {
-          dummy.position.set(cosA * radius, p.orbitHeight, sinA * radius)
-          dummy.scale.setScalar(scale)
-          dummy.updateMatrix()
-          haloMesh.setMatrixAt(haloIndex, dummy.matrix)
-        }
+        dummy.position.set(cosA * radius, p.orbitHeight, sinA * radius)
+        dummy.scale.setScalar(scale)
+        dummy.updateMatrix()
+        haloMesh.setMatrixAt(haloIndex, dummy.matrix)
 
-        if (shouldUpdateColor && color) {
+        if (shouldUpdateColor) {
           let hue = p.hue + colorShift * 0.3
           if (hue > 1) hue -= 1
           color.setHSL(hue, p.saturation * 0.7, p.lightness)
@@ -716,11 +713,19 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
   // 初始化
   init()
 
-  // 返回清理函数
-  const cleanup = () => {
+  // ============================================================
+  // 🧹 内部清理函数（实际执行清理）
+  // ============================================================
+  const performCleanup = () => {
     console.log('清理星系漩涡特效...')
 
     try {
+      // 清除延迟执行的运镜动画 timer
+      if (cameraAnimationTimer !== null) {
+        clearTimeout(cameraAnimationTimer)
+        cameraAnimationTimer = null
+      }
+
       // 立即杀掉所有存储的 tweens
       allTweens.forEach(tween => {
         if (tween && tween.kill) tween.kill()
@@ -731,6 +736,7 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
       if (camera) {
         gsap.killTweensOf(camera.position)
         gsap.killTweensOf(camera.rotation)
+        gsap.killTweensOf(camera)
       }
       if (armMesh) {
         gsap.killTweensOf(armMesh.scale)
@@ -743,8 +749,8 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
         gsap.killTweensOf(haloMesh.scale)
         gsap.killTweensOf(haloMesh.material)
       }
-      if (pulseAnimation) gsap.killTweensOf(pulseAnimation)
-      if (coreGlowAnimation) gsap.killTweensOf(coreGlowAnimation)
+      gsap.killTweensOf(pulseAnimation)
+      gsap.killTweensOf(coreGlowAnimation)
 
       // 清理相机时间线
       if (cameraTimeline) {
@@ -758,15 +764,13 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
       }
 
       // 移除事件监听
-      if (typeof handleResize === 'function') {
-        window.removeEventListener('resize', handleResize)
-      }
+      window.removeEventListener('resize', handleResize)
 
       // 清理临时对象
-      dummy = null
-      color = null
-      pulseAnimation = null
-      coreGlowAnimation = null
+      dummy.position.set(0, 0, 0)
+      dummy.scale.set(1, 1, 1)
+      dummy.updateMatrix()
+      color.set(0xffffff)
 
       // 从场景中移除网格
       if (scene) {
@@ -796,8 +800,8 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
       }
 
       // 清空引用
-      scene = null
-      camera = null
+      scene = null as any
+      camera = null as any
       renderer = null
       controls = null
       armMesh = null
@@ -814,5 +818,52 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
     }
   }
 
-  return cleanup
+  // ============================================================
+  // 🧹 清除特效（淡出后清理）
+  // ============================================================
+  const clearEffect = () => {
+    console.log('开始淡出特效...')
+    // 先淡出所有元素
+    const fadeOutTimeline = gsap.timeline({
+      onComplete: () => {
+        // 淡出完成后执行完整清理
+        console.log('淡出完成，开始清理...')
+        performCleanup()
+      }
+    })
+
+    // 淡出星系臂
+    if (armMaterial) {
+      fadeOutTimeline.to(armMaterial, {
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.out'
+      }, 0)
+    }
+
+    // 淡出核心
+    if (coreMaterial) {
+      fadeOutTimeline.to(coreMaterial, {
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.out'
+      }, 0.2)
+    }
+
+    // 淡出光晕
+    if (haloMaterial) {
+      fadeOutTimeline.to(haloMaterial, {
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.out'
+      }, 0.4)
+    }
+  }
+
+  // 返回清理函数
+  const cleanup = () => {
+    performCleanup()
+  }
+
+  return { cleanup, clearEffect, stopCameraAnimation }
 }

@@ -1,5 +1,6 @@
-// GPU 布料模拟特效 (GPU Cloth Simulation Effect)
-// 特性: 使用 Verlet 积分系统和 GPU Compute 着色器实现真实布料物理模拟
+// GPU 丝绸波浪特效 (GPU Silk Wave Effect)
+// 特性: 使用 Verlet 积分系统和 GPU Compute 着色器实现梦幻丝绸效果
+// 拓展: 极光渐变、流动波纹、星空粒子、动态光照
 // 注意: 需要浏览器支持 WebGPU (Chrome 113+, Edge 113+)
 
 import * as THREE from 'three/webgpu'
@@ -20,7 +21,13 @@ import {
   attribute,
   cross,
   transformNormalToView,
-  vec3
+  vec3,
+  mix,
+  sin,
+  cos,
+  positionWorld,
+  smoothstep,
+  max
 } from 'three/tsl'
 import gsap from 'gsap'
 
@@ -29,21 +36,31 @@ const TIME_SCALE_FACTOR = 0.001
 
 // 配置参数
 export const clothSimulationEffectParams = {
-  clothWidth: 2, // 布料宽度
-  clothHeight: 2, // 布料高度
-  clothSegmentsX: 40, // 水平分段数
-  clothSegmentsY: 40, // 垂直分段数
-  sphereRadius: 0.25, // 碰撞球半径
-  stiffness: 0.3, // 刚度
-  dampening: 0.99, // 阻尼
+  clothWidth: 3, // 丝绸宽度
+  clothHeight: 4, // 丝绸高度
+  clothSegmentsX: 60, // 水平分段数
+  clothSegmentsY: 70, // 垂直分段数
+  stiffness: 0.25, // 刚度（更柔软）
+  dampening: 0.985, // 阻尼
   windStrength: 1.5, // 风力强度
-  gravity: 0.00008, // 重力
-  sphereEnabled: true, // 碰撞球启用
+  gravity: 0.00005, // 重力（更轻）
   wireframe: false, // 线框模式
-  clothColor: 0x4080ff, // 布料颜色
-  sheen: 0.8, // 光泽
-  opacity: 0.9, // 透明度
-  autoRotate: true // 自动旋转
+  // 极光渐变色
+  clothColor1: 0x00ffff, // 青色
+  clothColor2: 0xff00ff, // 洋红
+  clothColor3: 0x0066ff, // 深蓝
+  clothColor4: 0xffaa00, // 金橙
+  sheen: 0.95, // 光泽
+  opacity: 0.85, // 透明度
+  autoRotate: true, // 自动旋转
+  rippleEnabled: true, // 波纹效果启用
+  rippleStrength: 0.4, // 波纹强度
+  windNoiseScale: 1.2, // 风场噪声缩放
+  particleCount: 300, // 星空粒子数量
+  particleSize: 0.02, // 粒子大小
+  gradientEnabled: true, // 渐变着色启用
+  auroraEffect: true, // 极光效果
+  flowSpeed: 2.0 // 流动速度
 }
 
 type WebGPURendererType = InstanceType<typeof THREE.WebGPURenderer>
@@ -74,8 +91,8 @@ export const clothSimulationEffect = (container: HTMLElement) => {
   let renderer: WebGPURendererType
   let controls: OrbitControls
   let clothMesh: THREE.Mesh | null
-  let sphere: THREE.Mesh | null
   let wireframeMesh: THREE.Line | null
+  let particleMesh: THREE.InstancedMesh | null
 
   // Verlet 系统数据
   const verletVertices: VerletVertex[] = []
@@ -97,10 +114,18 @@ export const clothSimulationEffect = (container: HTMLElement) => {
 
   // Uniforms
   let dampeningUniform: any
-  let spherePositionUniform: any
-  let sphereUniform: any
   let windUniform: any
   let stiffnessUniform: any
+  let rippleUniform: any
+  let rippleStrengthUniform: any
+  let windScaleUniform: any
+  let flowSpeedUniform: any
+  let auroraUniform: any
+
+  // 装饰粒子系统
+  const particles: THREE.Vector3[] = []
+  const particleVelocities: THREE.Vector3[] = []
+  const particlePhases: number[] = []
 
   // 时间控制
   let timeSinceLastStep = 0
@@ -116,8 +141,7 @@ export const clothSimulationEffect = (container: HTMLElement) => {
     clothWidth,
     clothHeight,
     clothSegmentsX,
-    clothSegmentsY,
-    sphereRadius
+    clothSegmentsY
   } = clothSimulationEffectParams
 
   const init = async () => {
@@ -137,18 +161,30 @@ export const clothSimulationEffect = (container: HTMLElement) => {
       await renderer.init()
 
       camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 10)
-      camera.position.set(-2.5, -0.1, -2.5)
+      camera.position.set(-3.5, -0.3, -3.5)
 
       scene = new THREE.Scene()
       scene.background = null  // 使用透明背景，避免覆盖整个页面
 
       // 添加环境光和方向光
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.3)
       scene.add(ambientLight)
 
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0)
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5)
       directionalLight.position.set(1, 1, 1)
       scene.add(directionalLight)
+
+      const backLight = new THREE.DirectionalLight(0x00ffff, 0.6)
+      backLight.position.set(-1, 0.3, -1)
+      scene.add(backLight)
+
+      const sideLight1 = new THREE.DirectionalLight(0xff00ff, 0.4)
+      sideLight1.position.set(0, -1, 1)
+      scene.add(sideLight1)
+
+      const sideLight2 = new THREE.DirectionalLight(0x0066ff, 0.3)
+      sideLight2.position.set(1, 0, -1)
+      scene.add(sideLight2)
 
       // 设置 Verlet 系统
       setupVerletGeometry()
@@ -156,24 +192,30 @@ export const clothSimulationEffect = (container: HTMLElement) => {
       setupVerletSpringBuffers()
       setupUniforms()
       setupComputeShaders()
-      setupSphere()
       setupClothMesh()
       setupWireframe()
+      setupParticles()
 
       renderer.setAnimationLoop(animate)
 
       controls = new OrbitControls(camera, renderer.domElement)
       controls.enableDamping = true
       controls.dampingFactor = 0.05
-      controls.minDistance = 1
-      controls.maxDistance = 5
-      controls.target.set(0, -0.1, 0)
+      controls.minDistance = 2
+      controls.maxDistance = 10
+      controls.target.set(0, -0.2, 0)
       controls.update()
 
       // GSAP 动画
       initGSAPAnimations()
       playEntranceAnimation()
-      console.log('[GPU 布料模拟特效]初始化完成')
+
+      // 启动电影级自动运镜
+      setTimeout(() => {
+        playCameraAnimation()
+      }, 2500)
+
+      console.log('[GPU 丝绸波浪特效]初始化完成')
     } catch (error) {
       console.error('[GPU 布料模拟特效]初始化失败:', error)
     }
@@ -206,15 +248,17 @@ export const clothSimulationEffect = (container: HTMLElement) => {
       return spring
     }
 
-    // 创建布料顶点
+    // 创建丝绸顶点 - 增加初始波动
     for (let x = 0; x <= clothSegmentsX; x++) {
       const column: VerletVertex[] = []
       for (let y = 0; y <= clothSegmentsY; y++) {
         const posX = x * (clothWidth / clothSegmentsX) - clothWidth * 0.5
-        const posZ = y * (clothHeight / clothSegmentsY)
-        // 固定顶部顶点
-        const isFixed = y === 0 && x % 4 === 0
-        const vertex = addVerletVertex(posX, clothHeight * 0.5, posZ, isFixed)
+        const posZ = y * (clothHeight / clothSegmentsY) - clothHeight * 0.5
+        // 添加初始波浪效果
+        const waveX = Math.sin(y * 0.2) * 0.1
+        // 固定顶部和两侧部分顶点（更少固定点，更飘逸）
+        const isFixed = y === 0 && x % 8 === 0
+        const vertex = addVerletVertex(posX + waveX, clothHeight * 0.3, posZ, isFixed)
         column.push(vertex)
       }
       verletVertexColumns.push(column)
@@ -285,10 +329,13 @@ export const clothSimulationEffect = (container: HTMLElement) => {
   // 设置 Uniforms
   const setupUniforms = () => {
     dampeningUniform = uniform(clothSimulationEffectParams.dampening)
-    spherePositionUniform = uniform(new THREE.Vector3(0, 0, 0))
-    sphereUniform = uniform(clothSimulationEffectParams.sphereEnabled ? 1.0 : 0.0)
     windUniform = uniform(clothSimulationEffectParams.windStrength)
     stiffnessUniform = uniform(clothSimulationEffectParams.stiffness)
+    rippleUniform = uniform(clothSimulationEffectParams.rippleEnabled ? 1.0 : 0.0)
+    rippleStrengthUniform = uniform(clothSimulationEffectParams.rippleStrength)
+    windScaleUniform = uniform(clothSimulationEffectParams.windNoiseScale)
+    flowSpeedUniform = uniform(clothSimulationEffectParams.flowSpeed)
+    auroraUniform = uniform(clothSimulationEffectParams.auroraEffect ? 1.0 : 0.0)
   }
 
   // 设置 Compute 着色器
@@ -348,41 +395,39 @@ export const clothSimulationEffect = (container: HTMLElement) => {
       // 重力
       force.y.subAssign(float(clothSimulationEffectParams.gravity))
 
-      // 风力（使用三重噪声）
-      const noise = triNoise3D(position, 1, time).sub(0.2).mul(0.00015)
+      // 风力（使用三重噪声 - 动态风场）
+      const noise = triNoise3D(position.mul(windScaleUniform), 1, time.mul(flowSpeedUniform))
+        .sub(0.3)
+        .mul(0.00015)
       const windForce = noise.mul(windUniform)
       force.z.subAssign(windForce)
 
-      // 球体碰撞
-      const deltaSphere = position.add(force).sub(spherePositionUniform)
-      const dist = deltaSphere.length()
-      const sphereForce = float(sphereRadius)
-        .sub(dist)
-        .max(0)
-        .mul(deltaSphere)
-        .div(dist)
-        .mul(sphereUniform)
-      force.addAssign(sphereForce)
+      // 多层波纹效果
+      const rippleDist = position.x.mul(position.x).add(position.z.mul(position.z)).sqrt()
+      const rippleWave1 = sin(rippleDist.mul(8).sub(time.mul(2)))
+      const rippleWave2 = sin(rippleDist.mul(5).sub(time.mul(3)))
+      const rippleWave3 = sin(position.x.mul(10).add(time.mul(1.5)))
+      const rippleWave = rippleWave1.mul(rippleWave2).add(rippleWave3.mul(0.5))
+        .mul(rippleStrengthUniform)
+        .mul(rippleUniform)
+        .mul(0.0003)
+      force.y.addAssign(rippleWave)
+
+      // 极光效果 - 垂直波动
+      if (auroraUniform.value > 0) {
+        const auroraWave = sin(position.x.mul(3).add(time.mul(1.5)))
+          .mul(cos(position.z.mul(2).sub(time.mul(1.2))))
+          .mul(auroraUniform)
+          .mul(0.0002)
+        force.x.addAssign(auroraWave)
+      }
 
       vertexForceBuffer.element(instanceIndex).assign(force)
       vertexPositionBuffer.element(instanceIndex).addAssign(force)
     })().compute(vertexCount).setName('Vertex Forces')
   }
 
-  // 设置碰撞球
-  const setupSphere = () => {
-    const geometry = new THREE.IcosahedronGeometry(sphereRadius * 0.95, 4)
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x4488ff,
-      metalness: 0.8,
-      roughness: 0.2
-    })
-    sphere = new THREE.Mesh(geometry, material)
-    sphere.visible = clothSimulationEffectParams.sphereEnabled
-    scene.add(sphere)
-  }
-
-  // 设置布料网格
+  // 设置丝绸网格
   const setupClothMesh = () => {
     const vertexCount = clothSegmentsX * clothSegmentsY
     const geometry = new THREE.BufferGeometry()
@@ -414,20 +459,33 @@ export const clothSimulationEffect = (container: HTMLElement) => {
     geometry.setAttribute('vertexIds', verletVertexIdBufferAttr)
     geometry.setIndex(indices)
 
+    // 极光四色渐变配置
+    const color1 = new THREE.Color(clothSimulationEffectParams.clothColor1)
+    const color2 = new THREE.Color(clothSimulationEffectParams.clothColor2)
+    const color3 = new THREE.Color(clothSimulationEffectParams.clothColor3)
+    const color4 = new THREE.Color(clothSimulationEffectParams.clothColor4)
+
     // 使用 MeshPhysicalNodeMaterial 支持 TSL 节点
     const clothMaterial = new THREE.MeshPhysicalNodeMaterial({
-      color: new THREE.Color().setHex(clothSimulationEffectParams.clothColor),
+      color: new THREE.Color().setHex(clothSimulationEffectParams.clothColor1),
       side: THREE.DoubleSide,
       transparent: true,
       opacity: clothSimulationEffectParams.opacity,
       sheen: clothSimulationEffectParams.sheen,
-      sheenRoughness: 0.5,
+      sheenRoughness: 0.2,
       sheenColor: new THREE.Color(0xffffff),
-      metalness: 0.3,
-      roughness: 0.6
+      metalness: 0.1,
+      roughness: 0.4,
+      transmission: 0.25,
+      thickness: 0.15,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.3,
+      iridescence: 0.6,
+      iridescenceIOR: 1.8,
+      iridescenceThicknessRange: [100, 400]
     })
 
-    // 使用 TSL 节点更新位置和计算法线
+    // 使用 TSL 节点更新位置、计算法线和极光渐变着色
     const updatePosition = Fn(() => {
       const vertexIds = attribute('vertexIds')
       const v0 = vertexPositionBuffer.element(vertexIds.x).toVar()
@@ -453,6 +511,35 @@ export const clothSimulationEffect = (container: HTMLElement) => {
       // 设置法线到材质
       clothMaterial.normalNode = transformNormalToView(normal)
 
+      // 极光四色渐变着色（基于位置和时间的动态渐变）
+      if (clothSimulationEffectParams.gradientEnabled) {
+        const heightFactor = smoothstep(-clothHeight * 0.5, clothHeight * 0.5, position.y)
+        const horizontalFactor = smoothstep(-clothWidth * 0.5, clothWidth * 0.5, position.x)
+        const timeFactor = sin(time.mul(flowSpeedUniform).mul(0.5)).mul(0.5).add(0.5)
+
+        // 多层混合实现极光效果
+        const mix1 = mix(
+          vec3(color1.r, color1.g, color1.b),
+          vec3(color2.r, color2.g, color2.b),
+          horizontalFactor
+        )
+        const mix2 = mix(
+          vec3(color3.r, color3.g, color3.b),
+          vec3(color4.r, color4.g, color4.b),
+          horizontalFactor
+        )
+        const finalMix = mix(mix1, mix2, heightFactor)
+
+        // 添加时间变化
+        const auroraPulse = sin(position.y.mul(4).add(time.mul(2))).mul(0.3).add(0.7)
+        clothMaterial.colorNode = finalMix.mul(auroraPulse)
+      }
+
+      // 动态光泽（虹彩效果）
+      const sheenIntensity = smoothstep(-clothHeight * 0.5, clothHeight * 0.5, position.y)
+        .mul(sin(time).mul(0.2).add(0.8))
+      clothMaterial.sheenNode = uniform(clothSimulationEffectParams.sheen).mul(sheenIntensity)
+
       return position
     })
 
@@ -476,9 +563,9 @@ export const clothSimulationEffect = (container: HTMLElement) => {
     geometry.instanceCount = verletSprings.length
 
     const material = new THREE.LineBasicMaterial({
-      color: 0x00ff88,
+      color: 0x00ffff,
       transparent: true,
-      opacity: 0.5
+      opacity: 0.15
     })
 
     wireframeMesh = new THREE.Line(geometry, material)
@@ -487,67 +574,202 @@ export const clothSimulationEffect = (container: HTMLElement) => {
     scene.add(wireframeMesh)
   }
 
-  // 更新球体位置
-  const updateSphere = () => {
-    if (!sphere || !spherePositionUniform) return
+  // 设置星空粒子系统
+  const setupParticles = () => {
+    const particleCount = clothSimulationEffectParams.particleCount
+    const dummy = new THREE.Object3D()
+    const color = new THREE.Color()
 
-    sphere.position.set(
-      Math.sin(timestamp * 2.5) * 0.15,
-      0,
-      Math.sin(timestamp * 1.2) * 0.1
-    )
-    spherePositionUniform.value.copy(sphere.position)
+    for (let i = 0; i < particleCount; i++) {
+      // 在丝绸周围随机生成星空粒子
+      const radius = Math.random() * clothWidth * 2 + 1
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.random() * Math.PI
+
+      const x = radius * Math.sin(phi) * Math.cos(theta)
+      const y = radius * Math.cos(phi) * 1.5
+      const z = radius * Math.sin(phi) * Math.sin(theta)
+
+      particles.push(new THREE.Vector3(x, y, z))
+      particleVelocities.push(new THREE.Vector3(
+        (Math.random() - 0.5) * 0.002,
+        (Math.random() - 0.5) * 0.002,
+        (Math.random() - 0.5) * 0.002
+      ))
+      particlePhases.push(Math.random() * Math.PI * 2)
+    }
+
+    const geometry = new THREE.IcosahedronGeometry(clothSimulationEffectParams.particleSize, 0)
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0x00ffff,
+      emissiveIntensity: 1.2,
+      metalness: 0.8,
+      roughness: 0.2,
+      transparent: true,
+      opacity: 0.9
+    })
+
+    particleMesh = new THREE.InstancedMesh(geometry, material, particleCount)
+    particleMesh.frustumCulled = false
+
+    for (let i = 0; i < particleCount; i++) {
+      dummy.position.copy(particles[i])
+      dummy.scale.setScalar(1)
+      dummy.updateMatrix()
+      particleMesh.setMatrixAt(i, dummy.matrix)
+    }
+
+    scene.add(particleMesh)
+  }
+
+  // 更新星空粒子
+  const updateParticles = () => {
+    if (!particleMesh) return
+
+    const dummy = new THREE.Object3D()
+    const particleCount = clothSimulationEffectParams.particleCount
+
+    for (let i = 0; i < particleCount; i++) {
+      // 更新粒子位置 - 缓慢旋转
+      particlePhases[i] += 0.01
+
+      // 粒子围绕丝绸旋转
+      const rotSpeed = 0.0005
+      const cosRot = Math.cos(rotSpeed)
+      const sinRot = Math.sin(rotSpeed)
+      const x = particles[i].x
+      const z = particles[i].z
+
+      particles[i].x = x * cosRot - z * sinRot
+      particles[i].z = x * sinRot + z * cosRot
+
+      // 上下漂浮
+      particles[i].y += Math.sin(particlePhases[i]) * 0.0003
+
+      // 更新实例矩阵
+      dummy.position.copy(particles[i])
+      const brightness = 0.5 + Math.sin(particlePhases[i]) * 0.5
+      const scale = brightness * 0.8
+      dummy.scale.setScalar(scale)
+      dummy.updateMatrix()
+      particleMesh.setMatrixAt(i, dummy.matrix)
+    }
+
+    particleMesh.instanceMatrix.needsUpdate = true
   }
 
   // GSAP 动画
   const initGSAPAnimations = () => {
-    if (clothSimulationEffectParams.autoRotate) {
-      cameraTimeline = gsap.timeline({
-        repeat: -1,
-        repeatDelay: 1,
-        duration: 12
-      })
-
-      cameraTimeline.to(camera.position, {
-        x: -2.0,
-        y: 0.5,
-        z: -2.0,
-        duration: 6,
-        ease: 'power2.inOut',
-        onUpdate: () => camera.lookAt(0, -0.1, 0)
-      }, 0)
-
-      cameraTimeline.to(camera.position, {
-        x: -2.5,
-        y: -0.5,
-        z: -2.5,
-        duration: 6,
-        ease: 'power2.inOut',
-        onUpdate: () => camera.lookAt(0, -0.1, 0)
-      }, 6)
-    }
+    // 呼吸动画
+    const breatheAnimation = { value: 1 }
+    const breatheTween = gsap.to(breatheAnimation, {
+      value: 1.3,
+      duration: 2.5,
+      ease: 'sine.inOut',
+      repeat: -1,
+      yoyo: true
+    })
+    allTweens.push(breatheTween)
   }
 
   const playEntranceAnimation = () => {
+    // 相机俯冲入场
     const t1 = gsap.from(camera.position, {
-      x: -5,
-      y: 3,
-      z: -5,
+      x: -7,
+      y: 5,
+      z: -7,
       duration: 3,
       ease: 'power3.out'
     })
     allTweens.push(t1)
 
-    if (sphere) {
-      const t2 = gsap.from(sphere.scale, {
+    // 丝绸材质淡入
+    if (clothMesh && clothMesh.material instanceof THREE.Material) {
+      const t2 = gsap.fromTo(
+        clothMesh.material,
+        { opacity: 0 },
+        {
+          opacity: clothSimulationEffectParams.opacity,
+          duration: 2,
+          ease: 'power2.out'
+        }
+      )
+      allTweens.push(t2)
+    }
+
+    // 星空粒子弹性进场
+    if (particleMesh) {
+      const t3 = gsap.from(particleMesh.scale, {
         x: 0,
         y: 0,
         z: 0,
         duration: 2,
-        ease: 'elastic.out(1, 0.5)'
+        ease: 'elastic.out(1, 0.7)'
       })
-      allTweens.push(t2)
+      allTweens.push(t3)
     }
+  }
+
+  const playCameraAnimation = () => {
+    if (!clothSimulationEffectParams.autoRotate || !camera) return
+
+    // 清理之前的运镜动画
+    if (cameraTimeline) {
+      cameraTimeline.kill()
+    }
+
+    // 创建电影级运镜时间线
+    cameraTimeline = gsap.timeline({
+      repeat: 0, // 只播放一次，不再循环
+      repeatDelay: 0.5,
+      onComplete: () => {
+        console.log('[布料模拟特效] 运镜动画完成 - 自动清除特效')
+        cameraTimeline = null
+        // 运镜完成后自动清除特效
+        clearEffect()
+      }
+    })
+
+    // 多角度运镜 - 梦幻轨迹
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: -2.8,
+        y: 0.5,
+        z: -2.2,
+        duration: 6,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, -0.2, 0)
+      },
+      0
+    )
+
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: -1.2,
+        y: -0.1,
+        z: -3.5,
+        duration: 5,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, -0.2, 0)
+      },
+      '>'
+    )
+
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: -3.2,
+        y: -0.6,
+        z: -2.8,
+        duration: 5,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, -0.2, 0)
+      },
+      '>'
+    )
   }
 
   const animate = (time: number) => {
@@ -556,21 +778,20 @@ export const clothSimulationEffect = (container: HTMLElement) => {
     // 更新控制器
     if (controls) controls.update()
 
-    // 更新球体和 uniforms
-    updateSphere()
-
     // 物理模拟步进
     timeSinceLastStep += deltaTime
     while (timeSinceLastStep >= TIME_PER_STEP) {
       timestamp += TIME_PER_STEP
       timeSinceLastStep -= TIME_PER_STEP
-      updateSphere()
 
       if (renderer && computeSpringForces && computeVertexForces) {
         renderer.compute(computeSpringForces)
         renderer.compute(computeVertexForces)
       }
     }
+
+    // 更新装饰粒子
+    updateParticles()
 
     // 渲染（布料网格位置由 GPU TSL 节点自动更新）
     if (renderer) {
@@ -592,45 +813,66 @@ export const clothSimulationEffect = (container: HTMLElement) => {
 
   init()
 
-  // 清理函数
-  const cleanup = () => {
+  // ============================================================
+  // 🧹 内部清理函数（实际执行清理）
+  // ============================================================
+  const performCleanup = () => {
+    console.log('清理 GPU 丝绸波浪特效...')
+
     try {
-      allTweens.forEach(t => {
-        if (t?.kill) t.kill()
+      // 立即杀掉所有存储的 tweens
+      allTweens.forEach(tween => {
+        if (tween && tween.kill) tween.kill()
       })
       allTweens.length = 0
 
+      // 立即杀掉所有相机相关的 GSAP 动画
       if (camera) {
         gsap.killTweensOf(camera.position)
         gsap.killTweensOf(camera.rotation)
       }
-      if (sphere) {
-        gsap.killTweensOf(sphere.scale)
+      if (clothMesh) {
+        gsap.killTweensOf(clothMesh.scale)
+        gsap.killTweensOf(clothMesh.material)
       }
+      if (particleMesh) {
+        gsap.killTweensOf(particleMesh.scale)
+      }
+
+      // 清理相机时间线
       if (cameraTimeline) {
         cameraTimeline.kill()
         cameraTimeline = null
       }
+
+      // 取消动画循环
       if (renderer) {
         renderer.setAnimationLoop(null)
       }
-      window.removeEventListener('resize', handleResize)
 
+      // 移除事件监听
+      if (typeof handleResize === 'function') {
+        window.removeEventListener('resize', handleResize)
+      }
+
+      // 从场景中移除网格
       if (scene) {
         if (clothMesh) scene.remove(clothMesh)
-        if (sphere) scene.remove(sphere)
+        if (particleMesh) scene.remove(particleMesh)
         if (wireframeMesh) scene.remove(wireframeMesh)
       }
+
+      // 清理资源
       if (clothMesh) {
         if (clothMesh.geometry) clothMesh.geometry.dispose()
         if (clothMesh.material instanceof THREE.Material) {
           clothMesh.material.dispose()
         }
       }
-      if (sphere) {
-        if (sphere.geometry) sphere.geometry.dispose()
-        if (sphere.material instanceof THREE.Material) {
-          sphere.material.dispose()
+      if (particleMesh) {
+        if (particleMesh.geometry) particleMesh.geometry.dispose()
+        if (particleMesh.material instanceof THREE.Material) {
+          particleMesh.material.dispose()
         }
       }
       if (wireframeMesh) {
@@ -639,26 +881,37 @@ export const clothSimulationEffect = (container: HTMLElement) => {
           wireframeMesh.material.dispose()
         }
       }
-      if (renderer?.domElement?.parentNode) {
+
+      // 移除 DOM 元素
+      if (renderer && renderer.domElement && renderer.domElement.parentNode) {
         renderer.domElement.parentNode.removeChild(renderer.domElement)
       }
+
+      // 释放渲染器
       if (renderer) {
         renderer.dispose()
       }
+
+      // 清空引用
+      scene = null as any
+      camera = null as any
+      renderer = null as any
+      controls = null as any
+      clothMesh = null
+      particleMesh = null
+      wireframeMesh = null
 
       // 清理 Verlet 系统
       verletVertices.length = 0
       verletSprings.length = 0
       verletVertexColumns.length = 0
 
-      scene = null
-      camera = null
-      renderer = null
-      controls = null
-      clothMesh = null
-      sphere = null
-      wireframeMesh = null
+      // 清理粒子系统
+      particles.length = 0
+      particleVelocities.length = 0
+      particlePhases.length = 0
 
+      // 清理 GPU 缓冲区
       vertexPositionBuffer = null
       vertexForceBuffer = null
       vertexParamsBuffer = null
@@ -667,20 +920,87 @@ export const clothSimulationEffect = (container: HTMLElement) => {
       springForceBuffer = null
       springListBuffer = null
 
+      // 清理 Compute 着色器
       computeSpringForces = null
       computeVertexForces = null
 
+      // 清理 Uniforms
       dampeningUniform = null
-      spherePositionUniform = null
-      sphereUniform = null
       windUniform = null
       stiffnessUniform = null
+      rippleUniform = null
+      rippleStrengthUniform = null
+      windScaleUniform = null
+      flowSpeedUniform = null
+      auroraUniform = null
 
-      console.log('[GPU 布料模拟特效]清理完成')
+      console.log('GPU 丝绸波浪特效清理完成')
     } catch (error) {
-      console.error('清理[GPU 布料模拟特效]时出错:', error)
+      console.error('清理 GPU 丝绸波浪特效时出错:', error)
     }
   }
 
-  return cleanup
+  // ============================================================
+  // 🧹 清除特效（淡出后清理）
+  // ============================================================
+  const clearEffect = () => {
+    console.log('开始淡出 GPU 丝绸波浪特效...')
+
+    // 先停止所有动画
+    allTweens.forEach(tween => {
+      if (tween && tween.kill) tween.kill()
+    })
+    allTweens.length = 0
+
+    // 停止运镜动画
+    if (cameraTimeline) {
+      cameraTimeline.kill()
+      cameraTimeline = null
+    }
+
+    // 先淡出所有元素
+    const fadeOutTimeline = gsap.timeline({
+      onComplete: () => {
+        // 淡出完成后执行完整清理
+        console.log('淡出完成，开始清理...')
+        performCleanup()
+      }
+    })
+
+    // 淡出布料
+    if (clothMesh && clothMesh.material instanceof THREE.Material) {
+      fadeOutTimeline.to(clothMesh.material, {
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.out'
+      }, 0)
+    }
+
+    // 淡出粒子缩放
+    if (particleMesh) {
+      fadeOutTimeline.to(particleMesh.scale, {
+        x: 0.01,
+        y: 0.01,
+        z: 0.01,
+        duration: 0.6,
+        ease: 'back.in(1.7)'
+      }, 0)
+    }
+  }
+
+  // 停止相机动画
+  const stopCameraAnimation = () => {
+    if (cameraTimeline) {
+      console.log('停止 GPU 丝绸波浪运镜动画')
+      cameraTimeline.kill()
+      cameraTimeline = null
+    }
+  }
+
+  // 返回清理函数
+  const cleanup = () => {
+    performCleanup()
+  }
+
+  return { cleanup, clearEffect, stopCameraAnimation }
 }

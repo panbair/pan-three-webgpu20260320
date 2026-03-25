@@ -29,13 +29,19 @@ interface Emits {
 
 // 内部维护特效列表
 const effects: Effect[] = [
-  { id: 'alphaHash', name: '星系螺旋', icon: '🌟' },
   { id: 'galaxyVortex', name: '星系漩涡', icon: '🌌' },
   { id: 'quantumWave', name: '量子波动', icon: '⚛️' },
   { id: 'nebulaCloud', name: '星云流', icon: '🌠' },
   { id: 'dynamicFlowField', name: '动态流场', icon: '🌊' },
   { id: 'gpuParticleFlock', name: 'GPU 粒子群', icon: '🐦' },
-  { id: 'clothSimulation', name: 'GPU 布料模拟', icon: '🧵' }
+  { id: 'clothSimulation', name: '丝绸波浪', icon: '🧵' },
+  { id: 'crystalPalace', name: '星际之门', icon: '🌀' },
+  { id: 'crystalGarden', name: '水晶花园', icon: '💎' },
+  { id: 'quantumConsciousness', name: '量子意识', icon: '🧠' },
+  { id: 'dimensionalRift', name: '维度裂隙', icon: '🌌' },
+  { id: 'quantumDreamWeaver', name: '量子织梦机', icon: '🌌' },
+  { id: 'temporalRiftEye', name: '时空之眼', icon: '👁️' },
+  { id: 'neonNebula', name: '霓虹星云', icon: '🌈' }
 ]
 
 const currentEffectId = ref('galaxyVortex')

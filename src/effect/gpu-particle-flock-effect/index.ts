@@ -81,6 +81,7 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
 
   // GSAP 动画对象
   let cameraTimeline: gsap.core.Timeline | null = null
+  let cameraAnimationTimer: number | null = null
   const allTweens: gsap.core.Tween[] = []
 
   let raycaster: THREE.Raycaster
@@ -111,15 +112,57 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
       pointer = new THREE.Vector2(0, 10)
       raycaster = new THREE.Raycaster()
 
-      // 创建蝴蝶纹理
+      // 创建蝴蝶纹理（使用加载管理器确保纹理加载完成）
       const textureLoader = new THREE.TextureLoader()
-      const butterflyTexture = textureLoader.load('/images/mifeng.jpg')
-      butterflyTexture.colorSpace = THREE.SRGBColorSpace
-      // 启用透明度处理
-      butterflyTexture.minFilter = THREE.LinearMipMapLinearFilter
-      butterflyTexture.magFilter = THREE.LinearFilter
-      // 修正纹理坐标以消除边缘
-      butterflyTexture.needsUpdate = true
+      let butterflyTexture: THREE.Texture
+
+      try {
+        butterflyTexture = await new Promise<THREE.Texture>((resolve, reject) => {
+          textureLoader.load(
+            '/images/mifeng.jpg',
+            (texture) => {
+              texture.colorSpace = THREE.SRGBColorSpace
+              // 启用透明度处理
+              texture.minFilter = THREE.LinearMipMapLinearFilter
+              texture.magFilter = THREE.LinearFilter
+              // 确保纹理完全加载
+              texture.needsUpdate = true
+              resolve(texture)
+            },
+            undefined,
+            (error) => {
+              console.error('[GPU 粒子群集特效]纹理加载失败，使用备用方案', error)
+              // 创建简单的圆形纹理作为备用
+              const canvas = document.createElement('canvas')
+              canvas.width = 64
+              canvas.height = 64
+              const ctx = canvas.getContext('2d')!
+              const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+              gradient.addColorStop(0, 'rgba(255, 255, 255, 1)')
+              gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
+              ctx.fillStyle = gradient
+              ctx.fillRect(0, 0, 64, 64)
+              const fallbackTexture = new THREE.CanvasTexture(canvas)
+              fallbackTexture.colorSpace = THREE.SRGBColorSpace
+              resolve(fallbackTexture)
+            }
+          )
+        })
+      } catch (error) {
+        console.error('[GPU 粒子群集特效]纹理初始化失败，使用备用方案', error)
+        // 创建简单的圆形纹理作为备用
+        const canvas = document.createElement('canvas')
+        canvas.width = 64
+        canvas.height = 64
+        const ctx = canvas.getContext('2d')!
+        const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1)')
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
+        ctx.fillStyle = gradient
+        ctx.fillRect(0, 0, 64, 64)
+        butterflyTexture = new THREE.CanvasTexture(canvas)
+        butterflyTexture.colorSpace = THREE.SRGBColorSpace
+      }
 
       // 创建粒子几何体（平面）- 使用蝴蝶图片
       const geometry = new THREE.PlaneGeometry(
@@ -193,6 +236,23 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
       material.depthWrite = false
       material.alphaToCoverage = true  // 使用 alpha to coverage 改善透明边缘
 
+      mesh = new THREE.InstancedMesh(geometry, material, count)
+      mesh.matrixAutoUpdate = false
+      mesh.frustumCulled = false
+      scene.add(mesh)
+
+      // 创建 WebGPU 渲染器
+      renderer = new THREE.WebGPURenderer({
+        antialias: false,
+        alpha: true,
+        samples: 1,
+        requiredLimits: { maxStorageBuffersInVertexStage: 3 }
+      })
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0))
+      renderer.setSize(width, height)
+      container.appendChild(renderer.domElement)
+      await renderer.init()
+
       // 顶点着色器：粒子形状动画 + Billboard 效果
       const particleVertexTSL = Fn(() => {
         const position = positionLocal.toVar()
@@ -223,24 +283,7 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
 
       material.vertexNode = particleVertexTSL()
       material.colorNode = colorNode
-
-      mesh = new THREE.InstancedMesh(geometry, material, count)
-      mesh.matrixAutoUpdate = false
-      mesh.frustumCulled = false
-      scene.add(mesh)
-
-      // 创建 WebGPU 渲染器
-      renderer = new THREE.WebGPURenderer({
-        antialias: false,
-        alpha: true,
-        samples: 1,
-        requiredLimits: { maxStorageBuffersInVertexStage: 3 }
-      })
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0))
-      renderer.setSize(width, height)
-      renderer.setAnimationLoop(animate)
-      container.appendChild(renderer.domElement)
-      await renderer.init()
+      material.needsUpdate = true
 
       // 创建环境贴图
       const environment = new RoomEnvironment()
@@ -387,6 +430,9 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
         .compute(count)
         .setName('Particle Position')
 
+      // 启动动画循环
+      renderer.setAnimationLoop(animate)
+
       // GSAP 动画
       initGSAPAnimations()
       playEntranceAnimation()
@@ -396,15 +442,27 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
     }
   }
 
-  // GSAP 动画
-  const initGSAPAnimations = () => {
-    // 相机运镜
+  // 相机运镜动画
+  const playCameraAnimation = () => {
+    if (!gpuParticleFlockEffectParams.autoRotate) return
+
+    // 检查 camera 是否存在（可能在切换特效时已被清理）
+    if (!camera) {
+      console.warn('[GPU 粒子群集特效] camera 已被清理，跳过运镜动画')
+      return
+    }
+
     cameraTimeline = gsap.timeline({
-      repeat: -1,
-      repeatDelay: 1,
-      duration: 10
+      repeatDelay: 0.3,
+      duration: 10,
+      repeat: 0,
+      onComplete: () => {
+        console.log('[GPU 粒子群集特效] 运镜动画完成，开始清理特效')
+        clearEffect()
+      }
     })
 
+    // 第一阶段：正面推进
     cameraTimeline.to(
       camera.position,
       {
@@ -418,6 +476,7 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
       0
     )
 
+    // 第二阶段：环绕切换
     cameraTimeline.to(
       camera.position,
       {
@@ -432,32 +491,69 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
     )
   }
 
+  // 停止运镜动画
+  const stopCameraAnimation = () => {
+    if (cameraTimeline) {
+      cameraTimeline.kill()
+      cameraTimeline = null
+    }
+  }
+
+  // 初始化GSAP呼吸动画
+  const initGSAPAnimations = () => {
+    // 粒子整体旋转呼吸
+    const t = gsap.to(
+      { rotation: 0 },
+      {
+        rotation: Math.PI * 2,
+        duration: 60,
+        repeat: -1,
+        ease: 'none',
+        onUpdate: function () {
+          if (mesh) {
+            mesh.rotation.y = this.targets()[0].rotation * 0.01
+          }
+        }
+      }
+    )
+    allTweens.push(t)
+  }
+
   // 入场动画
   const playEntranceAnimation = () => {
+    // 相机远距离俯冲
     const t1 = gsap.from(camera.position, {
       x: 0,
       y: 800,
       z: 1000,
-      duration: 3,
+      duration: 2.5,
       ease: 'power3.out'
     })
     allTweens.push(t1)
 
+    // 粒子群弹入
     const t2 = gsap.from(mesh.scale, {
       x: 0.01,
       y: 0.01,
       z: 0.01,
-      duration: 2.5,
+      duration: 2,
       ease: 'elastic.out(1, 0.5)'
     })
     allTweens.push(t2)
 
+    // 粒子旋转入场
     const t3 = gsap.from(mesh.rotation, {
       y: Math.PI * 2,
-      duration: 3,
+      duration: 2.5,
       ease: 'power2.out'
     })
     allTweens.push(t3)
+
+    // 2.5秒后启动运镜动画
+    cameraAnimationTimer = window.setTimeout(() => {
+      playCameraAnimation()
+      cameraAnimationTimer = null
+    }, 2500)
   }
 
   const animate = (time: number) => {
@@ -518,50 +614,77 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
 
   init()
 
-  // 清理函数
-  const cleanup = () => {
+  // ============================================================
+  // 🧹 内部清理函数（实际执行清理）
+  // ============================================================
+  const performCleanup = () => {
     try {
+      // 清除延迟执行的运镜动画 timer
+      if (cameraAnimationTimer !== null) {
+        clearTimeout(cameraAnimationTimer)
+        cameraAnimationTimer = null
+      }
+
+      // 1. 清理所有tween
       allTweens.forEach(t => {
         if (t?.kill) t.kill()
       })
       allTweens.length = 0
 
+      // 2. 清理相机动画
       if (camera) {
         gsap.killTweensOf(camera.position)
         gsap.killTweensOf(camera.rotation)
       }
-      if (mesh) {
-        gsap.killTweensOf(mesh.scale)
-        gsap.killTweensOf(mesh.rotation)
-      }
+
+      // 3. 清理相机timeline
       if (cameraTimeline) {
         cameraTimeline.kill()
         cameraTimeline = null
       }
+
+      // 4. 停止动画循环
       if (renderer) {
         renderer.setAnimationLoop(null)
       }
+
+      // 5. 移除事件监听
       window.removeEventListener('resize', handleResize)
       if (container) {
         container.removeEventListener('pointermove', handlePointerMove)
       }
 
+      // 6. 清理场景对象 - 粒子系统
       if (scene && mesh) scene.remove(mesh)
       if (mesh) {
         if (mesh.geometry) mesh.geometry.dispose()
         if (mesh.material instanceof THREE.Material) {
+          // 清理材质的纹理
+          const nodeMaterial = mesh.material as any
+          if (nodeMaterial.map) {
+            nodeMaterial.map.dispose()
+            nodeMaterial.map = null
+          }
           mesh.material.dispose()
         }
       }
+
+      // 7. 清理DOM
       if (renderer?.domElement?.parentNode) {
         renderer.domElement.parentNode.removeChild(renderer.domElement)
       }
+
+      // 8. 清理renderer
       if (renderer) {
         renderer.dispose()
       }
 
-      scene = null
-      camera = null
+      // 9. 清理数组
+      particles.length = 0
+
+      // 10. 置null
+      scene = null as any
+      camera = null as any
       renderer = null
       controls = null
       mesh = null
@@ -582,5 +705,34 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
     }
   }
 
-  return cleanup
+  // ============================================================
+  // 🧹 清除特效（淡出后清理）
+  // ============================================================
+  const clearEffect = () => {
+    // 先淡出所有元素
+    const fadeOutTimeline = gsap.timeline({
+      onComplete: () => {
+        // 淡出完成后执行完整清理
+        performCleanup()
+      }
+    })
+
+    // 淡出粒子
+    if (material) {
+      fadeOutTimeline.to(material, {
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power2.out'
+      }, 0)
+    }
+  }
+
+  // ============================================================
+  // 🧹 对外暴露的清理函数
+  // ============================================================
+  const cleanup = () => {
+    performCleanup()
+  }
+
+  return { cleanup, clearEffect, stopCameraAnimation }
 }

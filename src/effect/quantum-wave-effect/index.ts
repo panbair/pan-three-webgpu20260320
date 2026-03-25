@@ -60,12 +60,12 @@ export const quantumWaveEffect = (container: HTMLElement) => {
   let particles: ParticleData[] = []
 
   const count = quantumWaveEffectParams.particleCount
-  let dummy: THREE.Object3D | null = new THREE.Object3D()
-  let color: THREE.Color | null = new THREE.Color()
+  const dummy = new THREE.Object3D()
+  const color = new THREE.Color()
 
   // GSAP 动画对象
-  let waveAnimation: { value: number } | null = { value: 0 }
-  let entanglementAnimation: { value: number } | null = { value: 1 }
+  const waveAnimation = { value: 0 }
+  const entanglementAnimation = { value: 1 }
 
   // 电影级运镜相关变量
   let cameraTimeline: gsap.core.Timeline | null = null
@@ -151,10 +151,10 @@ export const quantumWaveEffect = (container: HTMLElement) => {
       // 播放入场动画
       playEntranceAnimation()
 
-      // 启动电影级自动运镜
+      // 启动电影级自动运镜（延迟 2.5 秒）
       setTimeout(() => {
         playCameraAnimation()
-      }, 3000)
+      }, 2500)
 
       console.log('量子波动特效初始化完成')
     } catch (error) {
@@ -195,18 +195,14 @@ export const quantumWaveEffect = (container: HTMLElement) => {
       })
 
       // 设置初始位置
-      if (dummy) {
-        dummy.position.set(x, y, z)
-        dummy.scale.setScalar(particles[i].baseSize)
-        dummy.updateMatrix()
-        mesh.setMatrixAt(i, dummy.matrix)
-      }
+      dummy.position.set(x, y, z)
+      dummy.scale.setScalar(particles[i].baseSize)
+      dummy.updateMatrix()
+      mesh.setMatrixAt(i, dummy.matrix)
 
       // 设置颜色
-      if (color) {
-        color.setHSL(particles[i].hue, particles[i].saturation, particles[i].lightness)
-        mesh.setColorAt(i, color)
-      }
+      color.setHSL(particles[i].hue, particles[i].saturation, particles[i].lightness)
+      mesh.setColorAt(i, color)
     }
 
     mesh.instanceMatrix.needsUpdate = true
@@ -246,7 +242,7 @@ export const quantumWaveEffect = (container: HTMLElement) => {
       x: 60,
       y: 50,
       z: 60,
-      duration: 3,
+      duration: 2,
       ease: 'power3.out'
     })
     allTweens.push(cameraTween)
@@ -256,7 +252,7 @@ export const quantumWaveEffect = (container: HTMLElement) => {
       x: 0.001,
       y: 0.001,
       z: 0.001,
-      duration: 2.5,
+      duration: 2,
       ease: 'elastic.out(1, 0.5)'
     })
     allTweens.push(scaleTween)
@@ -265,7 +261,7 @@ export const quantumWaveEffect = (container: HTMLElement) => {
     const rotationTween = gsap.from(mesh.rotation, {
       x: Math.PI * 0.5,
       y: Math.PI * 0.5,
-      duration: 4,
+      duration: 3,
       ease: 'power2.out'
     })
     allTweens.push(rotationTween)
@@ -273,14 +269,24 @@ export const quantumWaveEffect = (container: HTMLElement) => {
     // 材质淡入
     const materialTween = gsap.from(material, {
       opacity: 0,
-      duration: 2,
+      duration: 1.8,
       ease: 'power2.out'
     })
     allTweens.push(materialTween)
   }
 
   /**
-   * 电影级运镜动画
+   * 停止相机运镜动画
+   */
+  const stopCameraAnimation = () => {
+    if (cameraTimeline) {
+      cameraTimeline.kill()
+      cameraTimeline = null
+    }
+  }
+
+  /**
+   * 播放电影级运镜动画
    */
   const playCameraAnimation = () => {
     // 检查是否已清理
@@ -290,12 +296,12 @@ export const quantumWaveEffect = (container: HTMLElement) => {
       cameraTimeline.kill()
     }
 
-    // 创建电影级运镜时间线
+    // 创建电影级运镜时间线（单次播放，结束后自动清理）
     cameraTimeline = gsap.timeline({
-      repeat: -1,
       repeatDelay: 0.5,
       onComplete: () => {
-        cameraTimeline = null
+        console.log('[量子波动特效] 运镜动画完成，开始清理特效')
+        clearEffect()
       }
     })
 
@@ -372,22 +378,20 @@ export const quantumWaveEffect = (container: HTMLElement) => {
       }
 
       // 更新位置
-      if (dummy) {
-        dummy.position.set(x, y, z)
+      dummy.position.set(x, y, z)
 
-        // 波动缩放
-        const size = p.baseSize * (1 + Math.sin(wavePhase + p.orbitPhase) * 0.3)
-        dummy.scale.setScalar(size)
+      // 波动缩放
+      const size = p.baseSize * (1 + Math.sin(wavePhase + p.orbitPhase) * 0.3)
+      dummy.scale.setScalar(size)
 
-        // 量子旋转
-        dummy.rotation.set(timeScale * 0.3, timeScale * 0.5, timeScale * 0.2)
+      // 量子旋转
+      dummy.rotation.set(timeScale * 0.3, timeScale * 0.5, timeScale * 0.2)
 
-        dummy.updateMatrix()
-        mesh.setMatrixAt(i, dummy.matrix)
-      }
+      dummy.updateMatrix()
+      mesh.setMatrixAt(i, dummy.matrix)
 
       // 仅在指定帧数更新颜色（性能优化）
-      if (shouldUpdateColor && color) {
+      if (shouldUpdateColor) {
         // 干涉图案效果：颜色随波动相位变化
         let currentHue = p.hue + colorTime
         if (currentHue > 1) currentHue -= 1
@@ -452,8 +456,10 @@ export const quantumWaveEffect = (container: HTMLElement) => {
   // 初始化
   init()
 
-  // 返回清理函数
-  const cleanup = () => {
+  // ============================================================
+  // 🧹 内部清理函数（实际执行清理）
+  // ============================================================
+  const performCleanup = () => {
     console.log('清理量子波动特效...')
 
     try {
@@ -475,8 +481,8 @@ export const quantumWaveEffect = (container: HTMLElement) => {
       if (material) {
         gsap.killTweensOf(material)
       }
-      if (waveAnimation) gsap.killTweensOf(waveAnimation)
-      if (entanglementAnimation) gsap.killTweensOf(entanglementAnimation)
+      gsap.killTweensOf(waveAnimation)
+      gsap.killTweensOf(entanglementAnimation)
 
       // 清理相机时间线
       if (cameraTimeline) {
@@ -494,11 +500,13 @@ export const quantumWaveEffect = (container: HTMLElement) => {
         window.removeEventListener('resize', handleResize)
       }
 
-      // 清理临时对象
-      dummy = null
-      color = null
-      waveAnimation = null
-      entanglementAnimation = null
+      // 清理临时对象（重置为初始值而非 null）
+      dummy.position.set(0, 0, 0)
+      dummy.rotation.set(0, 0, 0)
+      dummy.scale.set(1, 1, 1)
+      color.set(0xffffff)
+      waveAnimation.value = 0
+      entanglementAnimation.value = 1
 
       // 从场景中移除网格
       if (mesh && scene) {
@@ -538,5 +546,34 @@ export const quantumWaveEffect = (container: HTMLElement) => {
     }
   }
 
-  return cleanup
+  // ============================================================
+  // 🧹 清除特效（淡出后清理）
+  // ============================================================
+  const clearEffect = () => {
+    // 先淡出所有元素
+    const fadeOutTimeline = gsap.timeline({
+      onComplete: () => {
+        // 淡出完成后执行完整清理
+        performCleanup()
+      }
+    })
+
+    // 淡出粒子
+    if (material) {
+      fadeOutTimeline.to(material, {
+        opacity: 0,
+        duration: 1,
+        ease: 'power2.out'
+      }, 0)
+    }
+  }
+
+  // ============================================================
+  // 🧹 对外暴露的清理函数
+  // ============================================================
+  const cleanup = () => {
+    performCleanup()
+  }
+
+  return { cleanup, clearEffect, stopCameraAnimation }
 }
