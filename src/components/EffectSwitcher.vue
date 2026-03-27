@@ -41,7 +41,16 @@ const effects: Effect[] = [
   { id: 'dimensionalRift', name: '维度裂隙', icon: '🌌' },
   { id: 'quantumDreamWeaver', name: '量子织梦机', icon: '🌌' },
   { id: 'temporalRiftEye', name: '时空之眼', icon: '👁️' },
-  { id: 'neonNebula', name: '霓虹星云', icon: '🌈' }
+  { id: 'neonNebula', name: '霓虹星云', icon: '🌈' },
+  { id: 'auroraFantasy', name: '极光梦境', icon: '🌌' },
+  { id: 'quantumAuroraDream', name: '量子极光织梦', icon: '🌌' },
+  { id: 'quantumDimensionalAurora', name: '量子维度极光', icon: '🌌' },
+  { id: 'cyberNeuralNetwork', name: '赛博神经网', icon: '🧠' },
+  { id: 'quantumFluidGPU', name: '量子流体-GPU', icon: '🚀' },
+  { id: 'quantumFluidHybrid', name: '量子流体-混合', icon: '⚡' },
+  { id: 'quantumFluidTaichi', name: '量子流体-Taichi', icon: '🔬' },
+  { id: 'quantumStorm', name: '量子风暴', icon: '⛈️' },
+  { id: 'stellarSupernova', name: '星际超新星', icon: '🌟' }
 ]
 
 const currentEffectId = ref('galaxyVortex')
@@ -93,6 +102,8 @@ const handleSwitch = (effectId: string) => {
   flex-direction: column;
   gap: 4px;
   padding: 8px;
+  max-height:50vh;
+  overflow-y: auto;
 }
 
 .effect-btn {

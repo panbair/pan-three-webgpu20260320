@@ -27,7 +27,19 @@ import {
   dimensionalRiftEffect,
   quantumDreamWeaverEffect,
   temporalRiftEyeEffect,
-  neonNebulaEffect
+  neonNebulaEffect,
+  auroraDreamEffect,
+  auroraFantasyEffect,
+  quantumAuroraDreamEffect,
+  quantumDimensionalAuroraEffect,
+  cyberNeuralNetworkEffect,
+  quantumFluidSimulationEffect,
+  quantumFluidZCopyEffect,
+  quantumFluidGPUEffect,
+  quantumFluidHybridEffect,
+  quantumFluidTaichiEffect,
+  quantumStormEffect,
+  stellarSupernovaEffect
 } from '@/effect'
 
 const effectRef = ref<HTMLDivElement>()
@@ -78,7 +90,19 @@ let effectList = {
   dimensionalRift: dimensionalRiftEffect,
   quantumDreamWeaver: quantumDreamWeaverEffect,
   temporalRiftEye: temporalRiftEyeEffect,
-  neonNebula: neonNebulaEffect
+  neonNebula: neonNebulaEffect,
+  auroraDream: auroraDreamEffect,
+  auroraFantasy: auroraFantasyEffect,
+  quantumAuroraDream: quantumAuroraDreamEffect,
+  quantumDimensionalAurora: quantumDimensionalAuroraEffect,
+  cyberNeuralNetwork: cyberNeuralNetworkEffect,
+  quantumFluidSimulation: quantumFluidSimulationEffect,
+  quantumFluidZCopy: quantumFluidZCopyEffect,
+  quantumFluidGPU: quantumFluidGPUEffect,
+  quantumFluidHybrid: quantumFluidHybridEffect,
+  quantumFluidTaichi: quantumFluidTaichiEffect,
+  quantumStorm: quantumStormEffect,
+  stellarSupernova: stellarSupernovaEffect
 }
 
 const switchEffect = async (effectId: string) => {
@@ -115,8 +139,19 @@ const switchEffect = async (effectId: string) => {
     const fn = effectList[effectId as keyof typeof effectList]
     const result = fn(effectRef.value)
 
-    // 兼容新旧返回值格式
-    if (typeof result === 'function') {
+    // 兼容新旧返回值格式（支持异步）
+    if (result instanceof Promise) {
+      // 异步特效：等待 Promise 解析
+      const resolvedResult = await result
+
+      if (typeof resolvedResult === 'function') {
+        // 旧格式：只返回 cleanup 函数
+        effectController = { cleanup: resolvedResult }
+      } else if (resolvedResult && typeof resolvedResult === 'object') {
+        // 新格式：返回控制器对象
+        effectController = resolvedResult
+      }
+    } else if (typeof result === 'function') {
       // 旧格式：只返回 cleanup 函数
       effectController = { cleanup: result }
     } else if (result && typeof result === 'object') {
@@ -126,7 +161,7 @@ const switchEffect = async (effectId: string) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   console.log('Home 页面已挂载')
 
   // 检查 WebGPU 支持
@@ -139,10 +174,23 @@ onMounted(() => {
   if (effectRef.value) {
     const result = galaxyVortexEffect(effectRef.value)
 
-    // 兼容新旧返回值格式
-    if (typeof result === 'function') {
+    // 兼容新旧返回值格式（支持异步）
+    if (result instanceof Promise) {
+      // 异步特效：等待 Promise 解析
+      const resolvedResult = await result
+
+      if (typeof resolvedResult === 'function') {
+        // 旧格式：只返回 cleanup 函数
+        effectController = { cleanup: resolvedResult }
+      } else if (resolvedResult && typeof resolvedResult === 'object') {
+        // 新格式：返回控制器对象
+        effectController = resolvedResult
+      }
+    } else if (typeof result === 'function') {
+      // 旧格式：只返回 cleanup 函数
       effectController = { cleanup: result }
     } else if (result && typeof result === 'object') {
+      // 新格式：返回控制器对象
       effectController = result
     }
   }

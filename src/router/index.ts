@@ -28,6 +28,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/Test/index.vue'),
     meta: { title: '测试页面' }
   },
+    {
+    path: '/model',
+    name: 'model',
+    component: () => import('@/views/model/index.vue'),
+    meta: { title: '模型页面' }
+  },
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',

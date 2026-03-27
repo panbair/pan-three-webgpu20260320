@@ -12,6 +12,18 @@ import { dimensionalRiftEffect } from './dimensional-rift-effect'
 import { quantumDreamWeaverEffect } from './quantum-dream-weaver-effect'
 import { temporalRiftEyeEffect } from './temporal-rift-eye-effect'
 import { neonNebulaEffect } from './neon-nebula-effect'
+import { auroraDreamEffect } from './aurora-dream-effect'
+import { auroraFantasyEffect } from './aurora-dream-effect'
+import { quantumAuroraDreamEffect } from './quantum-aurora-dream-effect'
+import { quantumDimensionalAuroraEffect } from './quantum-dimensional-aurora-effect'
+import { cyberNeuralNetworkEffect } from './cyber-neural-network-effect'
+import { quantumFluidSimulationEffect } from './quantum-fluid-simulation-effect'
+import { quantumFluidZCopyEffect } from './quantum-fluid-zcopy-effect'
+import { quantumFluidGPUEffect } from './quantum-fluid-gpu-effect'
+import { quantumFluidHybridEffect } from './quantum-fluid-hybrid-effect'
+import { quantumFluidTaichiEffect } from './quantum-fluid-taichi-effect'
+import { quantumStormEffect } from './quantum-storm-effect'
+import { stellarSupernovaEffect } from './stellar-supernova-effect'
 
 // 导出模板文件 (用于参考，不直接使用)
 // import { EffectTemplate } from './templates/EffectTemplate'
@@ -30,5 +42,17 @@ export {
   dimensionalRiftEffect,
   quantumDreamWeaverEffect,
   temporalRiftEyeEffect,
-  neonNebulaEffect
+  neonNebulaEffect,
+  auroraDreamEffect,
+  auroraFantasyEffect,
+  quantumAuroraDreamEffect,
+  quantumDimensionalAuroraEffect,
+  cyberNeuralNetworkEffect,
+  quantumFluidSimulationEffect,
+  quantumFluidZCopyEffect,
+  quantumFluidGPUEffect,
+  quantumFluidHybridEffect,
+  quantumFluidTaichiEffect,
+  quantumStormEffect,
+  stellarSupernovaEffect
 }
