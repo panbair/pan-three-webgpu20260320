@@ -34,6 +34,7 @@
     "pnpm": ">=8.0.0"
   },
   "dependencies": {
+    "@dimforge/rapier3d": "0.19.3",
     "@element-plus/icons-vue": "^2.3.1",
     "@types/three": "0.183.1",
     "@vueuse/core": "^10.9.0",
@@ -80,6 +81,8 @@
     "vite-plugin-compression": "^0.5.1",
     "vite-plugin-html": "^3.2.1",
     "vite-plugin-svg-icons": "^2.0.1",
+    "vite-plugin-top-level-await": "1.6.0",
+    "vite-plugin-wasm": "3.6.0",
     "vue-tsc": "^2.0.13"
   }
 }

@@ -8,6 +8,8 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { createHtmlPlugin } from 'vite-plugin-html'
 import { visualizer } from 'rollup-plugin-visualizer'
 import viteCompression from 'vite-plugin-compression'
+import wasm from 'vite-plugin-wasm'
+import topLevelAwait from 'vite-plugin-top-level-await'
 import { ConfigEnv } from 'vite'
 import path from 'path'
 
@@ -20,6 +22,8 @@ export default ({ mode }: ConfigEnv) => {
   return {
     base: env.VITE_BASE_PATH,
     plugins: [
+      wasm(),
+      topLevelAwait(),
       Vue(),
       VueJsx(),
       UnoCSS(),
@@ -76,7 +80,16 @@ export default ({ mode }: ConfigEnv) => {
         // 'three/addons/': path.resolve(__dirname, './src/views/Home/源码/three.js-dev (1)/three.js-dev/examples/jsm/')
       },
       optimizeDeps: {
-        include: ['vue', 'vue-router', 'pinia', 'element-plus', 'axios', 'dayjs']
+        include: [
+          'vue',
+          'vue-router',
+          'pinia',
+          'element-plus',
+          'axios',
+          'dayjs',
+          '@dimforge/rapier3d'
+        ],
+        exclude: ['@dimforge/rapier3d']
       }
     },
     server: {

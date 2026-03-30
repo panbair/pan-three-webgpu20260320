@@ -34,6 +34,18 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/model/index.vue'),
     meta: { title: '模型页面' }
   },
+      {
+    path: '/game',
+    name: 'game',
+    component: () => import('@/views/game/index.vue'),
+    meta: { title: '游戏' }
+      },
+      {
+    path: '/meteor-game',
+    name: 'meteor-game',
+    component: () => import('@/views/game/meteor-game.vue'),
+    meta: { title: '陨石防御' }
+      },
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
