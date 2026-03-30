@@ -31,6 +31,7 @@ declare module 'vue' {
     ElSlider: typeof import('element-plus/es')['ElSlider']
     ElStatistic: typeof import('element-plus/es')['ElStatistic']
     ElTag: typeof import('element-plus/es')['ElTag']
+    MapControls: typeof import('./../components/MapControls.vue')['default']
     PanoramaViewer: typeof import('./../components/PanoramaViewer.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
