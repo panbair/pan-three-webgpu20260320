@@ -31,12 +31,15 @@
       <div class="info">
         <p v-if="showAllModels">当前显示: {{ currentGridSize }}个模型</p>
         <p v-else-if="currentModelName">当前模型: {{ currentModelName }}</p>
-        <p>拖动旋转 | 滚轮缩放 | 右键平移</p>
+        <p>
+          左键平移 | 右键旋转 | 滚轮缩放
+          <span v-if="showAllModels">| 点击模型聚焦</span>
+        </p>
       </div>
     </div>
 
-    <!-- 地图控制组件 -->
-    <MapControls
+    <!-- 地图控制UI组件 -->
+    <MapControlsUI
       :active="autoRotate"
       :rotate-speed="rotateSpeed"
       :position="cameraPosition"
@@ -70,9 +73,9 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import * as THREE from 'three/webgpu'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { MapControls } from 'three/examples/jsm/controls/MapControls.js'
 import Stats from 'three/examples/jsm/libs/stats.module.js'
-import MapControls from '@/components/MapControls.vue'
+import MapControlsUI from '@/components/MapControls.vue'
 
 // 模型文件列表
 const modelFiles = [
@@ -115,8 +118,10 @@ const currentGridSize = ref(19) // 默认显示全部19个模型
 let scene: THREE.Scene | null = null
 let camera: THREE.PerspectiveCamera | null = null
 let renderer: THREE.WebGPURenderer | null = null
-let controls: OrbitControls | null = null
+let controls: MapControls | null = null
 let stats: Stats | null = null
+let raycaster: THREE.Raycaster | null = null
+let mouse: THREE.Vector2 | null = null
 let currentGLTF: any = null
 let allGLTFs: any[] = []
 let animationId: number | null = null
@@ -161,8 +166,8 @@ const initScene = async () => {
   directionalLight.castShadow = false
   scene.add(directionalLight)
 
-  // 创建控制器
-  controls = new OrbitControls(camera, renderer.domElement)
+  // 创建 MapControls 控制器（专为地图设计：右键旋转，左键平移）
+  controls = new MapControls(camera, renderer.domElement)
   controls.enableDamping = true
   controls.dampingFactor = 0.05
   controls.minDistance = 5
@@ -180,6 +185,13 @@ const initScene = async () => {
   stats.dom.style.right = '20px'
   stats.dom.style.left = 'auto'
   canvasContainer.value.appendChild(stats.dom)
+
+  // 初始化射线检测器（用于点击选择模型）
+  raycaster = new THREE.Raycaster()
+  mouse = new THREE.Vector2()
+
+  // 添加点击事件监听
+  renderer.domElement.addEventListener('click', onCanvasClick)
 
   // 开始渲染循环
   animate()
@@ -575,6 +587,88 @@ const updateCameraPosition = () => {
   }
 }
 
+// 点击画布事件处理
+const onCanvasClick = (event: MouseEvent) => {
+  if (!scene || !camera || !raycaster || !mouse) return
+  if (!showAllModels.value) return // 只在网格显示模式下启用点击
+
+  // 获取鼠标位置（归一化到 -1 到 1）
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+  // 更新射线
+  raycaster.setFromCamera(mouse, camera)
+
+  // 检测所有模型的相交
+  const intersects: any[] = []
+
+  allGLTFs.forEach((gltf, index) => {
+    const modelIntersects = raycaster?.intersectObject(gltf.scene, true)
+    if (modelIntersects && modelIntersects.length > 0) {
+      intersects.push(...modelIntersects.map((intersect: any) => ({ ...intersect, gltf, index })))
+    }
+  })
+
+  if (intersects.length > 0) {
+    // 找到最近的相交对象
+    intersects.sort((a, b) => a.distance - b.distance)
+    const nearest = intersects[0]
+
+    // 相机移动到选中模型的位置
+    focusOnModel(nearest.index)
+  }
+}
+
+// 聚焦到指定模型
+const focusOnModel = async (modelIndex: number) => {
+  if (!camera || !controls || !scene || allGLTFs.length === 0) return
+
+  const gltf = allGLTFs[modelIndex]
+  if (!gltf) return
+
+  // 获取模型的世界位置
+  const box = new THREE.Box3().setFromObject(gltf.scene)
+  const center = new THREE.Vector3()
+  box.getCenter(center)
+
+  // 计算目标相机位置（在模型前方）
+  const targetPosition = center.clone()
+  targetPosition.y += 10
+  targetPosition.z += 25
+
+  // 关闭自动旋转
+  controls.autoRotate = false
+  autoRotate.value = false
+
+  // 使用 OrbitControls 平滑移动到目标位置
+  const startPosition = camera.position.clone()
+  const startTarget = controls.target.clone()
+  const duration = 1000 // 1秒
+  const startTime = performance.now()
+
+  const animateCamera = () => {
+    const elapsed = performance.now() - startTime
+    const progress = Math.min(elapsed / duration, 1)
+    const easeProgress = 1 - Math.pow(1 - progress, 3) // 缓动函数
+
+    // 直接修改相机位置和目标点，让 OrbitControls 同步
+    camera.position.lerpVectors(startPosition, targetPosition, easeProgress)
+    controls.target.lerpVectors(startTarget, center, easeProgress)
+
+    // 重要：更新 OrbitControls 的内部状态
+    controls.update()
+
+    if (progress < 1) {
+      requestAnimationFrame(animateCamera)
+    } else {
+      console.log(`聚焦到模型: ${modelFiles[modelIndex].name}`)
+    }
+  }
+
+  animateCamera()
+}
+
 // 动画循环
 const animate = () => {
   animationId = requestAnimationFrame(animate)
@@ -632,6 +726,11 @@ const cleanup = () => {
   })
   allGLTFs = []
 
+  // 移除点击事件监听
+  if (renderer) {
+    renderer.domElement.removeEventListener('click', onCanvasClick)
+  }
+
   controls?.dispose()
   stats?.dom.remove()
 
@@ -640,6 +739,8 @@ const cleanup = () => {
     renderer = null
   }
 
+  raycaster = null
+  mouse = null
   scene = null
   camera = null
 }
