@@ -328,9 +328,9 @@ const level = ref(1)
 const gameCanvas = ref(null)
 
 // 倒计时系统
-const timeLeft = ref(60) // 每关60秒
+const timeLeft = ref(120) // 每关120秒
 const timerInterval = ref(null)
-const LEVEL_TIME = 60 // 每局时间（秒）
+const LEVEL_TIME = 120 // 每局时间（秒）
 
 // 计算属性：倒计时百分比
 const timerPercentage = computed(() => {
@@ -855,7 +855,7 @@ const updateFrustumBounds = () => {
 
   // 方块安全边界（考虑方块大小、边框和旋转）
   const maxBlockSize = Math.sqrt(2) * Math.max(blockSize, frameSize)
-  const safeMargin = maxBlockSize + 2.0 // 安全边距
+  const safeMargin = maxBlockSize + 3.0 // 增加安全边距（从2.0到3.0）
 
   // 使用固定边界值，更简单可靠
   const halfWidth = Math.min(visibleWidthAtSpawn / 2 - safeMargin, 12) // 限制最大宽度
@@ -866,8 +866,8 @@ const updateFrustumBounds = () => {
 
   frustumBounds = {
     left: -halfWidth + uiPanelWidth, // 左边界跳过UI面板区域
-    right: halfWidth,                // 右边界
-    top: spawnY,
+    right: halfWidth - 1.0,           // 右边界增加额外安全边距
+    top: 10,                           // 降低初始生成高度（从15到8）
     bottom: -10,
     nearZ: 3.0,
     farZ: 7.0
