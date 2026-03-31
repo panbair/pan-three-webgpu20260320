@@ -11,12 +11,46 @@
           <div
             class="timer-progress-fill-top"
             :style="{
-              width: (timeLeft / 90 * 100) + '%',
+              width: (timeLeft / 90) * 100 + '%',
               background: timerColor
             }"
           ></div>
         </div>
-        <div class="timer-text-top" :style="{ color: timerTextColor }">{{ Math.ceil(timeLeft) }}秒</div>
+        <div class="timer-text-top" :style="{ color: timerTextColor }">
+          {{ Math.ceil(timeLeft) }}秒
+        </div>
+      </div>
+
+      <!-- 音乐控制 -->
+      <div class="music-control" :class="{ 'expanded': isMusicPanelExpanded }">
+        <button
+          class="music-toggle-btn"
+          :title="isMusicPanelExpanded ? '收起音乐控制' : '展开音乐控制'"
+          @click="toggleMusicPanel"
+        >
+          <span class="music-icon">{{ isMuted ? '🔇' : '🎵' }}</span>
+        </button>
+        <div v-show="isMusicPanelExpanded" class="music-controls-panel">
+          <button class="music-btn" :title="isMuted ? '播放音乐' : '静音'" @click="toggleMute">
+            <span class="music-icon">{{ isMuted ? '🔇' : '🔊' }}</span>
+          </button>
+          <button class="music-btn switch-btn" title="切换音乐" @click="switchMusic">
+            <span class="music-icon">🎵</span>
+          </button>
+          <div class="volume-control">
+            <span class="volume-icon">🔈</span>
+            <input
+              v-model.number="musicVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              class="volume-slider"
+              @input="setVolume(musicVolume)"
+            />
+            <span class="volume-icon">🔊</span>
+          </div>
+        </div>
       </div>
 
       <!-- 游戏信息面板 -->
@@ -65,7 +99,9 @@
 
         <!-- 连击加成提示 -->
         <div v-if="combo >= 5" class="combo-bonus">
-          <span class="combo-bonus-text">连击加成 +{{ Math.floor(combo / 5) * 5 * (levelConfig.comboMultiplier || 1.0) }}</span>
+          <span class="combo-bonus-text">
+            连击加成 +{{ Math.floor(combo / 5) * 5 * (levelConfig.comboMultiplier || 1.0) }}
+          </span>
         </div>
 
         <!-- 等级信息 -->
@@ -208,6 +244,76 @@ import PanoramaViewer from '@/components/PanoramaViewer.vue'
 
 const PANORAMA_IMAGE = '/quanjingtu/game.png'
 
+// 音乐系统
+const bgMusic = new Audio()
+const musicTracks = ['/music/1.mp3', '/music/2.mp3', '/music/3.mp3']
+const currentMusicIndex = ref(0)
+const isMuted = ref(false)
+const musicVolume = ref(0.5)
+const isMusicPanelExpanded = ref(false) // 音乐面板展开/收起状态
+
+// 切换音乐面板展开/收起
+const toggleMusicPanel = () => {
+  isMusicPanelExpanded.value = !isMusicPanelExpanded.value
+}
+
+// 初始化音乐
+const initMusic = () => {
+  bgMusic.src = musicTracks[0]
+  bgMusic.volume = musicVolume.value
+  bgMusic.loop = false
+  bgMusic.preload = 'auto'
+  
+  // 监听音乐播放结束事件，自动播放下一首
+  bgMusic.addEventListener('ended', () => {
+    if (!isMuted.value) {
+      switchMusic()
+    }
+  })
+}
+
+// 播放音乐
+const playMusic = () => {
+  if (!isMuted.value) {
+    bgMusic.play().catch(err => {
+      console.log('音乐播放失败（可能需要用户交互）:', err)
+    })
+  }
+}
+
+// 暂停音乐
+const pauseMusic = () => {
+  bgMusic.pause()
+}
+
+// 切换静音
+const toggleMute = () => {
+  isMuted.value = !isMuted.value
+  if (isMuted.value) {
+    bgMusic.pause()
+  } else if (gameState.value === 'playing') {
+    bgMusic.play().catch(err => console.log('播放失败:', err))
+  }
+}
+
+// 切换音乐
+const switchMusic = () => {
+  const wasPlaying = !bgMusic.paused
+  bgMusic.pause()
+  currentMusicIndex.value = (currentMusicIndex.value + 1) % musicTracks.length
+  bgMusic.src = musicTracks[currentMusicIndex.value]
+  bgMusic.currentTime = 0
+  if (wasPlaying && !isMuted.value) {
+    bgMusic.play().catch(err => console.log('播放失败:', err))
+  }
+}
+
+// 调节音量
+const setVolume = volume => {
+  musicVolume.value = Math.max(0, Math.min(1, volume))
+  bgMusic.volume = musicVolume.value
+}
+
 // 游戏状态
 const gameState = ref('ready') // ready, playing, paused, gameover
 const score = ref(0)
@@ -250,7 +356,10 @@ const updateLevelConfig = () => {
   const currentLevelScore = level.value > 1 ? LEVEL_CONFIG.levelScores[level.value - 1] : 0
   const nextLevelScore = config.nextLevelScore || currentLevelScore
   const progressPercent = config.nextLevelScore
-    ? Math.min(100, ((score.value - currentLevelScore) / (nextLevelScore - currentLevelScore)) * 100)
+    ? Math.min(
+        100,
+        ((score.value - currentLevelScore) / (nextLevelScore - currentLevelScore)) * 100
+      )
     : 100
 
   levelConfig.value = {
@@ -331,7 +440,7 @@ const particleColors = [
   0xffd93d, // 金色
   0x6bcb77, // 绿色
   0x4d96ff, // 蓝色
-  0xff6ec7  // 粉色
+  0xff6ec7 // 粉色
 ]
 
 // 性能优化配置
@@ -343,6 +452,7 @@ const ROTATION_SPEED_Y = 0.01
 const textureCache = new Map()
 const textureLoader = new THREE.TextureLoader()
 let blockTexture = null
+const BLOCK_TEXTURE_COUNT = 68 // 材质图片总数
 
 // 材质缓存
 const materialCache = new Map()
@@ -362,13 +472,22 @@ const frameSize = 0.96
 // 等级系统配置
 const LEVEL_CONFIG = {
   // 每个等级的升级所需分数
-  levelScores: [0, 50, 120, 200, 300, 420, 560, 720, 900, 1100, 1350, 1650, 2000, 2400, 2850, 3350, 3900, 4500, 5200, 6000],
+  levelScores: [
+    0, 50, 120, 200, 300, 420, 560, 720, 900, 1100, 1350, 1650, 2000, 2400, 2850, 3350, 3900, 4500,
+    5200, 6000
+  ],
   // 等级上限
   maxLevel: 20,
   // 每个等级的方块下落速度倍率
-  speedMultiplier: [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.0],
+  speedMultiplier: [
+    0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7,
+    1.8, 2.0
+  ],
   // 每个等级的生成速率倍率
-  spawnMultiplier: [0.5, 0.52, 0.54, 0.56, 0.58, 0.6, 0.62, 0.64, 0.66, 0.68, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15],
+  spawnMultiplier: [
+    0.5, 0.52, 0.54, 0.56, 0.58, 0.6, 0.62, 0.64, 0.66, 0.68, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0,
+    1.05, 1.1, 1.15
+  ],
   // 等级名称
   levelNames: [
     '青铜',
@@ -413,10 +532,13 @@ const LEVEL_CONFIG = {
     '#ff6347', // 大师I - 番茄红
     '#dc143c', // 大师II - 深红
     '#9400d3', // 传奇 - 深紫
-    '#ff1493'  // 王者 - 深粉
+    '#ff1493' // 王者 - 深粉
   ],
   // 等级连击加成系数
-  comboMultiplier: [1.0, 1.05, 1.1, 1.15, 1.2, 1.25, 1.3, 1.35, 1.4, 1.45, 1.5, 1.55, 1.6, 1.65, 1.7, 1.75, 1.8, 1.85, 1.9, 2.0],
+  comboMultiplier: [
+    1.0, 1.05, 1.1, 1.15, 1.2, 1.25, 1.3, 1.35, 1.4, 1.45, 1.5, 1.55, 1.6, 1.65, 1.7, 1.75, 1.8,
+    1.85, 1.9, 2.0
+  ],
   // 每个等级的最大方块数（大幅减少屏幕方块数）
   maxBlocks: [8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 17, 18, 20]
 }
@@ -431,7 +553,8 @@ const getCurrentLevelConfig = () => {
     maxBlocks: LEVEL_CONFIG.maxBlocks[currentLevel - 1] || 30,
     levelName: LEVEL_CONFIG.levelNames[currentLevel - 1] || '未知',
     levelColor: LEVEL_CONFIG.levelColors[currentLevel - 1] || '#b0b0b0',
-    nextLevelScore: currentLevel < LEVEL_CONFIG.maxLevel ? LEVEL_CONFIG.levelScores[currentLevel] : null
+    nextLevelScore:
+      currentLevel < LEVEL_CONFIG.maxLevel ? LEVEL_CONFIG.levelScores[currentLevel] : null
   }
 }
 
@@ -453,14 +576,51 @@ const disposeBlock = block => {
   }
 }
 
-// 加载纹理
+// 加载随机纹理
 const loadBlockTexture = () => {
-  if (blockTexture) return blockTexture
-  blockTexture = textureLoader.load('/game/1.png')
-  return blockTexture
+  // 随机选择 1-68 之间的图片
+  const randomIndex = Math.floor(Math.random() * BLOCK_TEXTURE_COUNT) + 1
+  const texturePath = `/game/${randomIndex}.png`
+
+  // 检查缓存中是否已有该纹理
+  if (textureCache.has(texturePath)) {
+    return textureCache.get(texturePath)
+  }
+
+  // 加载并缓存新纹理
+  const texture = textureLoader.load(texturePath)
+  textureCache.set(texturePath, texture)
+  return texture
 }
 
 // 创建大方框
+let fillStyleColorData = [
+  '#02f6e2',
+  '#42e302',
+  '#f55a5a',
+  '#f67104',
+  '#fdcc28',
+  '#d0316e',
+  '#db0cea',
+  '#f67104'
+]
+
+let bgColorData = [
+  'rgba(2,246,226,0.4)',
+  'rgba(66,227,2,0.4)',
+  'rgba(245,90,90,0.4)',
+  'rgba(246,113,4,0.4)',
+  'rgba(253,204,40,0.4)',
+  'rgba(208,49,110,0.4)',
+  'rgba(219,12,234,0.4)',
+  'rgba(246,113,4,0.4)'
+]
+
+let getColor = data => {
+  data = data || fillStyleColorData
+  return data[Math.floor(Math.random() * data.length)]
+}
+
 const createBigFrameForBlock = (letter, blockPosition, blockRotation) => {
   // 检查材质缓存
   let cachedMaterials = materialCache.get(letter)
@@ -473,13 +633,38 @@ const createBigFrameForBlock = (letter, blockPosition, blockRotation) => {
       canvas.height = 256
 
       if (ctx) {
-        ctx.fillStyle = 'rgba(0, 150, 255, 0.6)'
+        // 深色半透明背景，增强对比度
+        ctx.fillStyle = getColor(bgColorData)
         ctx.fillRect(0, 0, 256, 256)
-        ctx.fillStyle = '#ffffff'
+
+        // 添加发光边框效果
+        ctx.strokeStyle = getColor()
+        ctx.lineWidth = 2
+        ctx.strokeRect(4, 4, 248, 248)
+
+        // 白色粗体字母
+        ctx.fillStyle = '#04f3fc'
         ctx.font = 'bold 200px Arial'
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
+
+        // 添加文字阴影，增强可读性
+        ctx.shadowColor = '#000000'
+        ctx.shadowBlur = 10
+        ctx.shadowOffsetX = 3
+        ctx.shadowOffsetY = 3
         ctx.fillText(letter, 128, 128)
+
+        // 重置阴影
+        ctx.shadowColor = 'transparent'
+        ctx.shadowBlur = 0
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 0
+
+        // 添加文字高光
+        ctx.fillStyle = 'rgba(241,11,11,0.3)'
+        ctx.font = 'bold 200px Arial'
+        ctx.fillText(letter, 126, 126)
       }
 
       tex = new THREE.CanvasTexture(canvas)
@@ -492,7 +677,7 @@ const createBigFrameForBlock = (letter, blockPosition, blockRotation) => {
         new THREE.MeshBasicMaterial({
           map: tex,
           transparent: true,
-          opacity: 0.3,
+          opacity: 0.5,
           side: THREE.FrontSide,
           depthWrite: false,
           blending: THREE.NormalBlending
@@ -538,21 +723,22 @@ const updateFrustumBounds = () => {
   const visibleHeightAtSpawn = 2 * Math.tan(fov / 2) * distanceToSpawn
   const visibleWidthAtSpawn = visibleHeightAtSpawn * aspect
 
-  // 方块安全边界（考虑方块大小和边框）
-  const safeMarginX = (blockSize + frameSize) / 2 + 1.5
-  const safeMarginZ = (blockSize + frameSize) / 2 + 1.5
+  // 方块安全边界（考虑方块大小、边框和旋转）
+  // 方块最大尺寸（旋转时对角线长度）
+  const maxBlockSize = Math.sqrt(2) * Math.max(blockSize, frameSize)
+  const safeMarginX = maxBlockSize + 1.0 // 增加余量，防止旋转时超出
+  const safeMarginZ = maxBlockSize + 1.0
 
   // 左侧UI面板安全区域（避免方块被面板遮挡）
-  // 假设UI面板占左侧约25%的宽度，设置左边界为屏幕宽度的20%位置
   const leftSafePercent = 0.25 // 左侧安全区域百分比
   const leftSafeBoundary = -visibleWidthAtSpawn / 2 + visibleWidthAtSpawn * leftSafePercent
 
   const lookAtY = 5
   const visibleBottomY = lookAtY - (lookAtY - camera.position.y) * Math.tan(fov / 2) * 2 - 5
 
-  // 计算边界：左边距需要考虑UI面板，右边距和前后距只需要考虑方块大小
+  // 计算边界：左边距需要考虑UI面板，右边距需要更大余量
   const leftBoundary = Math.max(leftSafeBoundary, -visibleWidthAtSpawn / 2 + safeMarginX)
-  const rightBoundary = visibleWidthAtSpawn / 2 - safeMarginX
+  const rightBoundary = visibleWidthAtSpawn / 2 - safeMarginX // 右边距也要考虑安全余量
 
   frustumBounds = {
     left: leftBoundary,
@@ -564,7 +750,7 @@ const updateFrustumBounds = () => {
   }
 
   // 边界保护，确保至少有一定游戏区域
-  const minGameWidth = 10
+  const minGameWidth = 8
   if (frustumBounds.right - frustumBounds.left < minGameWidth) {
     // 如果边界太窄，调整左边界
     frustumBounds.left = Math.min(frustumBounds.left, -minGameWidth / 2)
@@ -676,7 +862,7 @@ const createLetterBlock = letter => {
       new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
-        opacity: 0.9
+        opacity: 0.95
       })
     )
   }
@@ -738,7 +924,7 @@ const updateWPM = () => {
 
   if (elapsedMinutes > 0) {
     // WPM = (总字符数 / 5) / 分钟数（标准WPM计算方法）
-    wpm.value = Math.round((correctKeystrokes.value / 5) / elapsedMinutes)
+    wpm.value = Math.round(correctKeystrokes.value / 5 / elapsedMinutes)
   }
 }
 
@@ -874,7 +1060,7 @@ const explodeLetter = block => {
 }
 
 // 升级特效
-const createLevelUpEffect = (newLevel) => {
+const createLevelUpEffect = newLevel => {
   const levelConfig = getCurrentLevelConfig()
 
   // 创建升级文字特效
@@ -950,7 +1136,7 @@ const createLevelUpEffect = (newLevel) => {
     0x4d96ff, // 蓝色
     0xff6ec7, // 粉色
     0x00ff7f, // 春绿
-    0xff8c00  // 橙色
+    0xff8c00 // 橙色
   ]
 
   for (let i = 0; i < particleCount; i++) {
@@ -1051,8 +1237,15 @@ const updateGame = () => {
       block.bigFrame.mesh.rotation.y = block.mesh.rotation.y
     }
 
-    // 检查方块是否超出底部边界
-    if (block.mesh.position.y < frustumBounds.bottom) {
+    // 检查方块是否超出边界（左右上下前后）
+    const pos = block.mesh.position
+    if (
+      pos.x < frustumBounds.left ||
+      pos.x > frustumBounds.right ||
+      pos.y < frustumBounds.bottom ||
+      pos.z < frustumBounds.nearZ ||
+      pos.z > frustumBounds.farZ
+    ) {
       disposeBlock(block)
       letterBlocks.splice(i, 1)
     }
@@ -1073,7 +1266,7 @@ const animate = () => {
 
 // 开始游戏
 const startGame = () => {
-    if (gameState.value === 'ready' || gameState.value === 'gameover') {
+  if (gameState.value === 'ready' || gameState.value === 'gameover') {
     // 重置游戏状态
     score.value = 0
     level.value = 1
@@ -1097,6 +1290,10 @@ const startGame = () => {
   }
 
   gameState.value = 'playing'
+
+  // 播放音乐
+  playMusic()
+
   animate()
 
   // 启动倒计时
@@ -1105,16 +1302,13 @@ const startGame = () => {
   const levelConfig = getCurrentLevelConfig()
   const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier * 10)
 
-  spawnInterval = setInterval(
-    () => {
-      if (gameState.value === 'playing') {
-        spawnLetterBlock()
-      } else {
-        clearInterval(spawnInterval)
-      }
-    },
-    spawnIntervalTime
-  )
+  spawnInterval = setInterval(() => {
+    if (gameState.value === 'playing') {
+      spawnLetterBlock()
+    } else {
+      clearInterval(spawnInterval)
+    }
+  }, spawnIntervalTime)
 }
 
 // 启动倒计时
@@ -1186,6 +1380,9 @@ const endGame = () => {
     clearTimeout(comboTimer.value)
     comboTimer.value = null
   }
+
+  // 暂停音乐
+  pauseMusic()
 }
 
 // 重新开始
@@ -1238,6 +1435,8 @@ const pauseGame = () => {
       clearInterval(spawnInterval)
       spawnInterval = null
     }
+    // 暂停音乐
+    pauseMusic()
   }
 }
 
@@ -1246,30 +1445,33 @@ const resumeGame = () => {
   if (gameState.value === 'paused') {
     if (spawnInterval) {
       clearInterval(spawnInterval)
-      spawnInterval = null
     }
 
     gameState.value = 'playing'
     animate()
 
-    const levelConfig = getCurrentLevelConfig()
-    const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier * 10)
-
-    spawnInterval = setInterval(
-      () => {
-        if (gameState.value === 'playing') {
-          spawnLetterBlock()
-        } else {
-          clearInterval(spawnInterval)
-        }
-      },
-      spawnIntervalTime
-    )
+    // 播放音乐
+    playMusic()
+    spawnInterval = null
   }
+
+  gameState.value = 'playing'
+  animate()
+
+  const levelConfig = getCurrentLevelConfig()
+  const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier * 10)
+
+  spawnInterval = setInterval(() => {
+    if (gameState.value === 'playing') {
+      spawnLetterBlock()
+    } else {
+      clearInterval(spawnInterval)
+    }
+  }, spawnIntervalTime)
 }
 
 // 处理按键输入
-const handleKeyPress = (upperKey) => {
+const handleKeyPress = upperKey => {
   if (gameState.value !== 'playing') return
 
   // 只处理字母键
@@ -1312,7 +1514,7 @@ const handleKeyPress = (upperKey) => {
 
     // 连击加成：连击数越高，得分越多（使用等级连击倍率）
     const comboBonus = Math.floor(combo.value / 5) * 5 * levelConfig.comboMultiplier
-    const pointsEarned = (10 * level.value) + comboBonus
+    const pointsEarned = 10 * level.value + comboBonus
     score.value += pointsEarned
 
     // 每次得分后更新进度显示
@@ -1384,6 +1586,7 @@ const handleResize = () => {
 // 生命周期
 onMounted(() => {
   initGameScene()
+  initMusic()
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('keyup', handleKeyUp)
   window.addEventListener('resize', handleResize)
@@ -1455,7 +1658,7 @@ onBeforeUnmount(() => {
     geometryPool.frame = null
   }
 
-    // 清理粒子几何体
+  // 清理粒子几何体
   if (particleGeometry) {
     particleGeometry.dispose()
   }
@@ -1528,7 +1731,9 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   pointer-events: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   min-width: 240px;
   animation: slideInLeft 0.5s ease-out;
 }
@@ -1636,7 +1841,8 @@ onBeforeUnmount(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     opacity: 1;
   }
@@ -1678,7 +1884,9 @@ onBeforeUnmount(() => {
   border-radius: 16px;
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   pointer-events: auto;
   z-index: 20;
   animation: slideDown 0.5s ease-out;
@@ -1708,7 +1916,9 @@ onBeforeUnmount(() => {
 .timer-progress-fill-top {
   height: 100%;
   border-radius: 8px;
-  transition: width 0.1s linear, background 0.3s ease;
+  transition:
+    width 0.1s linear,
+    background 0.3s ease;
   box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
   position: relative;
 }
@@ -1736,6 +1946,170 @@ onBeforeUnmount(() => {
   100% {
     transform: translateX(100%);
   }
+}
+
+/* 音乐控制 */
+.music-control {
+  position: absolute;
+  top: 30px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(20, 20, 40, 0.4) 100%);
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  pointer-events: auto;
+  z-index: 20;
+  animation: fadeInRight 0.5s ease-out;
+  transition: all 0.3s ease;
+}
+
+.music-control.expanded {
+  padding: 12px 20px;
+}
+
+.music-toggle-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.music-toggle-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.music-toggle-btn:active {
+  transform: translateY(0);
+}
+
+.music-controls-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 5px;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.music-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.music-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.music-btn:active {
+  transform: translateY(0);
+}
+
+.music-btn.switch-btn {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.music-icon {
+  font-size: 22px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 5px;
+}
+
+.volume-icon {
+  font-size: 16px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.volume-slider {
+  width: 80px;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.6);
+  transition: all 0.2s ease;
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.8);
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.6);
 }
 
 .timer-text-top {
@@ -1931,7 +2305,9 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   pointer-events: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   animation: fadeInUp 0.6s ease-out;
   min-width: 600px;
   max-width: 800px;
@@ -1954,7 +2330,9 @@ onBeforeUnmount(() => {
   color: #fff;
   font-size: 42px;
   margin: 10px 0 15px;
-  text-shadow: 0 0 30px rgba(102, 126, 234, 0.8), 0 4px 8px rgba(0, 0, 0, 0.5);
+  text-shadow:
+    0 0 30px rgba(102, 126, 234, 0.8),
+    0 4px 8px rgba(0, 0, 0, 0.5);
   letter-spacing: 2px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
   -webkit-background-clip: text;
@@ -2006,7 +2384,9 @@ onBeforeUnmount(() => {
   border-radius: 30px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 6px 20px rgba(102, 126, 234, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2030,7 +2410,9 @@ onBeforeUnmount(() => {
 
 .game-status .start-btn:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 10px 30px rgba(102, 126, 234, 0.6),
+    0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .game-status .start-btn:hover::before {
@@ -2137,7 +2519,8 @@ onBeforeUnmount(() => {
 }
 
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -2165,7 +2548,9 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
   backdrop-filter: blur(15px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   animation: fadeInUp 0.8s ease-out 0.3s both;
 }
 
@@ -2190,7 +2575,8 @@ onBeforeUnmount(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     opacity: 1;
   }
