@@ -848,10 +848,17 @@ const updateFrustumBounds = () => {
 
   const aspect = camera.aspect
   const fov = camera.fov * (Math.PI / 180)
-  const spawnY = 15
   const distanceToSpawn = Math.abs(camera.position.z)
   const visibleHeightAtSpawn = 2 * Math.tan(fov / 2) * distanceToSpawn
   const visibleWidthAtSpawn = visibleHeightAtSpawn * aspect
+
+  // 计算摄像机Y方向的可见范围
+  const cameraY = camera.position.y
+  const halfVisibleHeight = visibleHeightAtSpawn / 2
+  const visibleTop = cameraY + halfVisibleHeight
+
+  // 方块生成高度：视野顶部偏下一点，确保完全在视野内
+  const spawnY = Math.max(visibleTop - 2, 8) // 确保在视野顶部附近
 
   // 方块安全边界（考虑方块大小、边框和旋转）
   const maxBlockSize = Math.sqrt(2) * Math.max(blockSize, frameSize)
@@ -867,7 +874,7 @@ const updateFrustumBounds = () => {
   frustumBounds = {
     left: -halfWidth + uiPanelWidth, // 左边界跳过UI面板区域
     right: halfWidth - 1.0,           // 右边界增加额外安全边距
-    top: 10,                           // 降低初始生成高度（从15到8）
+    top: spawnY,                      // 使用计算后的生成高度（视野顶部）
     bottom: -10,
     nearZ: 3.0,
     farZ: 7.0
@@ -1060,6 +1067,27 @@ const spawnLetterBlock = () => {
   const letter = letters[Math.floor(Math.random() * letters.length)]
   const block = createLetterBlock(letter)
   letterBlocks.push(block)
+}
+
+// 启动方块生成
+const startBlockSpawn = () => {
+  // 清理现有的方块生成间隔
+  if (spawnInterval) {
+    clearInterval(spawnInterval)
+    spawnInterval = null
+  }
+
+  const levelConfig = getCurrentLevelConfig()
+  const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier)
+
+  spawnInterval = setInterval(() => {
+    if (gameState.value === 'playing') {
+      spawnLetterBlock()
+    } else {
+      clearInterval(spawnInterval)
+      spawnInterval = null
+    }
+  }, spawnIntervalTime)
 }
 
 // 更新WPM（每分钟字数）
@@ -1578,11 +1606,23 @@ const updateGame = () => {
 
 // 渲染循环
 const animate = () => {
-  animationId = requestAnimationFrame(animate)
-  updateGame()
-  if (renderer && scene && camera) {
-    renderer.render(scene, camera)
+  // 防止重复调用
+  if (animationId !== null) {
+    return
   }
+
+  // 启动渲染循环
+  const renderLoop = () => {
+    if (gameState.value === 'playing' || gameState.value === 'paused') {
+      updateGame()
+    }
+    if (renderer && scene && camera) {
+      renderer.render(scene, camera)
+    }
+    animationId = requestAnimationFrame(renderLoop)
+  }
+
+  animationId = requestAnimationFrame(renderLoop)
 }
 
 // 开始游戏
@@ -1620,17 +1660,15 @@ const startGame = () => {
   // 启动倒计时
   startTimer()
 
+  // 预先生成2-3个方块，避免等待
   const levelConfig = getCurrentLevelConfig()
-  // 调整生成间隔，确保方块一个一个均匀生成
-  const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier)
+  const initialBlockCount = Math.min(3, levelConfig.maxBlocks)
+  for (let i = 0; i < initialBlockCount; i++) {
+    spawnLetterBlock()
+  }
 
-  spawnInterval = setInterval(() => {
-    if (gameState.value === 'playing') {
-      spawnLetterBlock()
-    } else {
-      clearInterval(spawnInterval)
-    }
-  }, spawnIntervalTime)
+  // 启动方块生成
+  startBlockSpawn()
 }
 
 // 启动倒计时
@@ -1712,16 +1750,8 @@ const continueGame = () => {
   // 启动倒计时
   startTimer()
 
-  const levelConfig = getCurrentLevelConfig()
-  const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier)
-
-  spawnInterval = setInterval(() => {
-    if (gameState.value === 'playing') {
-      spawnLetterBlock()
-    } else {
-      clearInterval(spawnInterval)
-    }
-  }, spawnIntervalTime)
+  // 启动方块生成
+  startBlockSpawn()
 }
 
 // 结束游戏
@@ -1875,21 +1905,8 @@ const resumeGame = () => {
 
     gameState.value = 'playing'
 
-    // 重新设置方块生成间隔
-    if (spawnInterval) {
-      clearInterval(spawnInterval)
-    }
-
-    const levelConfig = getCurrentLevelConfig()
-    const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier)
-
-    spawnInterval = setInterval(() => {
-      if (gameState.value === 'playing') {
-        spawnLetterBlock()
-      } else {
-        clearInterval(spawnInterval)
-      }
-    }, spawnIntervalTime)
+    // 启动方块生成
+    startBlockSpawn()
   }
 }
 
@@ -2065,6 +2082,16 @@ const handleResize = () => {
 onMounted(() => {
   initGameScene()
   initMusic()
+
+  // 确保清理旧数据
+  letterBlocks.length = 0
+  particles.length = 0
+
+  // 渲染一帧，显示初始状态
+  if (renderer && scene && camera) {
+    renderer.render(scene, camera)
+  }
+
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('keyup', handleKeyUp)
   window.addEventListener('resize', handleResize)

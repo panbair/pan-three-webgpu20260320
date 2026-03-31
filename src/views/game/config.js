@@ -26,8 +26,8 @@ export const getMusic = () => {
 }
 
 export const getTexturePath = () => {
-  const randomIndex = Math.floor(Math.random() * 57) + 1
-  const url = `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game/g-v1-${randomIndex}.png`
+  const randomIndex = Math.floor(Math.random() * 75) + 1
+  const url = `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game1/g-v2-${randomIndex}.png`
 
   return url
 }
