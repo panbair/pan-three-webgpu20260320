@@ -432,6 +432,73 @@ const letterBlocks = []
 const keysPressed = ref(new Set())
 const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
+// 特效方块类型定义
+const SPECIAL_BLOCK_TYPES = {
+  NORMAL: 'normal', // 普通方块
+  GOLD: 'gold', // 🌟 金色方块 - 双倍分数
+  FIRE: 'fire', // 🔥 火焰方块 - 连击+5
+  TIME: 'time', // ⏰ 时钟方块 - 时间+5秒
+  DIAMOND: 'diamond', // 💎 钻石方块 - 分数+50 + 连击+3
+  ICE: 'ice', // ❄️ 冰冻方块 - 全场减速2秒
+  RAINBOW: 'rainbow' // 🌈 彩虹方块 - 彩虹特效
+}
+
+// 特效方块配置
+const SPECIAL_BLOCK_CONFIG = {
+  [SPECIAL_BLOCK_TYPES.GOLD]: {
+    probability: 0.08, // 8%概率
+    scoreMultiplier: 2,
+    color: 0xffd700,
+    icon: '🌟',
+    glowColor: 0xffd700,
+    scale: 1.0
+  },
+  [SPECIAL_BLOCK_TYPES.FIRE]: {
+    probability: 0.06,
+    bonusCombo: 5,
+    color: 0xff4500,
+    icon: '🔥',
+    glowColor: 0xff6b35,
+    scale: 1.0
+  },
+  [SPECIAL_BLOCK_TYPES.TIME]: {
+    probability: 0.05,
+    timeBonus: 5,
+    color: 0x00bfff,
+    icon: '⏰',
+    glowColor: 0x00d4ff,
+    scale: 1.0
+  },
+  [SPECIAL_BLOCK_TYPES.DIAMOND]: {
+    probability: 0.04,
+    scoreBonus: 50,
+    bonusCombo: 3,
+    color: 0x00ffff,
+    icon: '💎',
+    glowColor: 0x40e0d0,
+    scale: 1.1
+  },
+  [SPECIAL_BLOCK_TYPES.ICE]: {
+    probability: 0.05,
+    slowDuration: 2000,
+    color: 0x87ceeb,
+    icon: '❄️',
+    glowColor: 0xadd8e6,
+    scale: 1.0
+  },
+  [SPECIAL_BLOCK_TYPES.RAINBOW]: {
+    probability: 0.03,
+    color: 0xffffff,
+    icon: '🌈',
+    glowColor: 0xffffff,
+    scale: 1.2
+  }
+}
+
+// 全场减速状态
+let isGlobalSlowed = false
+let globalSlowEndTime = 0
+
 // 爆炸粒子系统
 const particles = []
 const particleGeometry = new THREE.SphereGeometry(0.08, 8, 8)
@@ -856,15 +923,45 @@ const createLetterBlock = letter => {
 
   const texture = loadBlockTexture()
 
+  // 随机决定是否生成特效方块
+  let blockType = SPECIAL_BLOCK_TYPES.NORMAL
+  let specialConfig = null
+
+  const random = Math.random()
+  let cumulativeProbability = 0
+
+  for (const [type, config] of Object.entries(SPECIAL_BLOCK_CONFIG)) {
+    cumulativeProbability += config.probability
+    if (random < cumulativeProbability) {
+      blockType = type
+      specialConfig = config
+      break
+    }
+  }
+
+  // 根据方块类型创建材质
   const materials = []
   for (let i = 0; i < 6; i++) {
-    materials.push(
-      new THREE.MeshBasicMaterial({
+    // 特效方块使用标准材质以支持发光效果
+    if (blockType !== SPECIAL_BLOCK_TYPES.NORMAL) {
+      const material = new THREE.MeshStandardMaterial({
+        map: texture,
+        transparent: true,
+        opacity: 0.95,
+        color: specialConfig.color,
+        emissive: specialConfig.glowColor,
+        emissiveIntensity: 0.5
+      })
+      materials.push(material)
+    } else {
+      // 普通方块使用基础材质
+      const material = new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
         opacity: 0.95
       })
-    )
+      materials.push(material)
+    }
   }
 
   const cubeMesh = new THREE.Mesh(cubeGeometry, materials)
@@ -883,6 +980,11 @@ const createLetterBlock = letter => {
   )
   cubeMesh.rotation.copy(blockRotation)
 
+  // 特效方块特殊缩放
+  if (specialConfig && specialConfig.scale !== 1.0) {
+    cubeMesh.scale.setScalar(specialConfig.scale)
+  }
+
   const bigFrame = createBigFrameForBlock(letter, blockPosition, blockRotation)
 
   if (scene) {
@@ -899,7 +1001,9 @@ const createLetterBlock = letter => {
     speed: baseSpeed + Math.random() * 0.005,
     hit: false,
     bigFrame,
-    physicsBody: null // 禁用物理引擎
+    physicsBody: null, // 禁用物理引擎
+    blockType,
+    specialConfig
   }
 }
 
@@ -1212,29 +1316,195 @@ const createLevelUpEffect = newLevel => {
   }
 }
 
+// 显示浮动文本
+const showFloatingText = (text, position, color) => {
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  canvas.width = 512
+  canvas.height = 128
+
+  ctx.fillStyle = `rgba(0, 0, 0, 0.8)`
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  ctx.font = 'bold 48px Arial'
+  ctx.fillStyle = '#' + color.toString(16).padStart(6, '0')
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true })
+  const sprite = new THREE.Sprite(material)
+
+  sprite.position.copy(position)
+  sprite.position.y += 2
+  sprite.scale.set(4, 1, 1)
+
+  if (scene) {
+    scene.add(sprite)
+  }
+
+  gsap.to(sprite.position, {
+    y: sprite.position.y + 2,
+    duration: 1.5,
+    ease: 'power1.out'
+  })
+
+  gsap.to(material, {
+    opacity: 0,
+    duration: 1.5,
+    onComplete: () => {
+      if (scene) {
+        scene.remove(sprite)
+      }
+      texture.dispose()
+      material.dispose()
+    }
+  })
+}
+
+// 创建特效方块特殊视觉效果
+const createSpecialEffect = (position, type) => {
+  const effectParticles = []
+  const particleCount = 30
+
+  for (let i = 0; i < particleCount; i++) {
+    const color = (() => {
+      switch (type) {
+        case 'fire':
+          return [0xff4500, 0xff6b35, 0xffd700][Math.floor(Math.random() * 3)]
+        case 'time':
+          return [0x00bfff, 0x00d4ff, 0xffffff][Math.floor(Math.random() * 3)]
+        case 'diamond':
+          return [0x00ffff, 0x40e0d0, 0xffffff][Math.floor(Math.random() * 3)]
+        case 'ice':
+          return [0x87ceeb, 0xadd8e6, 0xffffff][Math.floor(Math.random() * 3)]
+        case 'rainbow':
+          return [
+            0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x0000ff, 0x4b0082, 0x9400d3
+          ][Math.floor(Math.random() * 7)]
+        default:
+          return 0xffffff
+      }
+    })()
+
+    const particleMaterial = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 1
+    })
+
+    const particleMesh = new THREE.Mesh(particleGeometry, particleMaterial)
+    particleMesh.position.copy(position)
+
+    if (scene) {
+      scene.add(particleMesh)
+    }
+
+    const particle = {
+      mesh: particleMesh,
+      velocity: new THREE.Vector3(
+        (Math.random() - 0.5) * 8,
+        Math.random() * 6,
+        (Math.random() - 0.5) * 8
+      ),
+      life: 1,
+      decay: 0.02 + Math.random() * 0.01
+    }
+    particles.push(particle)
+
+    gsap.to(particleMesh.position, {
+      x: particleMesh.position.x + particle.velocity.x * 1.5,
+      y: particleMesh.position.y + particle.velocity.y * 1.5,
+      z: particleMesh.position.z + particle.velocity.z * 1.5,
+      duration: 1.5,
+      ease: 'power2.out'
+    })
+
+    gsap.to(particleMesh.scale, {
+      x: 0,
+      y: 0,
+      z: 0,
+      duration: 1.5,
+      ease: 'power2.in'
+    })
+
+    gsap.to(particleMaterial, {
+      opacity: 0,
+      duration: 1.5,
+      onComplete: () => {
+        const index = particles.indexOf(particle)
+        if (index > -1) {
+          particles.splice(index, 1)
+        }
+        if (scene) {
+          scene.remove(particleMesh)
+        }
+        particleMaterial.dispose()
+      }
+    })
+  }
+}
+
+// 激活全局减速
+const activateGlobalSlow = () => {
+  isGlobalSlowed = true
+  globalSlowEndTime = Date.now() + SPECIAL_BLOCK_CONFIG[SPECIAL_BLOCK_TYPES.ICE].slowDuration
+}
+
 // 更新游戏
 const updateGame = () => {
   if (gameState.value !== 'playing') return
+
+  // 检查全局减速状态
+  if (isGlobalSlowed && Date.now() > globalSlowEndTime) {
+    isGlobalSlowed = false
+  }
 
   // 更新字母方块（使用简单动画，不使用物理引擎）
   for (let i = letterBlocks.length - 1; i >= 0; i--) {
     const block = letterBlocks[i]
     if (!block || !block.mesh || block.hit) continue
 
-    // 简单下落动画
-    block.mesh.position.y -= block.speed
+    // 简单下落动画（减速状态下速度减半）
+    let speedMultiplier = isGlobalSlowed ? 0.5 : 1.0
+    block.mesh.position.y -= block.speed * speedMultiplier
 
     if (block.bigFrame && block.bigFrame.mesh) {
       block.bigFrame.mesh.position.y = block.mesh.position.y
       block.bigFrame.mesh.position.z = block.mesh.position.z + 0.1
     }
 
-    block.mesh.rotation.x += ROTATION_SPEED_X
-    block.mesh.rotation.y += ROTATION_SPEED_Y
+    // 冰冻方块旋转速度减慢
+    let rotationSpeed = block.blockType === SPECIAL_BLOCK_TYPES.ICE ? 0.5 : 1.0
+    if (isGlobalSlowed) rotationSpeed *= 0.5
+
+    block.mesh.rotation.x += ROTATION_SPEED_X * rotationSpeed
+    block.mesh.rotation.y += ROTATION_SPEED_Y * rotationSpeed
 
     if (block.bigFrame && block.bigFrame.mesh) {
       block.bigFrame.mesh.rotation.x = block.mesh.rotation.x
       block.bigFrame.mesh.rotation.y = block.mesh.rotation.y
+    }
+
+    // 彩虹方块动态变色（降低更新频率以优化性能）
+    if (block.blockType === SPECIAL_BLOCK_TYPES.RAINBOW && block.mesh.material && !block.lastColorUpdate) {
+      block.lastColorUpdate = 0
+    }
+    if (
+      block.blockType === SPECIAL_BLOCK_TYPES.RAINBOW &&
+      block.mesh.material &&
+      Date.now() - (block.lastColorUpdate || 0) > 100
+    ) {
+      block.lastColorUpdate = Date.now()
+      const time = Date.now() * 0.001
+      const hue = (time * 2) % 6
+      const color = new THREE.Color().setHSL(hue / 6, 1, 0.5)
+      const materials = Array.isArray(block.mesh.material) ? block.mesh.material : [block.mesh.material]
+      materials.forEach(mat => {
+        if (mat.color) mat.color.copy(color)
+        if (mat.emissive) mat.emissive.copy(color)
+      })
     }
 
     // 检查方块是否超出边界（左右上下前后）
@@ -1514,7 +1784,62 @@ const handleKeyPress = upperKey => {
 
     // 连击加成：连击数越高，得分越多（使用等级连击倍率）
     const comboBonus = Math.floor(combo.value / 5) * 5 * levelConfig.comboMultiplier
-    const pointsEarned = 10 * level.value + comboBonus
+    let pointsEarned = 10 * level.value + comboBonus
+
+    // 处理特效方块
+    if (targetBlock.blockType && targetBlock.blockType !== SPECIAL_BLOCK_TYPES.NORMAL) {
+      const config = targetBlock.specialConfig
+
+      switch (targetBlock.blockType) {
+        case SPECIAL_BLOCK_TYPES.GOLD:
+          // 🌟 金色方块 - 双倍分数
+          pointsEarned *= config.scoreMultiplier
+          showFloatingText(`🌟 金色方块 +${pointsEarned}`, targetBlock.mesh.position, 0xffd700)
+          break
+
+        case SPECIAL_BLOCK_TYPES.FIRE:
+          // 🔥 火焰方块 - 连击+5
+          combo.value += config.bonusCombo
+          if (combo.value > maxCombo.value) {
+            maxCombo.value = combo.value
+          }
+          showFloatingText(`🔥 火焰方块 连击+5`, targetBlock.mesh.position, 0xff4500)
+          createSpecialEffect(targetBlock.mesh.position, 'fire')
+          break
+
+        case SPECIAL_BLOCK_TYPES.TIME:
+          // ⏰ 时钟方块 - 时间+5秒
+          timeLeft.value += config.timeBonus
+          showFloatingText(`⏰ 时钟方块 时间+5秒`, targetBlock.mesh.position, 0x00bfff)
+          createSpecialEffect(targetBlock.mesh.position, 'time')
+          break
+
+        case SPECIAL_BLOCK_TYPES.DIAMOND:
+          // 💎 钻石方块 - 分数+50 + 连击+3
+          score.value += config.scoreBonus
+          combo.value += config.bonusCombo
+          if (combo.value > maxCombo.value) {
+            maxCombo.value = combo.value
+          }
+          showFloatingText(`💎 钻石方块 +${config.scoreBonus}分 连击+3`, targetBlock.mesh.position, 0x00ffff)
+          createSpecialEffect(targetBlock.mesh.position, 'diamond')
+          break
+
+        case SPECIAL_BLOCK_TYPES.ICE:
+          // ❄️ 冰冻方块 - 全场减速2秒
+          activateGlobalSlow()
+          showFloatingText(`❄️ 冰冻方块 全场减速`, targetBlock.mesh.position, 0x87ceeb)
+          createSpecialEffect(targetBlock.mesh.position, 'ice')
+          break
+
+        case SPECIAL_BLOCK_TYPES.RAINBOW:
+          // 🌈 彩虹方块 - 彩虹特效
+          showFloatingText(`🌈 彩虹方块`, targetBlock.mesh.position, 0xffffff)
+          createSpecialEffect(targetBlock.mesh.position, 'rainbow')
+          break
+      }
+    }
+
     score.value += pointsEarned
 
     // 每次得分后更新进度显示
