@@ -488,7 +488,7 @@ const SPECIAL_BLOCK_CONFIG = {
     color: 0x00ffff,
     icon: '💎',
     glowColor: 0x40e0d0,
-    scale: 1.1
+    scale: 1.3 // 放大钻石方块
   },
   [SPECIAL_BLOCK_TYPES.ICE]: {
     probability: 0.05,
@@ -503,7 +503,7 @@ const SPECIAL_BLOCK_CONFIG = {
     color: 0xffffff,
     icon: '🌈',
     glowColor: 0xffffff,
-    scale: 1.2
+    scale: 1.4 // 放大彩虹方块
   }
 }
 
@@ -574,6 +574,67 @@ const floatingTextSprites = []
 // GSAP动画追踪（用于清理）
 const activeAnimations = []
 
+// 清理所有游戏对象（方块、粒子、动画等）
+const clearGameObjects = () => {
+  // 停止所有定时器
+  if (spawnInterval) {
+    clearInterval(spawnInterval)
+    spawnInterval = null
+  }
+
+  // 停止动画循环
+  if (animationId) {
+    cancelAnimationFrame(animationId)
+    animationId = null
+  }
+
+  // 清理所有GSAP动画
+  activeAnimations.forEach(tween => {
+    if (tween && tween.kill) {
+      tween.kill()
+    }
+  })
+  activeAnimations.length = 0
+  gsap.killTweensOf('*')
+
+  // 清理浮动文本
+  floatingTextSprites.forEach(item => {
+    if (item.sprite && scene) {
+      scene.remove(item.sprite)
+    }
+    if (item.texture) {
+      item.texture.dispose()
+    }
+    if (item.canvas) {
+      item.canvas.width = 0
+      item.canvas.height = 0
+    }
+    if (item.sprite && item.sprite.material) {
+      item.sprite.material.dispose()
+    }
+  })
+  floatingTextSprites.length = 0
+
+  // 清理粒子并回收到对象池
+  particles.forEach(p => {
+    if (p.mesh && scene) {
+      scene.remove(p.mesh)
+    }
+    if (p.material && p.mesh) {
+      recycleParticle(p.mesh, p.material)
+    }
+  })
+  particles.length = 0
+
+  // 清理字母方块
+  letterBlocks.forEach(block => disposeBlock(block))
+  letterBlocks.length = 0
+
+  // 重置全场减速状态
+  isGlobalSlowed = false
+  globalSlowEndTime = 0
+}
+
 // 性能优化配置
 const MAX_BLOCKS = 50
 const ROTATION_SPEED_X = 0.005
@@ -597,8 +658,8 @@ const geometryPool = {
 // 游戏参数
 const letterSpeed = 0.01 // 降低基础下落速度
 const spawnRate = 1.5 // 生成速率（每秒生成的方块数）
-const blockSize = 0.8
-const frameSize = 0.96
+const blockSize = 1.2 // 放大方块尺寸
+const frameSize = 1.44 // 放大方框尺寸（保持1.2倍比例）
 
 // 等级系统配置
 const LEVEL_CONFIG = {
@@ -1627,28 +1688,29 @@ const animate = () => {
 
 // 开始游戏
 const startGame = () => {
-  if (gameState.value === 'ready' || gameState.value === 'gameover') {
-    // 重置游戏状态
-    score.value = 0
-    level.value = 1
-    letterBlocks.length = 0
-    timeLeft.value = LEVEL_TIME // 重置倒计时
+  // 清理所有旧的游戏对象（方块、粒子、动画）
+  clearGameObjects()
 
-    // 重置统计
-    combo.value = 0
-    maxCombo.value = 0
-    totalKeystrokes.value = 0
-    correctKeystrokes.value = 0
-    wrongKeystrokes.value = 0
-    accuracy.value = 100
-    wpm.value = 0
-    gameStartTime.value = Date.now()
+  // 重置游戏状态（不管之前是什么状态）
+  score.value = 0
+  level.value = 1
+  letterBlocks.length = 0
+  timeLeft.value = LEVEL_TIME // 重置倒计时
 
-    // 更新等级配置
-    updateLevelConfig()
-    updateTimerColor()
-    updateTimerTextColor()
-  }
+  // 重置统计
+  combo.value = 0
+  maxCombo.value = 0
+  totalKeystrokes.value = 0
+  correctKeystrokes.value = 0
+  wrongKeystrokes.value = 0
+  accuracy.value = 100
+  wpm.value = 0
+  gameStartTime.value = Date.now()
+
+  // 更新等级配置
+  updateLevelConfig()
+  updateTimerColor()
+  updateTimerTextColor()
 
   gameState.value = 'playing'
 
@@ -3153,8 +3215,8 @@ onBeforeUnmount(() => {
 
 .controls-hint {
   position: absolute;
-  bottom: 10px;
-  left: 50%;
+  bottom: 2px;
+  left: 10%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(20, 20, 40, 0.8) 100%);
   border: 1px solid rgba(255, 255, 255, 0.15);
