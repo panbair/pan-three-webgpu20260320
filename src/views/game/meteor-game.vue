@@ -263,7 +263,7 @@ const initMusic = () => {
   bgMusic.volume = musicVolume.value
   bgMusic.loop = false
   bgMusic.preload = 'auto'
-  
+
   // 监听音乐播放结束事件，自动播放下一首
   bgMusic.addEventListener('ended', () => {
     if (!isMuted.value) {
@@ -510,6 +510,12 @@ const particleColors = [
   0xff6ec7 // 粉色
 ]
 
+// 浮动文本追踪（用于清理）
+const floatingTextSprites = []
+
+// GSAP动画追踪（用于清理）
+const activeAnimations = []
+
 // 性能优化配置
 const MAX_BLOCKS = 50
 const ROTATION_SPEED_X = 0.005
@@ -532,7 +538,7 @@ const geometryPool = {
 
 // 游戏参数
 const letterSpeed = 0.03 // 提高基础下落速度
-const spawnRate = 0.6 // 适度提高生成速度
+const spawnRate = 3.0 // 生成速率（每秒生成的方块数）
 const blockSize = 0.8
 const frameSize = 0.96
 
@@ -606,8 +612,8 @@ const LEVEL_CONFIG = {
     1.0, 1.05, 1.1, 1.15, 1.2, 1.25, 1.3, 1.35, 1.4, 1.45, 1.5, 1.55, 1.6, 1.65, 1.7, 1.75, 1.8,
     1.85, 1.9, 2.0
   ],
-  // 每个等级的最大方块数（大幅减少屏幕方块数）
-  maxBlocks: [8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 17, 18, 20]
+  // 每个等级的最大方块数（新手少量，逐级增加）
+  maxBlocks: [8, 9, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170]
 }
 
 // 获取当前等级配置
@@ -791,42 +797,23 @@ const updateFrustumBounds = () => {
   const visibleWidthAtSpawn = visibleHeightAtSpawn * aspect
 
   // 方块安全边界（考虑方块大小、边框和旋转）
-  // 方块最大尺寸（旋转时对角线长度）
   const maxBlockSize = Math.sqrt(2) * Math.max(blockSize, frameSize)
-  const safeMarginX = maxBlockSize + 1.0 // 增加余量，防止旋转时超出
-  const safeMarginZ = maxBlockSize + 1.0
+  const safeMargin = maxBlockSize + 2.0 // 安全边距
 
-  // 左侧UI面板安全区域（避免方块被面板遮挡）
-  const leftSafePercent = 0.25 // 左侧安全区域百分比
-  const leftSafeBoundary = -visibleWidthAtSpawn / 2 + visibleWidthAtSpawn * leftSafePercent
+  // 使用固定边界值，更简单可靠
+  const halfWidth = Math.min(visibleWidthAtSpawn / 2 - safeMargin, 12) // 限制最大宽度
+  const gameWidth = halfWidth * 2
 
-  const lookAtY = 5
-  const visibleBottomY = lookAtY - (lookAtY - camera.position.y) * Math.tan(fov / 2) * 2 - 5
-
-  // 计算边界：左边距需要考虑UI面板，右边距需要更大余量
-  const leftBoundary = Math.max(leftSafeBoundary, -visibleWidthAtSpawn / 2 + safeMarginX)
-  const rightBoundary = visibleWidthAtSpawn / 2 - safeMarginX // 右边距也要考虑安全余量
+  // 左侧UI面板安全区域（25%宽度）
+  const uiPanelWidth = visibleWidthAtSpawn * 0.25
 
   frustumBounds = {
-    left: leftBoundary,
-    right: rightBoundary,
+    left: -halfWidth + uiPanelWidth, // 左边界跳过UI面板区域
+    right: halfWidth,                // 右边界
     top: spawnY,
-    bottom: Math.max(visibleBottomY, -15),
-    nearZ: safeMarginZ,
-    farZ: 10 - safeMarginZ
-  }
-
-  // 边界保护，确保至少有一定游戏区域
-  const minGameWidth = 8
-  if (frustumBounds.right - frustumBounds.left < minGameWidth) {
-    // 如果边界太窄，调整左边界
-    frustumBounds.left = Math.min(frustumBounds.left, -minGameWidth / 2)
-    frustumBounds.right = Math.max(frustumBounds.right, minGameWidth / 2)
-  }
-
-  if (frustumBounds.nearZ >= frustumBounds.farZ) {
-    frustumBounds.nearZ = 2
-    frustumBounds.farZ = 8
+    bottom: -10,
+    nearZ: 3.0,
+    farZ: 7.0
   }
 }
 
@@ -1344,23 +1331,45 @@ const showFloatingText = (text, position, color) => {
     scene.add(sprite)
   }
 
-  gsap.to(sprite.position, {
+  // 追踪浮动文本以便清理
+  floatingTextSprites.push({
+    sprite,
+    texture,
+    canvas
+  })
+
+  const positionTween = gsap.to(sprite.position, {
     y: sprite.position.y + 2,
     duration: 1.5,
     ease: 'power1.out'
   })
 
-  gsap.to(material, {
+  const opacityTween = gsap.to(material, {
     opacity: 0,
     duration: 1.5,
     onComplete: () => {
+      // 从追踪列表中移除
+      const index = floatingTextSprites.findIndex(item => item.sprite === sprite)
+      if (index > -1) {
+        floatingTextSprites.splice(index, 1)
+      }
+
       if (scene) {
         scene.remove(sprite)
       }
       texture.dispose()
       material.dispose()
+
+      // 释放Canvas内存
+      if (canvas) {
+        canvas.width = 0
+        canvas.height = 0
+      }
     }
   })
+
+  // 追踪GSAP动画
+  activeAnimations.push(positionTween, opacityTween)
 }
 
 // 创建特效方块特殊视觉效果
@@ -1409,11 +1418,12 @@ const createSpecialEffect = (position, type) => {
         (Math.random() - 0.5) * 8
       ),
       life: 1,
-      decay: 0.02 + Math.random() * 0.01
+      decay: 0.02 + Math.random() * 0.01,
+      material: particleMaterial // 追踪材质以便清理
     }
     particles.push(particle)
 
-    gsap.to(particleMesh.position, {
+    const positionTween = gsap.to(particleMesh.position, {
       x: particleMesh.position.x + particle.velocity.x * 1.5,
       y: particleMesh.position.y + particle.velocity.y * 1.5,
       z: particleMesh.position.z + particle.velocity.z * 1.5,
@@ -1421,7 +1431,7 @@ const createSpecialEffect = (position, type) => {
       ease: 'power2.out'
     })
 
-    gsap.to(particleMesh.scale, {
+    const scaleTween = gsap.to(particleMesh.scale, {
       x: 0,
       y: 0,
       z: 0,
@@ -1429,7 +1439,7 @@ const createSpecialEffect = (position, type) => {
       ease: 'power2.in'
     })
 
-    gsap.to(particleMaterial, {
+    const opacityTween = gsap.to(particleMaterial, {
       opacity: 0,
       duration: 1.5,
       onComplete: () => {
@@ -1443,6 +1453,9 @@ const createSpecialEffect = (position, type) => {
         particleMaterial.dispose()
       }
     })
+
+    // 追踪GSAP动画
+    activeAnimations.push(positionTween, scaleTween, opacityTween)
   }
 }
 
@@ -1570,7 +1583,8 @@ const startGame = () => {
   startTimer()
 
   const levelConfig = getCurrentLevelConfig()
-  const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier * 10)
+  // 修正生成间隔计算，使生成更均匀
+  const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier)
 
   spawnInterval = setInterval(() => {
     if (gameState.value === 'playing') {
@@ -1657,6 +1671,7 @@ const endGame = () => {
 
 // 重新开始
 const restartGame = () => {
+  // 停止动画循环
   if (animationId) {
     cancelAnimationFrame(animationId)
     animationId = null
@@ -1668,6 +1683,45 @@ const restartGame = () => {
     comboTimer.value = null
   }
 
+  // 清理所有GSAP动画
+  activeAnimations.forEach(tween => {
+    if (tween && tween.kill) {
+      tween.kill()
+    }
+  })
+  activeAnimations.length = 0
+  gsap.killTweensOf('*')
+
+  // 清理浮动文本
+  floatingTextSprites.forEach(item => {
+    if (item.sprite && scene) {
+      scene.remove(item.sprite)
+    }
+    if (item.texture) {
+      item.texture.dispose()
+    }
+    if (item.canvas) {
+      item.canvas.width = 0
+      item.canvas.height = 0
+    }
+    if (item.sprite && item.sprite.material) {
+      item.sprite.material.dispose()
+    }
+  })
+  floatingTextSprites.length = 0
+
+  // 清理粒子
+  particles.forEach(p => {
+    if (p.mesh && scene) {
+      scene.remove(p.mesh)
+    }
+    if (p.material) {
+      p.material.dispose()
+    }
+  })
+  particles.length = 0
+
+  // 清理字母方块
   letterBlocks.forEach(block => disposeBlock(block))
   letterBlocks.length = 0
   keysPressed.value.clear()
@@ -1697,14 +1751,22 @@ const restartGame = () => {
 const pauseGame = () => {
   if (gameState.value === 'playing') {
     gameState.value = 'paused'
+
+    // 停止动画循环
     if (animationId) {
       cancelAnimationFrame(animationId)
       animationId = null
     }
+
+    // 停止方块生成
     if (spawnInterval) {
       clearInterval(spawnInterval)
       spawnInterval = null
     }
+
+    // 暂停所有GSAP动画
+    gsap.globalTimeline.pause()
+
     // 暂停音乐
     pauseMusic()
   }
@@ -1718,6 +1780,10 @@ const resumeGame = () => {
     }
 
     gameState.value = 'playing'
+
+    // 恢复所有GSAP动画
+    gsap.globalTimeline.resume()
+
     animate()
 
     // 播放音乐
@@ -1729,7 +1795,8 @@ const resumeGame = () => {
   animate()
 
   const levelConfig = getCurrentLevelConfig()
-  const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier * 10)
+  // 修正生成间隔计算，使生成更均匀
+  const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier)
 
   spawnInterval = setInterval(() => {
     if (gameState.value === 'playing') {
@@ -1918,14 +1985,25 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  // 清理所有 GSAP 动画
-  gsap.killTweensOf('*')
+  // 清理所有追踪的GSAP动画
+  activeAnimations.forEach(tween => {
+    if (tween && tween.kill) {
+      tween.kill()
+    }
+  })
+  activeAnimations.length = 0
 
+  // 清理所有GSAP动画（全局清理）
+  gsap.killTweensOf('*')
+  gsap.globalTimeline.clear()
+
+  // 清理动画帧
   if (animationId) {
     cancelAnimationFrame(animationId)
     animationId = null
   }
 
+  // 清理所有定时器
   if (spawnInterval) {
     clearInterval(spawnInterval)
     spawnInterval = null
@@ -1936,6 +2014,13 @@ onBeforeUnmount(() => {
     timerInterval.value = null
   }
 
+  // 清理连击计时器
+  if (comboTimer.value) {
+    clearTimeout(comboTimer.value)
+    comboTimer.value = null
+  }
+
+  // 移除事件监听器
   window.removeEventListener('resize', handleResize)
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
@@ -1948,26 +2033,46 @@ onBeforeUnmount(() => {
   particles.forEach(p => {
     if (p.mesh && scene) {
       scene.remove(p.mesh)
-      if (p.mesh.material) {
-        p.mesh.material.dispose()
-      }
+    }
+    if (p.material) {
+      p.material.dispose()
     }
   })
   particles.length = 0
 
+  // 清理浮动文本
+  floatingTextSprites.forEach(item => {
+    if (item.sprite && scene) {
+      scene.remove(item.sprite)
+    }
+    if (item.texture) {
+      item.texture.dispose()
+    }
+    if (item.canvas) {
+      item.canvas.width = 0
+      item.canvas.height = 0
+    }
+    if (item.sprite && item.sprite.material) {
+      item.sprite.material.dispose()
+    }
+  })
+  floatingTextSprites.length = 0
+
   // 清理材质缓存
   materialCache.forEach(materials => {
-    materials.forEach(mat => {
-      if (mat && typeof mat.dispose === 'function') {
-        mat.dispose()
-      }
-    })
+    if (Array.isArray(materials)) {
+      materials.forEach(mat => {
+        if (mat && typeof mat.dispose === 'function') {
+          mat.dispose()
+        }
+      })
+    }
   })
   materialCache.clear()
 
   // 清理纹理缓存
   textureCache.forEach(tex => {
-    if (typeof tex.dispose === 'function') {
+    if (tex && typeof tex.dispose === 'function') {
       tex.dispose()
     }
   })
@@ -1986,30 +2091,59 @@ onBeforeUnmount(() => {
   // 清理粒子几何体
   if (particleGeometry) {
     particleGeometry.dispose()
+    particleGeometry = null
   }
 
   // 清理边界辅助线
   if (scene && scene.userData.boundaryHelpers) {
     scene.userData.boundaryHelpers.forEach(line => {
-      if (line && line.geometry) {
-        line.geometry.dispose()
-      }
-      if (line && line.material) {
-        line.material.dispose()
-      }
       if (line) {
+        if (line.geometry) {
+          line.geometry.dispose()
+        }
+        if (line.material) {
+          line.material.dispose()
+        }
         scene.remove(line)
       }
     })
     scene.userData.boundaryHelpers = []
   }
 
+  // 清理音乐
+  if (bgMusic) {
+    bgMusic.pause()
+    bgMusic.src = ''
+    bgMusic.removeEventListener('ended', null)
+    bgMusic = null
+  }
+
+  // 清理渲染器
   if (renderer) {
     renderer.dispose()
     renderer = null
   }
 
-  scene = null
+  // 清理场景
+  if (scene) {
+    scene.traverse(object => {
+      if (object.isMesh || object.isSprite) {
+        if (object.geometry) {
+          object.geometry.dispose()
+        }
+        if (object.material) {
+          if (Array.isArray(object.material)) {
+            object.material.forEach(mat => mat.dispose())
+          } else {
+            object.material.dispose()
+          }
+        }
+      }
+    })
+    scene.clear()
+    scene = null
+  }
+
   camera = null
 })
 </script>
