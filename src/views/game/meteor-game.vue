@@ -265,6 +265,13 @@ const toggleMusicPanel = () => {
 }
 
 // 初始化音乐
+// 音乐结束事件处理器（保存引用以便清理）
+const musicEndedHandler = () => {
+  if (!isMuted.value) {
+    switchMusic()
+  }
+}
+
 const initMusic = () => {
   bgMusic.src = musicTracks[0]
   bgMusic.volume = musicVolume.value
@@ -272,18 +279,15 @@ const initMusic = () => {
   bgMusic.preload = 'auto'
 
   // 监听音乐播放结束事件，自动播放下一首
-  bgMusic.addEventListener('ended', () => {
-    if (!isMuted.value) {
-      switchMusic()
-    }
-  })
+  bgMusic.addEventListener('ended', musicEndedHandler)
 }
 
 // 播放音乐
 const playMusic = () => {
   if (!isMuted.value) {
     bgMusic.play().catch(err => {
-      console.log('音乐播放失败（可能需要用户交互）:', err)
+      console.warn('音乐播放失败（可能需要用户交互）:', err)
+      // 降级处理：静默失败，不影响游戏体验
     })
   }
 }
@@ -299,7 +303,10 @@ const toggleMute = () => {
   if (isMuted.value) {
     bgMusic.pause()
   } else if (gameState.value === 'playing') {
-    bgMusic.play().catch(err => console.log('播放失败:', err))
+    bgMusic.play().catch(err => {
+      console.warn('播放失败:', err)
+      // 降级处理：静默失败，不影响游戏体验
+    })
   }
 }
 
@@ -311,7 +318,10 @@ const switchMusic = () => {
   bgMusic.src = musicTracks[currentMusicIndex.value]
   bgMusic.currentTime = 0
   if (wasPlaying && !isMuted.value) {
-    bgMusic.play().catch(err => console.log('播放失败:', err))
+    bgMusic.play().catch(err => {
+      console.warn('播放失败:', err)
+      // 降级处理：静默失败，不影响游戏体验
+    })
   }
 }
 
@@ -636,14 +646,13 @@ const clearGameObjects = () => {
 }
 
 // 性能优化配置
-const MAX_BLOCKS = 50
 const ROTATION_SPEED_X = 0.005
 const ROTATION_SPEED_Y = 0.01
 
 // 纹理缓存
 const textureCache = new Map()
 const textureLoader = new THREE.TextureLoader()
-let blockTexture = null
+let blockTexture = null // 用于纹理加载的临时变量
 const BLOCK_TEXTURE_COUNT = 68 // 材质图片总数
 
 // 材质缓存
@@ -778,8 +787,19 @@ const loadBlockTexture = () => {
     return textureCache.get(texturePath)
   }
 
-  // 加载并缓存新纹理
-  const texture = textureLoader.load(texturePath)
+  // 加载并缓存新纹理（添加错误处理）
+  const texture = textureLoader.load(
+    texturePath,
+    // 加载成功回调
+    undefined,
+    // 加载进度回调
+    undefined,
+    // 加载错误回调
+    err => {
+      console.warn('纹理加载失败，使用备用方案:', texturePath, err)
+      // 纹理加载失败时不抛出错误，Three.js会使用默认颜色
+    }
+  )
   textureCache.set(texturePath, texture)
   return texture
 }
@@ -940,53 +960,6 @@ const updateFrustumBounds = () => {
     nearZ: 3.0,
     farZ: 7.0
   }
-}
-
-// 创建边界辅助线（用于调试和验证边界设置）
-const createBoundaryHelper = () => {
-  if (!scene) return
-
-  // 左边界线（红色）
-  const leftLineGeometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(frustumBounds.left, frustumBounds.bottom, 0),
-    new THREE.Vector3(frustumBounds.left, frustumBounds.top, 0)
-  ])
-  const leftLineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 })
-  const leftLine = new THREE.Line(leftLineGeometry, leftLineMaterial)
-  scene.add(leftLine)
-
-  // 右边界线（绿色）
-  const rightLineGeometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(frustumBounds.right, frustumBounds.bottom, 0),
-    new THREE.Vector3(frustumBounds.right, frustumBounds.top, 0)
-  ])
-  const rightLineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 })
-  const rightLine = new THREE.Line(rightLineGeometry, rightLineMaterial)
-  scene.add(rightLine)
-
-  // 底部边界线（黄色）
-  const bottomLineGeometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(frustumBounds.left, frustumBounds.bottom, 0),
-    new THREE.Vector3(frustumBounds.right, frustumBounds.bottom, 0)
-  ])
-  const bottomLineMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 })
-  const bottomLine = new THREE.Line(bottomLineGeometry, bottomLineMaterial)
-  scene.add(bottomLine)
-
-  // 顶部边界线（紫色）
-  const topLineGeometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(frustumBounds.left, frustumBounds.top, 0),
-    new THREE.Vector3(frustumBounds.right, frustumBounds.top, 0)
-  ])
-  const topLineMaterial = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 2 })
-  const topLine = new THREE.Line(topLineGeometry, topLineMaterial)
-  scene.add(topLine)
-
-  // 保存辅助线引用以便清理
-  if (!scene.userData.boundaryHelpers) {
-    scene.userData.boundaryHelpers = []
-  }
-  scene.userData.boundaryHelpers.push(leftLine, rightLine, bottomLine, topLine)
 }
 
 // 初始化场景
@@ -2303,7 +2276,7 @@ onBeforeUnmount(() => {
   if (bgMusic) {
     bgMusic.pause()
     bgMusic.src = ''
-    bgMusic.removeEventListener('ended', null)
+    bgMusic.removeEventListener('ended', musicEndedHandler)
     bgMusic = null
   }
 
