@@ -95,18 +95,18 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
 
   // ========== 配置 ==========
   const config = {
-    neuronCount: 32,          // 神经元数量
-    dataFlowCount: 5000,       // 数据流粒子数量
-    pulseCount: 16,           // 神经脉冲数量
-    sparkCount: 2000,         // 火花粒子数量
+    neuronCount: 32, // 神经元数量
+    dataFlowCount: 5000, // 数据流粒子数量
+    pulseCount: 16, // 神经脉冲数量
+    sparkCount: 2000, // 火花粒子数量
 
     // 6段色相循环（赛博朋克配色）
     hueCycle: [0.92, 0.55, 0.35, 0.78, 0.08, 0.95], // 霓虹红→电光蓝→激光绿→紫罗兰→金橙→霓虹粉
-    saturation: 0.95,          // 超高饱和度
-    lightness: 0.60,
+    saturation: 0.95, // 超高饱和度
+    lightness: 0.6,
 
     // 运镜时长
-    cameraSegmentDuration: 4.0,  // 每段运镜4秒，共32秒
+    cameraSegmentDuration: 4.0 // 每段运镜4秒，共32秒
   }
 
   // ========== 初始化渲染器 ==========
@@ -116,7 +116,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
 
     renderer = new THREE.WebGPURenderer({
       antialias: false,
-      alpha: true,
+      alpha: true
     }) as typeof THREE.WebGPURenderer
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0))
@@ -144,8 +144,8 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
   const loadTextures = async () => {
     const textureLoader = new THREE.TextureLoader()
 
-    butterflyTexture = await new Promise<THREE.Texture>((resolve) => {
-      textureLoader.load('/images/hudie.jpg', (tex) => {
+    butterflyTexture = await new Promise<THREE.Texture>(resolve => {
+      textureLoader.load('/images/hudie.jpg', tex => {
         tex.colorSpace = THREE.SRGBColorSpace
         resolve(tex)
       })
@@ -196,7 +196,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
       map: butterflyTexture,
       side: THREE.DoubleSide,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.AdditiveBlending
     })
 
     neuronMesh = new THREE.InstancedMesh(neuronGeometry, neuronMaterial, config.neuronCount)
@@ -233,7 +233,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
       transparent: true,
       side: THREE.DoubleSide,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.AdditiveBlending
     })
 
     dataFlowMesh = new THREE.InstancedMesh(dataFlowGeometry, dataFlowMaterial, config.dataFlowCount)
@@ -271,7 +271,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
       transparent: true,
       side: THREE.DoubleSide,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.AdditiveBlending
     })
 
     pulseMesh = new THREE.InstancedMesh(pulseGeometry, pulseMaterial, config.pulseCount)
@@ -301,7 +301,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
     sparkMaterial = new THREE.MeshBasicNodeMaterial({
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.AdditiveBlending
     })
 
     sparkMesh = new THREE.InstancedMesh(sparkGeometry, sparkMaterial, config.sparkCount)
@@ -320,7 +320,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
       y: 15,
       z: 25,
       duration: duration,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
 
     // 第2段：环绕旋转
@@ -330,7 +330,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
       z: 0,
       duration: duration,
       ease: 'power2.inOut',
-      delay: duration,
+      delay: duration
     })
 
     // 第3段：穿梭穿越
@@ -340,7 +340,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
       z: -25,
       duration: duration,
       ease: 'power2.inOut',
-      delay: duration * 2,
+      delay: duration * 2
     })
 
     // 第4段：全景扫视
@@ -350,7 +350,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
       z: 15,
       duration: duration,
       ease: 'power2.inOut',
-      delay: duration * 3,
+      delay: duration * 3
     })
 
     // 第5段：仰拍仰望
@@ -360,7 +360,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
       z: 25,
       duration: duration,
       ease: 'power2.inOut',
-      delay: duration * 4,
+      delay: duration * 4
     })
 
     // 第6段：螺旋上升
@@ -370,7 +370,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
       z: 0,
       duration: duration,
       ease: 'power2.out',
-      delay: duration * 5,
+      delay: duration * 5
     })
 
     // 第7段：穿梭穿越2
@@ -380,7 +380,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
       z: -20,
       duration: duration,
       ease: 'power2.inOut',
-      delay: duration * 6,
+      delay: duration * 6
     })
 
     // 第8段：全景收尾
@@ -390,7 +390,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
       z: 60,
       duration: duration,
       ease: 'power2.out',
-      delay: duration * 7,
+      delay: duration * 7
     })
 
     allTweens.push(seg1, seg2, seg3, seg4, seg5, seg6, seg7, seg8)
@@ -413,7 +413,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
         y: 0,
         z: 0,
         duration: 2,
-        ease: 'elastic.out(1, 0.5)',
+        ease: 'elastic.out(1, 0.5)'
       })
     }
 
@@ -427,7 +427,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
           z: 0,
           duration: 1.8,
           ease: 'power2.out',
-          delay: 0.3,
+          delay: 0.3
         },
         '<'
       )
@@ -441,7 +441,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
           opacity: 0,
           duration: 1.5,
           ease: 'power2.out',
-          delay: 0.5,
+          delay: 0.5
         },
         '<'
       )
@@ -455,16 +455,20 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
           opacity: 0,
           duration: 1.5,
           ease: 'power2.out',
-          delay: 0.7,
+          delay: 0.7
         },
         '<'
       )
     }
 
     // 启动运镜
-    timeline.call(() => {
-      playCameraAnimation()
-    }, null, '>')
+    timeline.call(
+      () => {
+        playCameraAnimation()
+      },
+      null,
+      '>'
+    )
 
     allTweens.push(timeline)
   }
@@ -581,11 +585,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
         const idx = i * 7
 
         // 旋转
-        dummy.rotation.set(
-          elapsed * sparkData[idx + 4],
-          elapsed * sparkData[idx + 5],
-          0
-        )
+        dummy.rotation.set(elapsed * sparkData[idx + 4], elapsed * sparkData[idx + 5], 0)
 
         // 脉冲缩放
         const pulse = 0.6 + 0.6 * Math.sin(elapsed * 4 + sparkData[idx + 3])
@@ -616,7 +616,7 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
   // ========== 清理函数 ==========
   const cleanup = () => {
     // 步骤1: 杀死所有 GSAP tween
-    allTweens.forEach((tween) => tween.kill())
+    allTweens.forEach(tween => tween.kill())
 
     // 步骤2: 杀死所有对象上的 tween
     gsap.killTweensOf(camera?.position)
@@ -710,5 +710,5 @@ export const cyberNeuralNetworkEffect = (container: HTMLElement): (() => void) =
 // ========== 参数导出 ==========
 export const cyberNeuralNetworkEffectParams = {
   name: '赛博神经网',
-  effect: cyberNeuralNetworkEffect,
+  effect: cyberNeuralNetworkEffect
 }

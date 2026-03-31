@@ -64,7 +64,7 @@ export const QuantumFluidTaichiEffectParams = {
 // 主特效函数
 // ============================================
 
-export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<(() => void)> => {
+export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<() => void> => {
   console.log('[QuantumFluidTaichi] 开始初始化 WebGPU 流体模拟...')
 
   // ============================================
@@ -188,7 +188,7 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
     for (let i = 0; i < config.particleCount; i++) {
       const theta = Math.random() * Math.PI * 2
       const phi = Math.acos(2 * Math.random() - 1)
-      const radius = Math.pow(Math.random(), 1/3) * config.boundaryRadius
+      const radius = Math.pow(Math.random(), 1 / 3) * config.boundaryRadius
 
       positionArray[i * 3] = radius * Math.sin(phi) * Math.cos(theta)
       positionArray[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
@@ -235,7 +235,9 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
       const distToMouse = length(toMouse)
 
       // 简化：不使用 If 条件，直接应用力（性能更好）
-      const force = interactionStrength.mul(float(1.0).sub(distToMouse.div(interactionRadius)).max(float(0)))
+      const force = interactionStrength.mul(
+        float(1.0).sub(distToMouse.div(interactionRadius)).max(float(0))
+      )
       const forceVec = normalize(toMouse).mul(force).mul(deltaTime)
       vel.addAssign(forceVec)
 
@@ -262,7 +264,9 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
     })
 
     // 创建 Compute Pipeline
-    const computePipeline = updatePhysics().compute(config.particleCount).setName('fluidPhysicsUpdate')
+    const computePipeline = updatePhysics()
+      .compute(config.particleCount)
+      .setName('fluidPhysicsUpdate')
 
     // ============================================
     // 6. 创建 GPU 渲染网格（混合模式：GPU 物理 + CPU 渲染）
@@ -279,7 +283,7 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
       new THREE.Color(0x00f0ff), // 电光蓝
       new THREE.Color(0x00ff66), // 激光绿
       new THREE.Color(0x9900ff), // 紫罗兰
-      new THREE.Color(0xff9900)  // 金橙
+      new THREE.Color(0xff9900) // 金橙
     ]
 
     // 霓虹配色（GPU 端用于动态着色）
@@ -308,15 +312,33 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
         const segmentT = segment.sub(segmentIndex)
 
         // 根据段索引选择颜色对进行混合
-        const color0 = segmentIndex.equal(float(0)).select(neonColor0,
-                       segmentIndex.equal(float(1)).select(neonColor1,
-                       segmentIndex.equal(float(2)).select(neonColor2,
-                       segmentIndex.equal(float(3)).select(neonColor3, neonColor4))))
+        const color0 = segmentIndex
+          .equal(float(0))
+          .select(
+            neonColor0,
+            segmentIndex
+              .equal(float(1))
+              .select(
+                neonColor1,
+                segmentIndex
+                  .equal(float(2))
+                  .select(neonColor2, segmentIndex.equal(float(3)).select(neonColor3, neonColor4))
+              )
+          )
 
-        const color1 = segmentIndex.equal(float(0)).select(neonColor1,
-                       segmentIndex.equal(float(1)).select(neonColor2,
-                       segmentIndex.equal(float(2)).select(neonColor3,
-                       segmentIndex.equal(float(3)).select(neonColor4, neonColor0))))
+        const color1 = segmentIndex
+          .equal(float(0))
+          .select(
+            neonColor1,
+            segmentIndex
+              .equal(float(1))
+              .select(
+                neonColor2,
+                segmentIndex
+                  .equal(float(2))
+                  .select(neonColor3, segmentIndex.equal(float(3)).select(neonColor4, neonColor0))
+              )
+          )
 
         // 在颜色对之间进行平滑过渡
         const color = mix(color0, color1, segmentT)
@@ -332,7 +354,11 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
     // 设置初始实例矩阵
     const dummyInit = new THREE.Object3D()
     for (let i = 0; i < config.particleCount; i++) {
-      dummyInit.position.set(positionArray[i * 3], positionArray[i * 3 + 1], positionArray[i * 3 + 2])
+      dummyInit.position.set(
+        positionArray[i * 3],
+        positionArray[i * 3 + 1],
+        positionArray[i * 3 + 2]
+      )
       dummyInit.updateMatrix()
       fluidMesh.setMatrixAt(i, dummyInit.matrix)
       fluidMesh.setColorAt(i, neonColors[Math.floor((i / config.particleCount) * 5)])
@@ -406,42 +432,54 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
 
     // 镜头 1: 俯视
     cinematicTimeline.to(camera.position, {
-      x: 0, y: 120, z: 50,
+      x: 0,
+      y: 120,
+      z: 50,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 2: 侧面
     cinematicTimeline.to(camera.position, {
-      x: 100, y: 40, z: 0,
+      x: 100,
+      y: 40,
+      z: 0,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 3: 底部仰视
     cinematicTimeline.to(camera.position, {
-      x: 0, y: -80, z: 80,
+      x: 0,
+      y: -80,
+      z: 80,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 4: 近景
     cinematicTimeline.to(camera.position, {
-      x: 50, y: 20, z: 50,
+      x: 50,
+      y: 20,
+      z: 50,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 5: 旋转环绕
     cinematicTimeline.to(camera.position, {
-      x: -70, y: 30, z: 70,
+      x: -70,
+      y: 30,
+      z: 70,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 6: 远景（回到初始位置）
     cinematicTimeline.to(camera.position, {
-      x: 0, y: 40, z: 100,
+      x: 0,
+      y: 40,
+      z: 100,
       duration: 3,
       ease: 'power2.inOut'
     })
@@ -475,7 +513,7 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
       // 计算 FPS
       const currentTime = performance.now()
       if (currentTime - lastTime >= 1000) {
-        fps = frameCount * 1000 / (currentTime - lastTime)
+        fps = (frameCount * 1000) / (currentTime - lastTime)
         frameCount = 0
         lastTime = currentTime
       }
@@ -641,7 +679,7 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
 
     // 8. 释放材质
     if (fluidMesh && fluidMesh.material) {
-      (fluidMesh.material as THREE.Material).dispose()
+      ;(fluidMesh.material as THREE.Material).dispose()
     }
 
     // 9. 释放渲染器

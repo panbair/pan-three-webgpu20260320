@@ -15,21 +15,13 @@
 ## 技术要点
 
 ### TSL 节点使用
+
 ```typescript
-import {
-  color,
-  positionWorld,
-  time,
-  sin,
-  cos,
-  mul,
-  add,
-  mix,
-  remapClamp
-} from 'three/tsl'
+import { color, positionWorld, time, sin, cos, mul, add, mix, remapClamp } from 'three/tsl'
 ```
 
 ### 核心算法
+
 1. **波浪计算**: `sin(x * frequency + time) * amplitude`
 2. **流动偏移**: 基于粒子的 `flowOffset` 和 `flowSpeed`
 3. **渐变色**: 使用 `remapClamp` 将距离映射到色相

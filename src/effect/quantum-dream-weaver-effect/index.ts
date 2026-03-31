@@ -24,14 +24,14 @@ import gsap from 'gsap'
  * 量子织梦机参数导出
  */
 export const quantumDreamWeaverEffectParams = {
-  quantumNodes: 12,       // 量子节点数量
-  spiralParticles: 5000,  // 螺旋粒子数量
-  rippleLayers: 8,        // 涟漪层数
-  haloLayers: 5,          // 光环层数
-  dataParticles: 2000,    // 数据流粒子数量
-  maxConnections: 8,       // 每个节点最大连接数
-  orbitRadius: 60,         // 轨道半径
-  connectionDistance: 40   // 连接距离阈值
+  quantumNodes: 12, // 量子节点数量
+  spiralParticles: 5000, // 螺旋粒子数量
+  rippleLayers: 8, // 涟漪层数
+  haloLayers: 5, // 光环层数
+  dataParticles: 2000, // 数据流粒子数量
+  maxConnections: 8, // 每个节点最大连接数
+  orbitRadius: 60, // 轨道半径
+  connectionDistance: 40 // 连接距离阈值
 }
 
 /**
@@ -80,11 +80,7 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
     opacity: 0.8
   })
 
-  let spiralMesh = new THREE.InstancedMesh(
-    spiralGeometry,
-    spiralMaterial,
-    config.spiralParticles
-  )
+  let spiralMesh = new THREE.InstancedMesh(spiralGeometry, spiralMaterial, config.spiralParticles)
 
   interface SpiralParticleData {
     angle: number
@@ -108,11 +104,7 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
     const height = (Math.random() - 0.5) * 100
     const hue = 0.5 + layer * 0.15
 
-    dummy.position.set(
-      Math.cos(angle) * radius,
-      height,
-      Math.sin(angle) * radius
-    )
+    dummy.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius)
     dummy.scale.setScalar(0.3 + Math.random() * 0.4)
     dummy.updateMatrix()
     spiralMesh.setMatrixAt(i, dummy.matrix)
@@ -142,11 +134,7 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
     wireframe: false
   })
 
-  let nodeMesh = new THREE.InstancedMesh(
-    nodeGeometry,
-    nodeMaterial,
-    config.quantumNodes
-  )
+  let nodeMesh = new THREE.InstancedMesh(nodeGeometry, nodeMaterial, config.quantumNodes)
 
   interface NodeData {
     position: THREE.Vector3
@@ -171,11 +159,7 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
       Math.sin(verticalAngle) * 40,
       Math.sin(angle) * radius
     )
-    dummy.rotation.set(
-      Math.random() * Math.PI,
-      Math.random() * Math.PI,
-      Math.random() * Math.PI
-    )
+    dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
     dummy.scale.setScalar(1)
     dummy.updateMatrix()
     nodeMesh.setMatrixAt(i, dummy.matrix)
@@ -203,10 +187,7 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
       const distance = nodesData[i].position.distanceTo(nodesData[j].position)
 
       if (distance < config.connectionDistance) {
-        const points = [
-          nodesData[i].position.clone(),
-          nodesData[j].position.clone()
-        ]
+        const points = [nodesData[i].position.clone(), nodesData[j].position.clone()]
         const lineGeometry = new THREE.BufferGeometry().setFromPoints(points)
         const lineMaterial = new THREE.LineBasicMaterial({
           color: new THREE.Color().setHSL(0.6, 0.8, 0.5),
@@ -232,11 +213,7 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
   let rippleGroup = new THREE.Group()
 
   for (let r = 0; r < config.rippleLayers; r++) {
-    const rippleGeometry = new THREE.RingGeometry(
-      10 + r * 8,
-      10 + r * 8 + 1.5,
-      64
-    )
+    const rippleGeometry = new THREE.RingGeometry(10 + r * 8, 10 + r * 8 + 1.5, 64)
     const rippleMaterial = new THREE.MeshBasicMaterial({
       color: new THREE.Color().setHSL(0.55 + r * 0.05, 0.8, 0.5),
       transparent: true,
@@ -261,12 +238,7 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
   let haloGroup = new THREE.Group()
 
   for (let h = 0; h < config.haloLayers; h++) {
-    const haloGeometry = new THREE.TorusGeometry(
-      45 + h * 12,
-      0.5,
-      16,
-      100
-    )
+    const haloGeometry = new THREE.TorusGeometry(45 + h * 12, 0.5, 16, 100)
     const haloMaterial = new THREE.MeshBasicMaterial({
       color: new THREE.Color().setHSL(0.5 + h * 0.1, 0.9, 0.6),
       transparent: true,
@@ -293,11 +265,7 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
     opacity: 0.7
   })
 
-  let dataMesh = new THREE.InstancedMesh(
-    dataGeometry,
-    dataMaterial,
-    config.dataParticles
-  )
+  let dataMesh = new THREE.InstancedMesh(dataGeometry, dataMaterial, config.dataParticles)
 
   interface DataParticle {
     position: THREE.Vector3
@@ -316,11 +284,7 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
     const y = (Math.random() - 0.5) * 120
     const hue = 0.4 + Math.random() * 0.4
 
-    dummy.position.set(
-      Math.cos(angle) * radius,
-      y,
-      Math.sin(angle) * radius
-    )
+    dummy.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius)
     dummy.scale.setScalar(0.3 + Math.random() * 0.3)
     dummy.updateMatrix()
     dataMesh.setMatrixAt(i, dummy.matrix)
@@ -512,15 +476,18 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
     // 量子节点弹入
     nodeScales = new Array(config.quantumNodes).fill(0)
     nodesData.forEach((_, i) => {
-      const tween = gsap.to({ value: 0 }, {
-        value: 1,
-        duration: 1.2,
-        delay: i * 0.1,
-        ease: 'elastic.out(1, 0.5)',
-        onUpdate: function() {
-          nodeScales[i] = this.progress()
+      const tween = gsap.to(
+        { value: 0 },
+        {
+          value: 1,
+          duration: 1.2,
+          delay: i * 0.1,
+          ease: 'elastic.out(1, 0.5)',
+          onUpdate: function () {
+            nodeScales[i] = this.progress()
+          }
         }
-      })
+      )
       allTweensArray.push(tween)
     })
 
@@ -567,12 +534,14 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
       delay: 1,
       ease: 'power2.out'
     })
-    allTweensArray.push(gsap.from(dataMaterial, {
-      opacity: 0,
-      duration: 1.5,
-      delay: 1,
-      ease: 'power2.out'
-    }) as any)
+    allTweensArray.push(
+      gsap.from(dataMaterial, {
+        opacity: 0,
+        duration: 1.5,
+        delay: 1,
+        ease: 'power2.out'
+      }) as any
+    )
   }
 
   // 运镜动画
@@ -596,40 +565,56 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
     })
 
     // 角度1：俯视全景
-    cinematicTimeline.to(camera.position, {
-      x: 80,
-      y: 100,
-      z: 120,
-      duration: 4,
-      ease: 'power2.inOut'
-    }, 0)
+    cinematicTimeline.to(
+      camera.position,
+      {
+        x: 80,
+        y: 100,
+        z: 120,
+        duration: 4,
+        ease: 'power2.inOut'
+      },
+      0
+    )
 
     // 角度2：环绕穿梭
-    cinematicTimeline.to(camera.position, {
-      x: -100,
-      y: 50,
-      z: 100,
-      duration: 4,
-      ease: 'power2.inOut'
-    }, 4)
+    cinematicTimeline.to(
+      camera.position,
+      {
+        x: -100,
+        y: 50,
+        z: 100,
+        duration: 4,
+        ease: 'power2.inOut'
+      },
+      4
+    )
 
     // 角度3：底部仰望
-    cinematicTimeline.to(camera.position, {
-      x: 60,
-      y: -80,
-      z: 140,
-      duration: 4,
-      ease: 'power2.inOut'
-    }, 8)
+    cinematicTimeline.to(
+      camera.position,
+      {
+        x: 60,
+        y: -80,
+        z: 140,
+        duration: 4,
+        ease: 'power2.inOut'
+      },
+      8
+    )
 
     // 角度4：回归正面
-    cinematicTimeline.to(camera.position, {
-      x: 0,
-      y: 20,
-      z: 150,
-      duration: 4,
-      ease: 'power2.inOut'
-    }, 12)
+    cinematicTimeline.to(
+      camera.position,
+      {
+        x: 0,
+        y: 20,
+        z: 150,
+        duration: 4,
+        ease: 'power2.inOut'
+      },
+      12
+    )
 
     allTweensArray.push(cinematicTimeline)
   }
@@ -745,13 +730,13 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
       dataParticles.length = 0
       nodeScales.length = 0
 
-  // 清空所有引用
-  spiralMesh = null as any
-  nodeMesh = null as any
-  connectionGroup = null as any
-  rippleGroup = null as any
-  haloGroup = null as any
-  dataMesh = null as any
+      // 清空所有引用
+      spiralMesh = null as any
+      nodeMesh = null as any
+      connectionGroup = null as any
+      rippleGroup = null as any
+      haloGroup = null as any
+      dataMesh = null as any
 
       console.log('[量子织梦机特效] 清理完成')
     } catch (error) {
@@ -771,62 +756,86 @@ export const quantumDreamWeaverEffect = (container: HTMLElement) => {
 
     // 淡出螺旋粒子
     if (spiralMaterial) {
-      fadeOutTimeline.to(spiralMaterial, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        spiralMaterial,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
 
     // 淡出量子节点
     if (nodeMaterial) {
-      fadeOutTimeline.to(nodeMaterial, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0.1)
+      fadeOutTimeline.to(
+        nodeMaterial,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0.1
+      )
     }
 
     // 淡出连接线
     connections.forEach((line: any, i) => {
       if (line.material) {
-        fadeOutTimeline.to(line.material, {
-          opacity: 0,
-          duration: 0.6,
-          ease: 'power2.out'
-        }, 0.2 + i * 0.02)
+        fadeOutTimeline.to(
+          line.material,
+          {
+            opacity: 0,
+            duration: 0.6,
+            ease: 'power2.out'
+          },
+          0.2 + i * 0.02
+        )
       }
     })
 
     // 淡出涟漪
     rippleGroup.children.forEach((ripple: any, i) => {
       if (ripple.material) {
-        fadeOutTimeline.to(ripple.material as THREE.Material, {
-          opacity: 0,
-          duration: 0.8,
-          ease: 'power2.out'
-        }, 0.3 + i * 0.05)
+        fadeOutTimeline.to(
+          ripple.material as THREE.Material,
+          {
+            opacity: 0,
+            duration: 0.8,
+            ease: 'power2.out'
+          },
+          0.3 + i * 0.05
+        )
       }
     })
 
     // 淡出光环
     haloGroup.children.forEach((halo: any, i) => {
       if (halo.material) {
-        fadeOutTimeline.to(halo.material as THREE.Material, {
-          opacity: 0,
-          duration: 0.8,
-          ease: 'power2.out'
-        }, 0.4 + i * 0.05)
+        fadeOutTimeline.to(
+          halo.material as THREE.Material,
+          {
+            opacity: 0,
+            duration: 0.8,
+            ease: 'power2.out'
+          },
+          0.4 + i * 0.05
+        )
       }
     })
 
     // 淡出数据流
     if (dataMaterial) {
-      fadeOutTimeline.to(dataMaterial, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0.5)
+      fadeOutTimeline.to(
+        dataMaterial,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0.5
+      )
     }
   }
 

@@ -15,16 +15,7 @@
 
 import * as THREE from 'three/webgpu'
 import gsap from 'gsap'
-import {
-  Fn,
-  uniform,
-  float,
-  If,
-  instanceIndex,
-  instancedArray,
-  length,
-  normalize
-} from 'three/tsl'
+import { Fn, uniform, float, If, instanceIndex, instancedArray, length, normalize } from 'three/tsl'
 
 // ============================================
 // 特效参数配置
@@ -58,7 +49,7 @@ export const QuantumFluidTaichiEffectParams = {
 // 主特效函数
 // ============================================
 
-export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<(() => void)> => {
+export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<() => void> => {
   console.log('[QuantumFluidTaichi] 开始初始化 WebGPU 流体模拟...')
 
   // ============================================
@@ -179,7 +170,7 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
     for (let i = 0; i < config.particleCount; i++) {
       const theta = Math.random() * Math.PI * 2
       const phi = Math.acos(2 * Math.random() - 1)
-      const radius = Math.pow(Math.random(), 1/3) * config.boundaryRadius
+      const radius = Math.pow(Math.random(), 1 / 3) * config.boundaryRadius
 
       positionArray[i * 3] = radius * Math.sin(phi) * Math.cos(theta)
       positionArray[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
@@ -270,7 +261,9 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
     })
 
     // 创建 Compute Pipeline
-    const computePipeline = updatePhysics().compute(config.particleCount).setName('fluidPhysicsUpdate')
+    const computePipeline = updatePhysics()
+      .compute(config.particleCount)
+      .setName('fluidPhysicsUpdate')
 
     // ============================================
     // 6. 创建流体网格
@@ -287,7 +280,7 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
       new THREE.Color(0x00f0ff), // 电光蓝
       new THREE.Color(0x00ff66), // 激光绿
       new THREE.Color(0x9900ff), // 紫罗兰
-      new THREE.Color(0xff9900)  // 金橙
+      new THREE.Color(0xff9900) // 金橙
     ]
 
     // 简单材质，使用 setColorAt 设置每个实例的颜色
@@ -301,14 +294,14 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
     fluidMesh = new THREE.InstancedMesh(geometry, fluidMaterial, config.particleCount)
     fluidMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     fluidMesh.frustumCulled = false // 关闭视锥剔除，对于大量粒子反而更快
-    
+
     // 立即设置所有粒子的颜色
     for (let i = 0; i < config.particleCount; i++) {
       const colorIndex = Math.floor((i / config.particleCount) * 5)
       const baseColor = neonColors[colorIndex]
       fluidMesh.setColorAt(i, baseColor)
     }
-    
+
     scene.add(fluidMesh)
 
     // ============================================
@@ -325,7 +318,7 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
 
     const updateInstances = () => {
       const time = performance.now() * 0.001
-      
+
       for (let i = 0; i < config.particleCount; i++) {
         const idx = i * 3
         const x = positionCache[idx]
@@ -380,42 +373,54 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
 
     // 镜头 1: 俯视
     cameraTimeline.to(camera.position, {
-      x: 0, y: 120, z: 50,
+      x: 0,
+      y: 120,
+      z: 50,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 2: 侧面
     cameraTimeline.to(camera.position, {
-      x: 100, y: 40, z: 0,
+      x: 100,
+      y: 40,
+      z: 0,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 3: 底部仰视
     cameraTimeline.to(camera.position, {
-      x: 0, y: -80, z: 80,
+      x: 0,
+      y: -80,
+      z: 80,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 4: 近景
     cameraTimeline.to(camera.position, {
-      x: 50, y: 20, z: 50,
+      x: 50,
+      y: 20,
+      z: 50,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 5: 旋转环绕
     cameraTimeline.to(camera.position, {
-      x: -70, y: 30, z: 70,
+      x: -70,
+      y: 30,
+      z: 70,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 6: 远景（回到初始位置）
     cameraTimeline.to(camera.position, {
-      x: 0, y: 40, z: 100,
+      x: 0,
+      y: 40,
+      z: 100,
       duration: 3,
       ease: 'power2.inOut'
     })
@@ -452,7 +457,7 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
       // 计算 FPS
       const currentTime = performance.now()
       if (currentTime - lastTime >= 1000) {
-        fps = frameCount * 1000 / (currentTime - lastTime)
+        fps = (frameCount * 1000) / (currentTime - lastTime)
         frameCount = 0
         lastTime = currentTime
       }
@@ -576,7 +581,7 @@ export const quantumFluidTaichiEffect = async (container: HTMLElement): Promise<
 
     // 7. 释放材质
     if (fluidMesh && fluidMesh.material) {
-      (fluidMesh.material as THREE.Material).dispose()
+      ;(fluidMesh.material as THREE.Material).dispose()
     }
 
     // 8. 释放渲染器

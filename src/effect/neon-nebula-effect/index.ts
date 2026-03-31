@@ -111,7 +111,13 @@ export const neonNebulaEffect = (container: HTMLElement) => {
     photonPositions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta)
 
     // 霓虹色系
-    const colorArray = [colors.neonPink, colors.electricBlue, colors.laserGreen, colors.violet, colors.goldOrange]
+    const colorArray = [
+      colors.neonPink,
+      colors.electricBlue,
+      colors.laserGreen,
+      colors.violet,
+      colors.goldOrange
+    ]
     const baseColor = colorArray[layer]
     const hueShift = (Math.random() - 0.5) * 0.1
     const hsl: any = {}
@@ -192,11 +198,17 @@ export const neonNebulaEffect = (container: HTMLElement) => {
     ribbonGeometries.push(geometry)
 
     // 霓虹色
-    const colorArray = [colors.neonPink, colors.electricBlue, colors.laserGreen, colors.violet, colors.goldOrange]
+    const colorArray = [
+      colors.neonPink,
+      colors.electricBlue,
+      colors.laserGreen,
+      colors.violet,
+      colors.goldOrange
+    ]
     const baseColor = colorArray[i % colorArray.length]
     const hsl: any = {}
     baseColor.getHSL(hsl)
-    const color = new THREE.Color().setHSL(hsl.h! + (i * 0.05), 0.95, 0.6)
+    const color = new THREE.Color().setHSL(hsl.h! + i * 0.05, 0.95, 0.6)
 
     const material = new THREE.LineBasicMaterial({
       color: color,
@@ -309,7 +321,13 @@ export const neonNebulaEffect = (container: HTMLElement) => {
     meteorPositions[i * 3 + 2] = (Math.random() - 0.5) * 400
 
     // 随机霓虹色
-    const colorArray = [colors.neonPink, colors.electricBlue, colors.laserGreen, colors.violet, colors.goldOrange]
+    const colorArray = [
+      colors.neonPink,
+      colors.electricBlue,
+      colors.laserGreen,
+      colors.violet,
+      colors.goldOrange
+    ]
     const color = colorArray[Math.floor(Math.random() * colorArray.length)]
 
     meteorColors[i * 3] = color.r
@@ -371,7 +389,13 @@ export const neonNebulaEffect = (container: HTMLElement) => {
     haloGeometries.push(geometry)
 
     // 渐变色
-    const colorArray = [colors.neonPink, colors.electricBlue, colors.laserGreen, colors.violet, colors.goldOrange]
+    const colorArray = [
+      colors.neonPink,
+      colors.electricBlue,
+      colors.laserGreen,
+      colors.violet,
+      colors.goldOrange
+    ]
     const baseColor = colorArray[i % colorArray.length]
     const hsl: any = {}
     baseColor.getHSL(hsl)
@@ -418,49 +442,69 @@ export const neonNebulaEffect = (container: HTMLElement) => {
     })
 
     // 角度1：俯视
-    cinematicTimeline.to(camera.position, {
-      x: 100,
-      y: 150,
-      z: 120,
-      duration: 4,
-      ease: 'power2.inOut'
-    }, 0)
+    cinematicTimeline.to(
+      camera.position,
+      {
+        x: 100,
+        y: 150,
+        z: 120,
+        duration: 4,
+        ease: 'power2.inOut'
+      },
+      0
+    )
 
     // 角度2：侧面
-    cinematicTimeline.to(camera.position, {
-      x: -180,
-      y: 60,
-      z: 100,
-      duration: 4,
-      ease: 'power2.inOut'
-    }, 4)
+    cinematicTimeline.to(
+      camera.position,
+      {
+        x: -180,
+        y: 60,
+        z: 100,
+        duration: 4,
+        ease: 'power2.inOut'
+      },
+      4
+    )
 
     // 角度3：底部仰视
-    cinematicTimeline.to(camera.position, {
-      x: 80,
-      y: -140,
-      z: 140,
-      duration: 4,
-      ease: 'power2.inOut'
-    }, 8)
+    cinematicTimeline.to(
+      camera.position,
+      {
+        x: 80,
+        y: -140,
+        z: 140,
+        duration: 4,
+        ease: 'power2.inOut'
+      },
+      8
+    )
 
     // 角度4：环绕
-    cinematicTimeline.to(camera.position, {
-      x: -100,
-      y: 100,
-      z: 160,
-      duration: 4,
-      ease: 'power2.inOut'
-    }, 12)
+    cinematicTimeline.to(
+      camera.position,
+      {
+        x: -100,
+        y: 100,
+        z: 160,
+        duration: 4,
+        ease: 'power2.inOut'
+      },
+      12
+    )
 
     // 角度5：回归正面
-    cinematicTimeline.to(camera.position, {
-      x: 0,
-      y: 40,
-      z: 180,
-      duration: 4,
-      ease: 'power2.inOut'
-    }, 16)
+    cinematicTimeline.to(
+      camera.position,
+      {
+        x: 0,
+        y: 40,
+        z: 180,
+        duration: 4,
+        ease: 'power2.inOut'
+      },
+      16
+    )
   }
 
   // 停止运镜动画
@@ -488,17 +532,17 @@ export const neonNebulaEffect = (container: HTMLElement) => {
         ease: 'power1.out',
         repeat: -1,
         repeatDelay: 1.5,
-        onRepeat: function() {
+        onRepeat: function () {
           halo.scale.set(0, 0, 1)
         },
-        onStart: function() {
+        onStart: function () {
           if (Array.isArray(halo.material)) {
             halo.material[0].opacity = 0.5
           } else {
             halo.material.opacity = 0.5
           }
         },
-        onUpdate: function() {
+        onUpdate: function () {
           const progress = this.progress()
           if (Array.isArray(halo.material)) {
             halo.material[0].opacity = 0.5 * (1 - progress * 0.85)
@@ -616,7 +660,8 @@ export const neonNebulaEffect = (container: HTMLElement) => {
       // 更新霓虹光带
       ribbonGroup.children.forEach((ribbon: any, i) => {
         const data = ribbon.userData
-        const positions = (ribbon.geometry as THREE.BufferGeometry).attributes.position.array as Float32Array
+        const positions = (ribbon.geometry as THREE.BufferGeometry).attributes.position
+          .array as Float32Array
 
         for (let j = 0; j <= 80; j++) {
           const t = j / 80
@@ -633,7 +678,7 @@ export const neonNebulaEffect = (container: HTMLElement) => {
           positions[j * 3 + 2] = baseZ + wave * 0.2
         }
 
-        (ribbon.geometry as THREE.BufferGeometry).attributes.position.needsUpdate = true
+        ;(ribbon.geometry as THREE.BufferGeometry).attributes.position.needsUpdate = true
 
         // 脉冲透明度
         const pulse = Math.sin(elapsed * 3 + data.phase) * 0.5 + 0.5
@@ -732,7 +777,7 @@ export const neonNebulaEffect = (container: HTMLElement) => {
     }
 
     // 1. 停止所有GSAP动画（除了 fadeOutTimeline）
-    allTweensArray.forEach((tween) => {
+    allTweensArray.forEach(tween => {
       try {
         tween.kill()
       } catch (e) {}
@@ -744,20 +789,20 @@ export const neonNebulaEffect = (container: HTMLElement) => {
     gsap.killTweensOf(meteorMaterial)
 
     // 清理霓虹光带材质的 tweens
-    ribbonMaterials.forEach((mat) => {
+    ribbonMaterials.forEach(mat => {
       gsap.killTweensOf(mat)
     })
 
     // 清理星云云团材质的 tweens
-    nebulaMaterials.forEach((mat) => {
+    nebulaMaterials.forEach(mat => {
       gsap.killTweensOf(mat)
     })
 
     // 清理光环材质和缩放的 tweens
-    haloMaterials.forEach((mat) => {
+    haloMaterials.forEach(mat => {
       gsap.killTweensOf(mat)
     })
-    haloMeshes.forEach((halo) => {
+    haloMeshes.forEach(halo => {
       gsap.killTweensOf(halo.scale)
     })
 
@@ -791,17 +836,17 @@ export const neonNebulaEffect = (container: HTMLElement) => {
 
     // 8. 释放几何体
     photonGeometry.dispose()
-    ribbonGeometries.forEach((geo) => geo.dispose())
+    ribbonGeometries.forEach(geo => geo.dispose())
     nebulaGeometry.dispose()
     meteorGeometry.dispose()
-    haloGeometries.forEach((geo) => geo.dispose())
+    haloGeometries.forEach(geo => geo.dispose())
 
     // 9. 释放材质
     photonMaterial.dispose()
-    ribbonMaterials.forEach((mat) => mat.dispose())
-    nebulaMaterials.forEach((mat) => mat.dispose())
+    ribbonMaterials.forEach(mat => mat.dispose())
+    nebulaMaterials.forEach(mat => mat.dispose())
     meteorMaterial.dispose()
-    haloMaterials.forEach((mat) => mat.dispose())
+    haloMaterials.forEach(mat => mat.dispose())
 
     // 10. 从容器移除
     if (renderer && renderer.domElement && renderer.domElement.parentNode) {
@@ -841,7 +886,7 @@ export const neonNebulaEffect = (container: HTMLElement) => {
     }
 
     // 停止光环的循环动画
-    haloMeshes.forEach((halo) => {
+    haloMeshes.forEach(halo => {
       gsap.killTweensOf(halo.scale)
     })
 
@@ -859,44 +904,64 @@ export const neonNebulaEffect = (container: HTMLElement) => {
     })
 
     // 淡出光子粒子
-    fadeOutTimeline!.to(photonMaterial, {
-      opacity: 0,
-      duration: 0.8,
-      ease: 'power2.out'
-    }, 0)
-
-    // 淡出霓虹光带
-    ribbonMaterials.forEach((mat, i) => {
-      fadeOutTimeline!.to(mat, {
+    fadeOutTimeline!.to(
+      photonMaterial,
+      {
         opacity: 0,
         duration: 0.8,
         ease: 'power2.out'
-      }, 0.2 + i * 0.05)
+      },
+      0
+    )
+
+    // 淡出霓虹光带
+    ribbonMaterials.forEach((mat, i) => {
+      fadeOutTimeline!.to(
+        mat,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0.2 + i * 0.05
+      )
     })
 
     // 淡出星云云团
     nebulaMaterials.forEach((mat, i) => {
-      fadeOutTimeline!.to(mat, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0.3 + i * 0.03)
+      fadeOutTimeline!.to(
+        mat,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0.3 + i * 0.03
+      )
     })
 
     // 淡出流星雨
-    fadeOutTimeline!.to(meteorMaterial, {
-      opacity: 0,
-      duration: 0.8,
-      ease: 'power2.out'
-    }, 0.4)
-
-    // 淡出光环（同时将缩放也淡出为0）
-    haloMaterials.forEach((mat, i) => {
-      fadeOutTimeline!.to(mat, {
+    fadeOutTimeline!.to(
+      meteorMaterial,
+      {
         opacity: 0,
         duration: 0.8,
         ease: 'power2.out'
-      }, 0.5 + i * 0.05)
+      },
+      0.4
+    )
+
+    // 淡出光环（同时将缩放也淡出为0）
+    haloMaterials.forEach((mat, i) => {
+      fadeOutTimeline!.to(
+        mat,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0.5 + i * 0.05
+      )
       fadeOutTimeline!.to(
         haloMeshes[i].scale,
         {
@@ -924,4 +989,4 @@ export const neonNebulaEffect = (container: HTMLElement) => {
   }
 
   return { cleanup, clearEffect, stopCameraAnimation }
-} 
+}

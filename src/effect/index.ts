@@ -1,4 +1,3 @@
-
 import { galaxyVortexEffect } from './galaxy-vortex-effect'
 import { quantumWaveEffect } from './quantum-wave-effect'
 import { nebulaCloudEffect } from './nebula-cloud-effect'

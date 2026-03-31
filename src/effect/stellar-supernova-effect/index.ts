@@ -13,7 +13,7 @@
  * - 第6层：光环脉冲（8个动态光环）- 能量波前的可视化
  *
  * 颜色系统（7段色相循环）：
- * 核心白(1.0,1.0,1.0) → 超新星橙(1.0,0.6,0.0) → 星云紫(0.8,0.0,1.0) → 
+ * 核心白(1.0,1.0,1.0) → 超新星橙(1.0,0.6,0.0) → 星云紫(0.8,0.0,1.0) →
  * 星际蓝(0.0,0.8,1.0) → 电光绿(0.0,1.0,0.6) → 等离子粉(1.0,0.0,0.6) → 深空蓝(0.2,0.0,1.0)
  *
  * 技术栈：
@@ -78,15 +78,15 @@ export const stellarSupernovaEffectParams = {
   haloCount: 8,
 
   // 物理参数
-  gravity: -5.0,             // 微弱重力
-  damping: 0.990,            // 速度衰减
-  shockwaveSpeed: 80.0,      // 激波扩散速度
-  shockwaveDecay: 0.005,     // 激波衰减率
-  boundaryRadius: 150.0,     // 边界半径
-  restitution: 0.5,         // 碰撞弹性
+  gravity: -5.0, // 微弱重力
+  damping: 0.99, // 速度衰减
+  shockwaveSpeed: 80.0, // 激波扩散速度
+  shockwaveDecay: 0.005, // 激波衰减率
+  boundaryRadius: 150.0, // 边界半径
+  restitution: 0.5, // 碰撞弹性
 
   // 交互参数
-  interactionRadius: 25.0,    // 鼠标交互半径
+  interactionRadius: 25.0, // 鼠标交互半径
   interactionStrength: 200.0, // 鼠标交互强度
 
   // 渲染参数
@@ -104,7 +104,7 @@ export const stellarSupernovaEffectParams = {
 // 2. 主特效函数
 // ============================================
 
-export const stellarSupernovaEffect = async (container: HTMLElement): Promise<(() => void)> => {
+export const stellarSupernovaEffect = async (container: HTMLElement): Promise<() => void> => {
   console.log('[StellarSupernova] 开始初始化星际超新星特效...')
 
   // ============================================
@@ -176,8 +176,12 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
       box-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
     `
 
-    const totalParticles = config.coreCount + config.shockwaveCount +
-                           config.nebulaCount + config.gravityWaveCount + config.jetCount
+    const totalParticles =
+      config.coreCount +
+      config.shockwaveCount +
+      config.nebulaCount +
+      config.gravityWaveCount +
+      config.jetCount
 
     performancePanel.innerHTML = `
       <div style="font-weight: bold; margin-bottom: 10px; color: #ff6600; text-shadow: 0 0 10px #ff6600;">🌟 星际超新星 - 混合优化</div>
@@ -361,7 +365,9 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
     // 核心能量球物理
     const corePositions = instancedArray(corePositionArray, 'vec3').setName('corePositionStorage')
     const coreVelocities = instancedArray(coreVelocityArray, 'vec3').setName('coreVelocityStorage')
-    const coreTemperatures = instancedArray(coreTemperatureArray, 'float').setName('coreTemperatureStorage')
+    const coreTemperatures = instancedArray(coreTemperatureArray, 'float').setName(
+      'coreTemperatureStorage'
+    )
 
     const updateCorePhysics = Fn(() => {
       const idx = instanceIndex.toConst()
@@ -405,9 +411,15 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
     console.log('[StellarSupernova] 创建爆炸激波 Compute Shader...')
 
-    const shockwavePositions = instancedArray(shockwavePositionArray, 'vec3').setName('shockwavePositionStorage')
-    const shockwaveVelocities = instancedArray(shockwaveVelocityArray, 'vec3').setName('shockwaveVelocityStorage')
-    const shockwaveDistances = instancedArray(shockwaveDistanceArray, 'float').setName('shockwaveDistanceStorage')
+    const shockwavePositions = instancedArray(shockwavePositionArray, 'vec3').setName(
+      'shockwavePositionStorage'
+    )
+    const shockwaveVelocities = instancedArray(shockwaveVelocityArray, 'vec3').setName(
+      'shockwaveVelocityStorage'
+    )
+    const shockwaveDistances = instancedArray(shockwaveDistanceArray, 'float').setName(
+      'shockwaveDistanceStorage'
+    )
     const shockwaveSpeed = uniform(config.shockwaveSpeed)
     const shockwaveDecay = uniform(config.shockwaveDecay)
 
@@ -439,7 +451,9 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
       vel.z.assign(overflow.z.select(vel.z.mul(restitution.negate()), vel.z))
     })
 
-    const shockwavePipeline = updateShockwavePhysics().compute(config.shockwaveCount).setName('shockwaveUpdate')
+    const shockwavePipeline = updateShockwavePhysics()
+      .compute(config.shockwaveCount)
+      .setName('shockwaveUpdate')
 
     // ============================================
     // 2.7 创建 Compute Shader（星云云团物理）
@@ -447,8 +461,12 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
     console.log('[StellarSupernova] 创建星云云团 Compute Shader...')
 
-    const nebulaPositions = instancedArray(nebulaPositionArray, 'vec3').setName('nebulaPositionStorage')
-    const nebulaVelocities = instancedArray(nebulaVelocityArray, 'vec3').setName('nebulaVelocityStorage')
+    const nebulaPositions = instancedArray(nebulaPositionArray, 'vec3').setName(
+      'nebulaPositionStorage'
+    )
+    const nebulaVelocities = instancedArray(nebulaVelocityArray, 'vec3').setName(
+      'nebulaVelocityStorage'
+    )
 
     const updateNebulaPhysics = Fn(() => {
       const idx = instanceIndex.toConst()
@@ -487,9 +505,15 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
     console.log('[StellarSupernova] 创建引力波 Compute Shader...')
 
-    const gravityWavePositions = instancedArray(gravityWavePositionArray, 'vec3').setName('gravityWavePositionStorage')
-    const gravityWaveVelocities = instancedArray(gravityWaveVelocityArray, 'vec3').setName('gravityWaveVelocityStorage')
-    const gravityWavePhases = instancedArray(gravityWavePhaseArray, 'float').setName('gravityWavePhaseStorage')
+    const gravityWavePositions = instancedArray(gravityWavePositionArray, 'vec3').setName(
+      'gravityWavePositionStorage'
+    )
+    const gravityWaveVelocities = instancedArray(gravityWaveVelocityArray, 'vec3').setName(
+      'gravityWaveVelocityStorage'
+    )
+    const gravityWavePhases = instancedArray(gravityWavePhaseArray, 'float').setName(
+      'gravityWavePhaseStorage'
+    )
 
     const updateGravityWavePhysics = Fn(() => {
       const idx = instanceIndex.toConst()
@@ -516,7 +540,9 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
       vel.z.assign(overflow.z.select(vel.z.mul(restitution.negate()), vel.z))
     })
 
-    const gravityWavePipeline = updateGravityWavePhysics().compute(config.gravityWaveCount).setName('gravityWaveUpdate')
+    const gravityWavePipeline = updateGravityWavePhysics()
+      .compute(config.gravityWaveCount)
+      .setName('gravityWaveUpdate')
 
     // ============================================
     // 2.9 创建 Compute Shader（高能射线物理）
@@ -571,7 +597,7 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
       new THREE.Color(0x00ff66), // 绿色
       new THREE.Color(0xff0066), // 粉色
       new THREE.Color(0xff0000), // 红色
-      new THREE.Color(0x3300ff), // 深蓝
+      new THREE.Color(0x3300ff) // 深蓝
     ]
 
     for (let i = 0; i < config.haloCount; i++) {
@@ -621,25 +647,43 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
         const colorIndex = temp.mul(float(4)).floor().clamp(float(0), float(3))
         const t = temp.mul(float(4)).sub(colorIndex).clamp(float(0), float(1))
 
-        const color0 = colorIndex.equal(float(0)).select(coreColor0,
-                       colorIndex.equal(float(1)).select(coreColor1,
-                       colorIndex.equal(float(2)).select(coreColor2, coreColor3)))
+        const color0 = colorIndex
+          .equal(float(0))
+          .select(
+            coreColor0,
+            colorIndex
+              .equal(float(1))
+              .select(coreColor1, colorIndex.equal(float(2)).select(coreColor2, coreColor3))
+          )
 
-        const color1 = colorIndex.equal(float(0)).select(coreColor1,
-                       colorIndex.equal(float(1)).select(coreColor2,
-                       colorIndex.equal(float(2)).select(coreColor3, coreColor4)))
+        const color1 = colorIndex
+          .equal(float(0))
+          .select(
+            coreColor1,
+            colorIndex
+              .equal(float(1))
+              .select(coreColor2, colorIndex.equal(float(2)).select(coreColor3, coreColor4))
+          )
 
         return mix(color0, color1, t)
       })()
     })
 
-    coreMesh = new THREE.InstancedMesh(coreGeometry, coreMaterial as THREE.Material, config.coreCount)
+    coreMesh = new THREE.InstancedMesh(
+      coreGeometry,
+      coreMaterial as THREE.Material,
+      config.coreCount
+    )
     coreMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     coreMesh.frustumCulled = false
 
     const dummyInit = new THREE.Object3D()
     for (let i = 0; i < config.coreCount; i++) {
-      dummyInit.position.set(corePositionArray[i * 3], corePositionArray[i * 3 + 1], corePositionArray[i * 3 + 2])
+      dummyInit.position.set(
+        corePositionArray[i * 3],
+        corePositionArray[i * 3 + 1],
+        corePositionArray[i * 3 + 2]
+      )
       dummyInit.updateMatrix()
       coreMesh.setMatrixAt(i, dummyInit.matrix)
       coreMesh.setColorAt(i, new THREE.Color(1.0, 1.0, 1.0))
@@ -667,12 +711,20 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
       })()
     })
 
-    shockwaveMesh = new THREE.InstancedMesh(shockwaveGeometry, shockwaveMaterial as THREE.Material, config.shockwaveCount)
+    shockwaveMesh = new THREE.InstancedMesh(
+      shockwaveGeometry,
+      shockwaveMaterial as THREE.Material,
+      config.shockwaveCount
+    )
     shockwaveMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     shockwaveMesh.frustumCulled = false
 
     for (let i = 0; i < config.shockwaveCount; i++) {
-      dummyInit.position.set(shockwavePositionArray[i * 3], shockwavePositionArray[i * 3 + 1], shockwavePositionArray[i * 3 + 2])
+      dummyInit.position.set(
+        shockwavePositionArray[i * 3],
+        shockwavePositionArray[i * 3 + 1],
+        shockwavePositionArray[i * 3 + 2]
+      )
       dummyInit.updateMatrix()
       shockwaveMesh.setMatrixAt(i, dummyInit.matrix)
       shockwaveMesh.setColorAt(i, new THREE.Color(1.0, 0.6, 0.0))
@@ -699,7 +751,13 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
         // 基于位置和时间的动态颜色
         const colorIndex = float(idx).div(config.nebulaCount).mul(float(4)).floor()
-        const t = sin(time.mul(float(0.1)).add(dist.mul(float(0.01))).mul(float(0.5)).add(float(0.5)))
+        const t = sin(
+          time
+            .mul(float(0.1))
+            .add(dist.mul(float(0.01)))
+            .mul(float(0.5))
+            .add(float(0.5))
+        )
 
         // 使用 mix 和 select 构建颜色选择
         const isColor0 = colorIndex.equal(float(0))
@@ -707,48 +765,32 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
         const isColor2 = colorIndex.equal(float(2))
         const isColor3 = colorIndex.equal(float(3))
 
-        const color0 = mix(
-          nebulaColor3,
-          nebulaColor2,
-          isColor2.select(float(1.0), float(0.0))
-        )
-        const color1 = mix(
-          color0,
-          nebulaColor1,
-          isColor1.select(float(1.0), float(0.0))
-        )
-        const finalColor0 = mix(
-          color1,
-          nebulaColor0,
-          isColor0.select(float(1.0), float(0.0))
-        )
+        const color0 = mix(nebulaColor3, nebulaColor2, isColor2.select(float(1.0), float(0.0)))
+        const color1 = mix(color0, nebulaColor1, isColor1.select(float(1.0), float(0.0)))
+        const finalColor0 = mix(color1, nebulaColor0, isColor0.select(float(1.0), float(0.0)))
 
-        const color2 = mix(
-          nebulaColor0,
-          nebulaColor3,
-          isColor3.select(float(1.0), float(0.0))
-        )
-        const color3 = mix(
-          color2,
-          nebulaColor2,
-          isColor2.select(float(1.0), float(0.0))
-        )
-        const finalColor1 = mix(
-          color3,
-          nebulaColor1,
-          isColor1.select(float(1.0), float(0.0))
-        )
+        const color2 = mix(nebulaColor0, nebulaColor3, isColor3.select(float(1.0), float(0.0)))
+        const color3 = mix(color2, nebulaColor2, isColor2.select(float(1.0), float(0.0)))
+        const finalColor1 = mix(color3, nebulaColor1, isColor1.select(float(1.0), float(0.0)))
 
         return mix(finalColor0, finalColor1, t)
       })()
     })
 
-    nebulaMesh = new THREE.InstancedMesh(nebulaGeometry, nebulaMaterial as THREE.Material, config.nebulaCount)
+    nebulaMesh = new THREE.InstancedMesh(
+      nebulaGeometry,
+      nebulaMaterial as THREE.Material,
+      config.nebulaCount
+    )
     nebulaMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     nebulaMesh.frustumCulled = false
 
     for (let i = 0; i < config.nebulaCount; i++) {
-      dummyInit.position.set(nebulaPositionArray[i * 3], nebulaPositionArray[i * 3 + 1], nebulaPositionArray[i * 3 + 2])
+      dummyInit.position.set(
+        nebulaPositionArray[i * 3],
+        nebulaPositionArray[i * 3 + 1],
+        nebulaPositionArray[i * 3 + 2]
+      )
       dummyInit.updateMatrix()
       nebulaMesh.setMatrixAt(i, dummyInit.matrix)
       nebulaMesh.setColorAt(i, new THREE.Color(0.8, 0.0, 1.0))
@@ -777,12 +819,20 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
       })()
     })
 
-    gravityWaveMesh = new THREE.InstancedMesh(gravityWaveGeometry, gravityWaveMaterial as THREE.Material, config.gravityWaveCount)
+    gravityWaveMesh = new THREE.InstancedMesh(
+      gravityWaveGeometry,
+      gravityWaveMaterial as THREE.Material,
+      config.gravityWaveCount
+    )
     gravityWaveMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     gravityWaveMesh.frustumCulled = false
 
     for (let i = 0; i < config.gravityWaveCount; i++) {
-      dummyInit.position.set(gravityWavePositionArray[i * 3], gravityWavePositionArray[i * 3 + 1], gravityWavePositionArray[i * 3 + 2])
+      dummyInit.position.set(
+        gravityWavePositionArray[i * 3],
+        gravityWavePositionArray[i * 3 + 1],
+        gravityWavePositionArray[i * 3 + 2]
+      )
       dummyInit.updateMatrix()
       gravityWaveMesh.setMatrixAt(i, dummyInit.matrix)
       gravityWaveMesh.setColorAt(i, new THREE.Color(0.0, 0.8, 1.0))
@@ -805,7 +855,9 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
         const dist = length(pos)
 
         // 基于距离的亮度衰减
-        const brightness = float(1.0).sub(dist.div(float(100.0))).max(float(0.2))
+        const brightness = float(1.0)
+          .sub(dist.div(float(100.0)))
+          .max(float(0.2))
         return jetColor.mul(brightness)
       })()
     })
@@ -815,7 +867,11 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
     jetMesh.frustumCulled = false
 
     for (let i = 0; i < config.jetCount; i++) {
-      dummyInit.position.set(jetPositionArray[i * 3], jetPositionArray[i * 3 + 1], jetPositionArray[i * 3 + 2])
+      dummyInit.position.set(
+        jetPositionArray[i * 3],
+        jetPositionArray[i * 3 + 1],
+        jetPositionArray[i * 3 + 2]
+      )
       dummyInit.updateMatrix()
       jetMesh.setMatrixAt(i, dummyInit.matrix)
       jetMesh.setColorAt(i, new THREE.Color(1.0, 1.0, 1.0))
@@ -846,7 +902,11 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
       for (let i = 0; i < config.coreCount; i++) {
         const idx = i * 3
-        dummy.position.set(corePositionCache[idx], corePositionCache[idx + 1], corePositionCache[idx + 2])
+        dummy.position.set(
+          corePositionCache[idx],
+          corePositionCache[idx + 1],
+          corePositionCache[idx + 2]
+        )
         dummy.updateMatrix()
         coreMesh!.setMatrixAt(i, dummy.matrix)
 
@@ -872,7 +932,11 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
       for (let i = 0; i < config.shockwaveCount; i++) {
         const idx = i * 3
-        dummy.position.set(shockwavePositionCache[idx], shockwavePositionCache[idx + 1], shockwavePositionCache[idx + 2])
+        dummy.position.set(
+          shockwavePositionCache[idx],
+          shockwavePositionCache[idx + 1],
+          shockwavePositionCache[idx + 2]
+        )
         dummy.updateMatrix()
         shockwaveMesh!.setMatrixAt(i, dummy.matrix)
       }
@@ -886,7 +950,11 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
       for (let i = 0; i < config.nebulaCount; i++) {
         const idx = i * 3
-        dummy.position.set(nebulaPositionCache[idx], nebulaPositionCache[idx + 1], nebulaPositionCache[idx + 2])
+        dummy.position.set(
+          nebulaPositionCache[idx],
+          nebulaPositionCache[idx + 1],
+          nebulaPositionCache[idx + 2]
+        )
         dummy.updateMatrix()
         nebulaMesh!.setMatrixAt(i, dummy.matrix)
       }
@@ -900,7 +968,11 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
       for (let i = 0; i < config.gravityWaveCount; i++) {
         const idx = i * 3
-        dummy.position.set(gravityWavePositionCache[idx], gravityWavePositionCache[idx + 1], gravityWavePositionCache[idx + 2])
+        dummy.position.set(
+          gravityWavePositionCache[idx],
+          gravityWavePositionCache[idx + 1],
+          gravityWavePositionCache[idx + 2]
+        )
         dummy.updateMatrix()
         gravityWaveMesh!.setMatrixAt(i, dummy.matrix)
       }
@@ -914,7 +986,11 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
       for (let i = 0; i < config.jetCount; i++) {
         const idx = i * 3
-        dummy.position.set(jetPositionCache[idx], jetPositionCache[idx + 1], jetPositionCache[idx + 2])
+        dummy.position.set(
+          jetPositionCache[idx],
+          jetPositionCache[idx + 1],
+          jetPositionCache[idx + 2]
+        )
         dummy.updateMatrix()
         jetMesh!.setMatrixAt(i, dummy.matrix)
       }
@@ -937,70 +1013,90 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
     // 镜头 1: 俯视核心
     cinematicTimeline.to(camera.position, {
-      x: 0, y: 200, z: 50,
+      x: 0,
+      y: 200,
+      z: 50,
       duration: 4,
       ease: 'power2.inOut'
     })
 
     // 镜头 2: 穿梭激波
     cinematicTimeline.to(camera.position, {
-      x: 80, y: 80, z: -60,
+      x: 80,
+      y: 80,
+      z: -60,
       duration: 4,
       ease: 'power2.inOut'
     })
 
     // 镜头 3: 星云内部
     cinematicTimeline.to(camera.position, {
-      x: 40, y: 30, z: 40,
+      x: 40,
+      y: 30,
+      z: 40,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 4: 极地射线俯冲
     cinematicTimeline.to(camera.position, {
-      x: 10, y: 180, z: 10,
+      x: 10,
+      y: 180,
+      z: 10,
       duration: 4,
       ease: 'power2.inOut'
     })
 
     // 镜头 5: 引力波纹
     cinematicTimeline.to(camera.position, {
-      x: -100, y: 20, z: 80,
+      x: -100,
+      y: 20,
+      z: 80,
       duration: 4,
       ease: 'power2.inOut'
     })
 
     // 镜头 6: 侧面全景
     cinematicTimeline.to(camera.position, {
-      x: 150, y: 50, z: 0,
+      x: 150,
+      y: 50,
+      z: 0,
       duration: 4,
       ease: 'power2.inOut'
     })
 
     // 镜头 7: 底部仰望
     cinematicTimeline.to(camera.position, {
-      x: 0, y: -120, z: 60,
+      x: 0,
+      y: -120,
+      z: 60,
       duration: 4,
       ease: 'power2.inOut'
     })
 
     // 镜头 8: 螺旋环绕
     cinematicTimeline.to(camera.position, {
-      x: -80, y: -40, z: -80,
+      x: -80,
+      y: -40,
+      z: -80,
       duration: 4,
       ease: 'power2.inOut'
     })
 
     // 镜头 9: 近景核心
     cinematicTimeline.to(camera.position, {
-      x: 15, y: 15, z: 15,
+      x: 15,
+      y: 15,
+      z: 15,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 10: 远景（回到初始位置）
     cinematicTimeline.to(camera.position, {
-      x: 0, y: 60, z: 150,
+      x: 0,
+      y: 60,
+      z: 150,
       duration: 4,
       ease: 'power2.out'
     })
@@ -1030,7 +1126,9 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
       })
 
       entranceTimeline.to(haloMeshes[i].scale, {
-        x: 1, y: 1, z: 1,
+        x: 1,
+        y: 1,
+        z: 1,
         duration: 2,
         delay: i * 0.1,
         ease: 'back.out(1.5)'
@@ -1065,7 +1163,7 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
       const currentTime = performance.now()
       if (currentTime - lastTime >= 1000) {
-        fps = frameCount * 1000 / (currentTime - lastTime)
+        fps = (frameCount * 1000) / (currentTime - lastTime)
         frameCount = 0
         lastTime = currentTime
       }
@@ -1122,8 +1220,11 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
       const fadeOutTimeline = gsap.timeline()
 
       const materialsToFade = [
-        coreMaterial, shockwaveMaterial, nebulaMaterial,
-        gravityWaveMaterial, jetMaterial
+        coreMaterial,
+        shockwaveMaterial,
+        nebulaMaterial,
+        gravityWaveMaterial,
+        jetMaterial
       ]
 
       materialsToFade.forEach(mat => {
@@ -1136,7 +1237,7 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
         }
       })
 
-      haloMaterials.forEach((mat) => {
+      haloMaterials.forEach(mat => {
         fadeOutTimeline.to(mat, {
           opacity: 0,
           duration: 1.2,
@@ -1205,7 +1306,13 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
 
     // 4. 杀死元素动画
     const meshes = [coreMesh, shockwaveMesh, nebulaMesh, gravityWaveMesh, jetMesh]
-    const materials = [coreMaterial, shockwaveMaterial, nebulaMaterial, gravityWaveMaterial, jetMaterial]
+    const materials = [
+      coreMaterial,
+      shockwaveMaterial,
+      nebulaMaterial,
+      gravityWaveMaterial,
+      jetMaterial
+    ]
 
     meshes.forEach(mesh => {
       if (mesh) {
@@ -1220,11 +1327,11 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
       }
     })
 
-    haloMaterials.forEach((mat) => {
+    haloMaterials.forEach(mat => {
       gsap.killTweensOf(mat)
     })
 
-    haloMeshes.forEach((halo) => {
+    haloMeshes.forEach(halo => {
       gsap.killTweensOf(halo.scale)
     })
 
@@ -1244,7 +1351,7 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
       }
     })
 
-    haloMeshes.forEach((halo) => {
+    haloMeshes.forEach(halo => {
       if (scene) scene.remove(halo)
     })
 
@@ -1255,16 +1362,16 @@ export const stellarSupernovaEffect = async (container: HTMLElement): Promise<((
       }
     })
 
-    haloGeometries.forEach((geo) => geo.dispose())
+    haloGeometries.forEach(geo => geo.dispose())
 
     // 8. 释放材质
     meshes.forEach(mesh => {
       if (mesh && mesh.material) {
-        (mesh.material as THREE.Material).dispose()
+        ;(mesh.material as THREE.Material).dispose()
       }
     })
 
-    haloMaterials.forEach((mat) => mat.dispose())
+    haloMaterials.forEach(mat => mat.dispose())
 
     // 9. 释放渲染器
     if (renderer) {

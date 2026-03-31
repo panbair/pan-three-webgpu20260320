@@ -28,22 +28,22 @@
 
 ```typescript
 export const nebulaCloudEffectParams = {
-  particleCount: 600,            // 粒子数量
-  particleSize: 0.12,            // 粒子大小
-  alpha: 0.75,                   // 透明度
-  alphaHash: true,               // 启用透明哈希
-  rotationSpeed: 0.00015,        // 整体旋转速度
-  autoRotate: true,             // 自动旋转
-  colorCycleSpeed: 0.00025,      // 颜色变化速度
-  flowSpeed: 1.2,                // 流动速度
-  nebulaSize: 12,                // 星云大小
-  nebulaLayers: 3,               // 星云层数
-  interactionRadius: 8,          // 交互影响半径
-  interactionStrength: 2.0,      // 交互强度
-  gravityMode: 'attract',       // 引力模式: 'attract' | 'repel'
-  lightingIntensity: 1.5,       // 光照强度
-  pulseSpeed: 1.8,              // 脉冲速度
-  updateInterval: 4            // 颜色更新间隔
+  particleCount: 600, // 粒子数量
+  particleSize: 0.12, // 粒子大小
+  alpha: 0.75, // 透明度
+  alphaHash: true, // 启用透明哈希
+  rotationSpeed: 0.00015, // 整体旋转速度
+  autoRotate: true, // 自动旋转
+  colorCycleSpeed: 0.00025, // 颜色变化速度
+  flowSpeed: 1.2, // 流动速度
+  nebulaSize: 12, // 星云大小
+  nebulaLayers: 3, // 星云层数
+  interactionRadius: 8, // 交互影响半径
+  interactionStrength: 2.0, // 交互强度
+  gravityMode: 'attract', // 引力模式: 'attract' | 'repel'
+  lightingIntensity: 1.5, // 光照强度
+  pulseSpeed: 1.8, // 脉冲速度
+  updateInterval: 4 // 颜色更新间隔
 }
 ```
 
@@ -51,11 +51,11 @@ export const nebulaCloudEffectParams = {
 
 ### 三层星云结构
 
-| 层级 | 粒子数 | 半径 | 几何体 | 颜色特征 |
-|------|--------|------|--------|---------|
-| **核心层** | 150 | 0-3 | 四面体 | 亮蓝色，高亮度 |
-| **内层** | 250 | 2-6 | 二十面体 | 中蓝色，中等亮度 |
-| **外层** | 200 | 5-10 | 球体 | 深蓝色，低亮度 |
+| 层级       | 粒子数 | 半径 | 几何体   | 颜色特征         |
+| ---------- | ------ | ---- | -------- | ---------------- |
+| **核心层** | 150    | 0-3  | 四面体   | 亮蓝色，高亮度   |
+| **内层**   | 250    | 2-6  | 二十面体 | 中蓝色，中等亮度 |
+| **外层**   | 200    | 5-10 | 球体     | 深蓝色，低亮度   |
 
 ### 粒子运动
 
@@ -74,17 +74,20 @@ export const nebulaCloudEffectParams = {
 ### 鼠标/触摸交互
 
 **操作方式**：
+
 1. **按下并拖动** - 激活交互场
 2. **移动** - 改变交互中心位置
 3. **释放** - 交互场逐渐衰减
 
 **交互效果**：
+
 - **引力模式 (attract)** - 粒子向鼠标位置聚集
 - **斥力模式 (repel)** - 粒子从鼠标位置散开
 - **影响范围** - 8 单位半径内生效
 - **强度衰减** - 距离越近影响越大
 
 **物理模拟**：
+
 ```typescript
 // 计算影响因子
 const effectFactor = intensity * (1 - distance / interactionRadius)
@@ -227,17 +230,20 @@ src/effect/nebula-cloud-effect/
 ## 交互提示
 
 ### 桌面端
+
 1. 将鼠标移动到星云上
 2. 按下鼠标左键激活引力/斥力场
 3. 拖动鼠标改变交互中心
 4. 释放鼠标交互场逐渐消失
 
 ### 移动端
+
 1. 手指触摸屏幕
 2. 拖动手指控制交互中心
 3. 抬起手指交互场逐渐消失
 
 ### 控制器操作
+
 - **左键拖动** - 旋转视角
 - **滚轮滚动** - 缩放视角
 - **右键拖动** - 平移（已禁用）

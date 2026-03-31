@@ -229,7 +229,8 @@ export const quantumFluidHybridEffect = (container: HTMLElement): (() => void) =
     }
     if (transferEl) {
       transferEl.textContent = transferTime.toFixed(2) + 'ms'
-      transferEl.style.color = transferTime < 1 ? '#00ff66' : transferTime < 3 ? '#ffaa00' : '#ff3333'
+      transferEl.style.color =
+        transferTime < 1 ? '#00ff66' : transferTime < 3 ? '#ffaa00' : '#ff3333'
     }
     if (renderEl) {
       renderEl.textContent = renderTime.toFixed(2) + 'ms'
@@ -290,7 +291,9 @@ export const quantumFluidHybridEffect = (container: HTMLElement): (() => void) =
     positionStorage = instancedArray(positionCache.buffer, 'vec3').setName('positionStorage')
     velocityStorage = instancedArray(velocityCache.buffer, 'vec3').setName('velocityStorage')
 
-    console.log(`[QuantumFluidHybrid] 共享缓冲区初始化完成 (${useSharedBuffer ? 'SharedArrayBuffer' : 'Transferable'})`)
+    console.log(
+      `[QuantumFluidHybrid] 共享缓冲区初始化完成 (${useSharedBuffer ? 'SharedArrayBuffer' : 'Transferable'})`
+    )
   }
 
   // ============================================
@@ -327,16 +330,20 @@ export const quantumFluidHybridEffect = (container: HTMLElement): (() => void) =
       const distToMouse = length(toMouse)
 
       If(distToMouse.lessThan(interactionRadius), () => {
-        const force = interactionStrength.mul(interactionRadius.sub(distToMouse)).div(interactionRadius)
+        const force = interactionStrength
+          .mul(interactionRadius.sub(distToMouse))
+          .div(interactionRadius)
         velocity.addAssign(normalize(toMouse).mul(force).mul(dt))
       })
 
       // 添加随机扰动（布朗运动）
-      velocity.addAssign(vec3(
-        float(Math.random() - 0.5).mul(0.001),
-        float(Math.random() - 0.5).mul(0.001),
-        float(Math.random() - 0.5).mul(0.001)
-      ))
+      velocity.addAssign(
+        vec3(
+          float(Math.random() - 0.5).mul(0.001),
+          float(Math.random() - 0.5).mul(0.001),
+          float(Math.random() - 0.5).mul(0.001)
+        )
+      )
 
       // 应用阻尼
       velocity.mulAssign(damping)
@@ -416,7 +423,7 @@ export const quantumFluidHybridEffect = (container: HTMLElement): (() => void) =
     console.log('[QuantumFluidHybrid] 初始化粒子系统...')
 
     const geometry = new THREE.OctahedronGeometry(1.0, 0)
-    
+
     // 使用简单的 MeshBasicMaterial
     material = new THREE.MeshBasicMaterial()
     material.transparent = true
@@ -499,7 +506,7 @@ export const quantumFluidHybridEffect = (container: HTMLElement): (() => void) =
       const distToMouse = Math.sqrt(dx * dx + dy * dy + dz * dz)
 
       if (distToMouse < interactionRadius && distToMouse > 0) {
-        const force = interactionStrength * (interactionRadius - distToMouse) / interactionRadius
+        const force = (interactionStrength * (interactionRadius - distToMouse)) / interactionRadius
         velocityCache[idx] += (dx / distToMouse) * force * dt
         velocityCache[idx + 1] += (dy / distToMouse) * force * dt
         velocityCache[idx + 2] += (dz / distToMouse) * force * dt
@@ -716,7 +723,7 @@ export const quantumFluidHybridEffect = (container: HTMLElement): (() => void) =
       performanceElement = null
     }
 
-    allTweens.forEach((tween) => {
+    allTweens.forEach(tween => {
       try {
         tween.kill()
       } catch (e) {}
@@ -764,7 +771,7 @@ export const quantumFluidHybridEffect = (container: HTMLElement): (() => void) =
     deltaTimeUniform = null
     timeUniform = null
     mouseUniform = null
-    
+
     // 清理 SharedArrayBuffer 或 Float32Array
     positionCache = null
     velocityCache = null
@@ -803,7 +810,9 @@ export const quantumFluidHybridEffect = (container: HTMLElement): (() => void) =
       animate()
 
       console.log('[QuantumFluidHybrid] 启动成功')
-      console.log(`[QuantumFluidHybrid] 使用缓冲区类型: ${useSharedBuffer ? 'SharedArrayBuffer (零拷贝)' : 'Transferable Objects'}`)
+      console.log(
+        `[QuantumFluidHybrid] 使用缓冲区类型: ${useSharedBuffer ? 'SharedArrayBuffer (零拷贝)' : 'Transferable Objects'}`
+      )
     } catch (error) {
       console.error('[QuantumFluidHybrid] 启动失败:', error)
       cleanup()

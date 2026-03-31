@@ -54,7 +54,7 @@ export const QuantumFluidGPUEffectParams = {
 
   // 交互参数
   interactionRadius: 0.1,
-  interactionStrength: 2.0,
+  interactionStrength: 2.0
 }
 
 // ============================================
@@ -293,16 +293,20 @@ export const quantumFluidGPUEffect = (container: HTMLElement): (() => void) => {
       const distToMouse = length(toMouse)
 
       If(distToMouse.lessThan(interactionRadius), () => {
-        const force = interactionStrength.mul(interactionRadius.sub(distToMouse)).div(interactionRadius)
+        const force = interactionStrength
+          .mul(interactionRadius.sub(distToMouse))
+          .div(interactionRadius)
         velocity.addAssign(normalize(toMouse).mul(force).mul(dt))
       })
 
       // 添加随机扰动（布朗运动）
-      velocity.addAssign(vec3(
-        float(Math.random() - 0.5).mul(0.001),
-        float(Math.random() - 0.5).mul(0.001),
-        float(Math.random() - 0.5).mul(0.001)
-      ))
+      velocity.addAssign(
+        vec3(
+          float(Math.random() - 0.5).mul(0.001),
+          float(Math.random() - 0.5).mul(0.001),
+          float(Math.random() - 0.5).mul(0.001)
+        )
+      )
 
       // 应用阻尼
       velocity.mulAssign(damping)
@@ -382,7 +386,7 @@ export const quantumFluidGPUEffect = (container: HTMLElement): (() => void) => {
     console.log('[QuantumFluidGPU] 初始化粒子系统...')
 
     const geometry = new THREE.OctahedronGeometry(1.0, 0)
-    
+
     // 使用简单的 MeshBasicMaterial + 颜色变化
     material = new THREE.MeshBasicNodeMaterial()
     material.transparent = true
@@ -602,7 +606,7 @@ export const quantumFluidGPUEffect = (container: HTMLElement): (() => void) => {
       performanceElement = null
     }
 
-    allTweens.forEach((tween) => {
+    allTweens.forEach(tween => {
       try {
         tween.kill()
       } catch (e) {}

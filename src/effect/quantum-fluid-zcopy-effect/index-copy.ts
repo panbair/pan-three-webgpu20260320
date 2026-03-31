@@ -36,7 +36,7 @@ export const QuantumFluidZCopyEffectParams = {
 
   // 交互参数
   interactionRadius: 40.0,
-  interactionStrength: 120.0,
+  interactionStrength: 120.0
 }
 
 // ============================================
@@ -109,7 +109,7 @@ export const quantumFluidZCopyEffect = (container: HTMLElement): (() => void) =>
 
     renderer = new THREE.WebGPURenderer({
       antialias: false,
-      alpha: true,
+      alpha: true
     }) as typeof THREE.WebGPURenderer
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0))
@@ -259,7 +259,7 @@ export const quantumFluidZCopyEffect = (container: HTMLElement): (() => void) =>
       color: 0x00ffff,
       transparent: true,
       opacity: 0.85,
-      side: THREE.DoubleSide,
+      side: THREE.DoubleSide
     })
 
     fluidMesh = new THREE.InstancedMesh(geometry, material, config.particleCount)
@@ -465,7 +465,7 @@ export const quantumFluidZCopyEffect = (container: HTMLElement): (() => void) =>
       x: 0,
       y: 0,
       z: 0,
-      duration: 0,
+      duration: 0
     })
 
     timeline.to(fluidMesh.scale, {
@@ -473,7 +473,7 @@ export const quantumFluidZCopyEffect = (container: HTMLElement): (() => void) =>
       y: 1,
       z: 1,
       duration: 2,
-      ease: 'elastic.out(1, 0.5)',
+      ease: 'elastic.out(1, 0.5)'
     })
 
     allTweens.push(...timeline.getChildren())
@@ -491,7 +491,7 @@ export const quantumFluidZCopyEffect = (container: HTMLElement): (() => void) =>
       y: 150,
       z: 300,
       duration: 5,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
 
     cameraTimeline.to(camera.position, {
@@ -499,7 +499,7 @@ export const quantumFluidZCopyEffect = (container: HTMLElement): (() => void) =>
       y: 50,
       z: 350,
       duration: 5,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
 
     cameraTimeline.to(camera.position, {
@@ -507,7 +507,7 @@ export const quantumFluidZCopyEffect = (container: HTMLElement): (() => void) =>
       y: 200,
       z: 250,
       duration: 5,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
 
     cameraTimeline.to(camera.position, {
@@ -515,7 +515,7 @@ export const quantumFluidZCopyEffect = (container: HTMLElement): (() => void) =>
       y: -50,
       z: 450,
       duration: 5,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
 
     cameraTimeline.to(camera.position, {
@@ -523,7 +523,7 @@ export const quantumFluidZCopyEffect = (container: HTMLElement): (() => void) =>
       y: 100,
       z: 400,
       duration: 5,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
 
     cameraTimeline.to(camera.position, {
@@ -531,7 +531,7 @@ export const quantumFluidZCopyEffect = (container: HTMLElement): (() => void) =>
       y: 100,
       z: 400,
       duration: 5,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
 
     allTweens.push(...cameraTimeline.getChildren())
@@ -564,7 +564,7 @@ export const quantumFluidZCopyEffect = (container: HTMLElement): (() => void) =>
       performanceElement = null
     }
 
-    allTweens.forEach((tween) => {
+    allTweens.forEach(tween => {
       try {
         tween.kill()
       } catch (e) {}

@@ -145,7 +145,14 @@ export const crystalGardenEffect = (container: HTMLElement) => {
 
   // 创建水晶系统
   const createCrystals = () => {
-    const { crystalCount, gardenRadius, crystalMinSize, crystalMaxSize, crystalColors, reflectionEffect } = crystalGardenEffectParams
+    const {
+      crystalCount,
+      gardenRadius,
+      crystalMinSize,
+      crystalMaxSize,
+      crystalColors,
+      reflectionEffect
+    } = crystalGardenEffectParams
 
     for (let i = 0; i < crystalCount; i++) {
       const size = crystalMinSize + Math.random() * (crystalMaxSize - crystalMinSize)
@@ -176,11 +183,7 @@ export const crystalGardenEffect = (container: HTMLElement) => {
       const radius = Math.random() * gardenRadius
       const height = Math.random() * 4 - 2
 
-      mesh.position.set(
-        Math.cos(angle) * radius,
-        height,
-        Math.sin(angle) * radius
-      )
+      mesh.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius)
 
       scene.add(mesh)
 
@@ -221,7 +224,11 @@ export const crystalGardenEffect = (container: HTMLElement) => {
       petals.push({
         position: new THREE.Vector3(x, y, z),
         velocity: new THREE.Vector3(0, -0.5 - Math.random() * 0.5, 0),
-        rotation: new THREE.Vector3(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI),
+        rotation: new THREE.Vector3(
+          Math.random() * Math.PI,
+          Math.random() * Math.PI,
+          Math.random() * Math.PI
+        ),
         rotationSpeed: new THREE.Vector3(
           (Math.random() - 0.5) * 0.1,
           (Math.random() - 0.5) * 0.1,
@@ -341,7 +348,10 @@ export const crystalGardenEffect = (container: HTMLElement) => {
       crystal.velocity.multiplyScalar(0.95) // 阻尼
 
       // 回到原位的力
-      const returnForce = crystal.originalPosition.clone().sub(crystal.mesh.position).multiplyScalar(0.01)
+      const returnForce = crystal.originalPosition
+        .clone()
+        .sub(crystal.mesh.position)
+        .multiplyScalar(0.01)
       crystal.velocity.add(returnForce)
     })
   }
@@ -555,7 +565,8 @@ export const crystalGardenEffect = (container: HTMLElement) => {
         const hue = (timestamp * 0.1 + index * 0.2) % 1
         const color = new THREE.Color().setHSL(hue, 1, 0.5)
         light.color.lerp(color, 0.02)
-        light.intensity = crystalGardenEffectParams.pointLightIntensity + Math.sin(timestamp * 2 + index) * 0.5
+        light.intensity =
+          crystalGardenEffectParams.pointLightIntensity + Math.sin(timestamp * 2 + index) * 0.5
       }
     })
 
@@ -737,32 +748,44 @@ export const crystalGardenEffect = (container: HTMLElement) => {
     })
 
     // 淡出水晶
-    crystals.forEach((crystal) => {
+    crystals.forEach(crystal => {
       if (crystal.mesh && crystal.mesh.material instanceof THREE.Material) {
-        fadeOutTimeline.to(crystal.mesh.material, {
-          opacity: 0,
-          duration: 0.8,
-          ease: 'power2.out'
-        }, 0)
+        fadeOutTimeline.to(
+          crystal.mesh.material,
+          {
+            opacity: 0,
+            duration: 0.8,
+            ease: 'power2.out'
+          },
+          0
+        )
       }
     })
 
     // 淡出花瓣粒子
     if (petalSystem && petalSystem.material instanceof THREE.Material) {
-      fadeOutTimeline.to(petalSystem.material, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        petalSystem.material,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
 
     // 淡出星空
     if (starField && starField.material instanceof THREE.Material) {
-      fadeOutTimeline.to(starField.material, {
-        opacity: 0,
-        duration: 0.6,
-        ease: 'power2.out'
-      }, 0.2)
+      fadeOutTimeline.to(
+        starField.material,
+        {
+          opacity: 0,
+          duration: 0.6,
+          ease: 'power2.out'
+        },
+        0.2
+      )
     }
   }
 

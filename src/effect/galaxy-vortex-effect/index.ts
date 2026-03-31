@@ -834,29 +834,41 @@ export const galaxyVortexEffect = (container: HTMLElement) => {
 
     // 淡出星系臂
     if (armMaterial) {
-      fadeOutTimeline.to(armMaterial, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        armMaterial,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
 
     // 淡出核心
     if (coreMaterial) {
-      fadeOutTimeline.to(coreMaterial, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0.2)
+      fadeOutTimeline.to(
+        coreMaterial,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0.2
+      )
     }
 
     // 淡出光晕
     if (haloMaterial) {
-      fadeOutTimeline.to(haloMaterial, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0.4)
+      fadeOutTimeline.to(
+        haloMaterial,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0.4
+      )
     }
   }
 

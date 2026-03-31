@@ -378,7 +378,8 @@ export const quantumAuroraDreamEffect = (container: HTMLElement) => {
       for (let j = 0; j <= segments; j++) {
         const t = j / segments
         const x = (t - 0.5) * 60
-        const y = Math.sin(t * Math.PI) * 20 + (i - quantumAuroraDreamEffectParams.auroraCurtains / 2) * 5
+        const y =
+          Math.sin(t * Math.PI) * 20 + (i - quantumAuroraDreamEffectParams.auroraCurtains / 2) * 5
         const z = Math.cos(t * Math.PI * 3) * 10
         curvePoints.push(new THREE.Vector3(x, y, z))
       }
@@ -447,52 +448,88 @@ export const quantumAuroraDreamEffect = (container: HTMLElement) => {
     })
 
     // 第一段：远景俯冲
-    cameraTimeline.to(cam.position, {
-      x: 30, y: 35, z: 30,
-      duration: 4,
-      ease: 'power2.inOut',
-      onUpdate: () => cam.lookAt(0, 0, 0)
-    }, 0)
+    cameraTimeline.to(
+      cam.position,
+      {
+        x: 30,
+        y: 35,
+        z: 30,
+        duration: 4,
+        ease: 'power2.inOut',
+        onUpdate: () => cam.lookAt(0, 0, 0)
+      },
+      0
+    )
 
     // 第二段：环绕左侧
-    cameraTimeline.to(cam.position, {
-      x: -25, y: 18, z: 20,
-      duration: 4.5,
-      ease: 'sine.inOut',
-      onUpdate: () => cam.lookAt(0, 0, 0)
-    }, '>')
+    cameraTimeline.to(
+      cam.position,
+      {
+        x: -25,
+        y: 18,
+        z: 20,
+        duration: 4.5,
+        ease: 'sine.inOut',
+        onUpdate: () => cam.lookAt(0, 0, 0)
+      },
+      '>'
+    )
 
     // 第三段：环绕右侧
-    cameraTimeline.to(cam.position, {
-      x: 25, y: 12, z: -22,
-      duration: 4.5,
-      ease: 'sine.inOut',
-      onUpdate: () => cam.lookAt(0, 0, 0)
-    }, '>')
+    cameraTimeline.to(
+      cam.position,
+      {
+        x: 25,
+        y: 12,
+        z: -22,
+        duration: 4.5,
+        ease: 'sine.inOut',
+        onUpdate: () => cam.lookAt(0, 0, 0)
+      },
+      '>'
+    )
 
     // 第四段：高空俯视
-    cameraTimeline.to(cam.position, {
-      x: 10, y: 40, z: 10,
-      duration: 4,
-      ease: 'power2.inOut',
-      onUpdate: () => cam.lookAt(0, 0, 0)
-    }, '>')
+    cameraTimeline.to(
+      cam.position,
+      {
+        x: 10,
+        y: 40,
+        z: 10,
+        duration: 4,
+        ease: 'power2.inOut',
+        onUpdate: () => cam.lookAt(0, 0, 0)
+      },
+      '>'
+    )
 
     // 第五段：穿越光子海
-    cameraTimeline.to(cam.position, {
-      x: 6, y: 6, z: 6,
-      duration: 3,
-      ease: 'expo.inOut',
-      onUpdate: () => cam.lookAt(0, 0, 0)
-    }, '>')
+    cameraTimeline.to(
+      cam.position,
+      {
+        x: 6,
+        y: 6,
+        z: 6,
+        duration: 3,
+        ease: 'expo.inOut',
+        onUpdate: () => cam.lookAt(0, 0, 0)
+      },
+      '>'
+    )
 
     // 第六段：缓慢拉远
-    cameraTimeline.to(cam.position, {
-      x: 22, y: 15, z: 22,
-      duration: 5,
-      ease: 'power4.out',
-      onUpdate: () => cam.lookAt(0, 0, 0)
-    }, '>')
+    cameraTimeline.to(
+      cam.position,
+      {
+        x: 22,
+        y: 15,
+        z: 22,
+        duration: 5,
+        ease: 'power4.out',
+        onUpdate: () => cam.lookAt(0, 0, 0)
+      },
+      '>'
+    )
   }
 
   // 入场动画
@@ -503,7 +540,9 @@ export const quantumAuroraDreamEffect = (container: HTMLElement) => {
 
     // 相机从远处推近
     const t1 = gsap.from(cam.position, {
-      x: 45, y: 40, z: 45,
+      x: 45,
+      y: 40,
+      z: 45,
       duration: 2.5,
       ease: 'power3.out',
       onUpdate: () => cam.lookAt(0, 0, 0),
@@ -516,7 +555,9 @@ export const quantumAuroraDreamEffect = (container: HTMLElement) => {
 
     // 水晶弹入
     const t2 = gsap.from(crystalMesh.scale, {
-      x: 0.01, y: 0.01, z: 0.01,
+      x: 0.01,
+      y: 0.01,
+      z: 0.01,
       duration: 2.2,
       ease: 'back.out(1.7)'
     })
@@ -524,7 +565,9 @@ export const quantumAuroraDreamEffect = (container: HTMLElement) => {
 
     // 蝴蝶扩散
     const t3 = gsap.from(butterflyMesh.scale, {
-      x: 0.01, y: 0.01, z: 0.01,
+      x: 0.01,
+      y: 0.01,
+      z: 0.01,
       duration: 2.4,
       ease: 'back.out(1.5)',
       delay: 0.15
@@ -533,7 +576,9 @@ export const quantumAuroraDreamEffect = (container: HTMLElement) => {
 
     // 钻石淡入
     const t4 = gsap.from(diamondMesh.scale, {
-      x: 0.01, y: 0.01, z: 0.01,
+      x: 0.01,
+      y: 0.01,
+      z: 0.01,
       duration: 2,
       ease: 'back.out(1.3)',
       delay: 0.3
@@ -605,7 +650,8 @@ export const quantumAuroraDreamEffect = (container: HTMLElement) => {
       }
 
       // 色相循环
-      let h = b.hue + time * quantumAuroraDreamEffectParams.colorCycleSpeed * TIME_SCALE_FACTOR * 1.2
+      let h =
+        b.hue + time * quantumAuroraDreamEffectParams.colorCycleSpeed * TIME_SCALE_FACTOR * 1.2
       if (h > 1) h -= 1
       if (color) {
         color.setHSL(h, 0.95, 0.7)
@@ -641,7 +687,10 @@ export const quantumAuroraDreamEffect = (container: HTMLElement) => {
       }
 
       // 闪烁色相
-      let h = d.hue + twinkle * 0.1 + time * quantumAuroraDreamEffectParams.colorCycleSpeed * TIME_SCALE_FACTOR * 1.5
+      let h =
+        d.hue +
+        twinkle * 0.1 +
+        time * quantumAuroraDreamEffectParams.colorCycleSpeed * TIME_SCALE_FACTOR * 1.5
       if (h > 1) h -= 1
       if (color) {
         color.setHSL(h, 0.9, 0.8 + twinkle * 0.2)
@@ -664,7 +713,8 @@ export const quantumAuroraDreamEffect = (container: HTMLElement) => {
         auroraMeshes[i].rotation.z = Math.sin(timeScale * 0.5 + i) * 0.15
 
         // 色相循环
-        let h = aurora.hue + time * quantumAuroraDreamEffectParams.colorCycleSpeed * TIME_SCALE_FACTOR
+        let h =
+          aurora.hue + time * quantumAuroraDreamEffectParams.colorCycleSpeed * TIME_SCALE_FACTOR
         if (h > 1) h -= 1
         auroraMaterials[i].color.setHSL(h, 0.95, 0.6)
       }
@@ -676,7 +726,8 @@ export const quantumAuroraDreamEffect = (container: HTMLElement) => {
 
     if (quantumAuroraDreamEffectParams.autoRotate) {
       if (crystalMesh) crystalMesh.rotation.y += quantumAuroraDreamEffectParams.rotationSpeed
-      if (butterflyMesh) butterflyMesh.rotation.y -= quantumAuroraDreamEffectParams.rotationSpeed * 1.8
+      if (butterflyMesh)
+        butterflyMesh.rotation.y -= quantumAuroraDreamEffectParams.rotationSpeed * 1.8
       if (diamondMesh) diamondMesh.rotation.y += quantumAuroraDreamEffectParams.rotationSpeed * 2.2
     }
 
@@ -768,7 +819,14 @@ export const quantumAuroraDreamEffect = (container: HTMLElement) => {
       const cam = camera
       fadeOutTimeline.to(
         cam.position,
-        { x: 50, y: 50, z: 50, duration: 1.5, ease: 'power2.inOut', onUpdate: () => cam.lookAt(0, 0, 0) },
+        {
+          x: 50,
+          y: 50,
+          z: 50,
+          duration: 1.5,
+          ease: 'power2.inOut',
+          onUpdate: () => cam.lookAt(0, 0, 0)
+        },
         0
       )
     }

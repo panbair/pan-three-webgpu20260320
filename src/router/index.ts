@@ -3,7 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import type { AppRouteModule } from './types'
 
 const routes: RouteRecordRaw[] = [
-/*  {
+  /*  {
     path: '/',
     component: () => import('@/layout/index.vue'),
     redirect: '/home',
@@ -28,24 +28,24 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/Test/index.vue'),
     meta: { title: '测试页面' }
   },
-    {
+  {
     path: '/model',
     name: 'model',
     component: () => import('@/views/model/index.vue'),
     meta: { title: '模型页面' }
   },
-      {
+  {
     path: '/game',
     name: 'game',
     component: () => import('@/views/game/index.vue'),
     meta: { title: '游戏' }
-      },
-      {
+  },
+  {
     path: '/meteor-game',
     name: 'meteor-game',
     component: () => import('@/views/game/meteor-game.vue'),
     meta: { title: '陨石防御' }
-      },
+  },
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',

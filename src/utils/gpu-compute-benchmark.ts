@@ -4,7 +4,11 @@
  */
 
 import * as THREE from 'three/webgpu'
-import { ThreeTSLParticleEffect, TaichiJSParticleEffect, ParticleComplexity } from './hybrid-gpu-compute'
+import {
+  ThreeTSLParticleEffect,
+  TaichiJSParticleEffect,
+  ParticleComplexity
+} from './hybrid-gpu-compute'
 
 export interface BenchmarkResult {
   backend: 'three-tsl' | 'taichi-js'
@@ -76,7 +80,7 @@ export class GPUComputeBenchmark {
     let frameCount = 0
     const startTime = performance.now()
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const animate = () => {
         const frameStart = performance.now()
 
@@ -138,7 +142,7 @@ export class GPUComputeBenchmark {
     let frameCount = 0
     const startTime = performance.now()
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const animate = () => {
         const frameStart = performance.now()
 
@@ -183,7 +187,7 @@ export class GPUComputeBenchmark {
 
     // 按粒子数分组
     const grouped = new Map<number, BenchmarkResult[]>()
-    this.results.forEach((r) => {
+    this.results.forEach(r => {
       if (!grouped.has(r.particleCount)) {
         grouped.set(r.particleCount, [])
       }
@@ -194,14 +198,16 @@ export class GPUComputeBenchmark {
       console.log(`粒子数量: ${particleCount}`)
       console.log('----------------------------------------')
 
-      results.forEach((r) => {
+      results.forEach(r => {
         const speedup =
           results.length > 1
             ? (() => {
-                const other = results.find((x) => x.backend !== r.backend)
+                const other = results.find(x => x.backend !== r.backend)
                 if (!other) return '-'
                 const ratio = other.avgFrameTime / r.avgFrameTime
-                return ratio > 1 ? `+${((ratio - 1) * 100).toFixed(1)}%` : `${((ratio - 1) * 100).toFixed(1)}%`
+                return ratio > 1
+                  ? `+${((ratio - 1) * 100).toFixed(1)}%`
+                  : `${((ratio - 1) * 100).toFixed(1)}%`
               })()
             : '-'
 
@@ -214,7 +220,7 @@ export class GPUComputeBenchmark {
 
     // 找出最优方案
     const bestPerformances = new Map<string, BenchmarkResult>()
-    this.results.forEach((r) => {
+    this.results.forEach(r => {
       const key = `${r.particleCount}-${r.complexity}`
       if (!bestPerformances.has(key) || bestPerformances.get(key)!.avgFrameTime > r.avgFrameTime) {
         bestPerformances.set(key, r)
@@ -240,18 +246,20 @@ export class GPUComputeBenchmark {
    * 生成性能对比图表数据（可用于 Chart.js）
    */
   generateChartData() {
-    const labels = [...new Set(this.results.map((r) => r.particleCount))].sort((a, b) => a - b)
+    const labels = [...new Set(this.results.map(r => r.particleCount))].sort((a, b) => a - b)
 
     const threeTSLData = labels.map(
-      (count) => this.results.find((r) => r.backend === 'three-tsl' && r.particleCount === count)?.fps || 0
+      count =>
+        this.results.find(r => r.backend === 'three-tsl' && r.particleCount === count)?.fps || 0
     )
 
     const taichiJSData = labels.map(
-      (count) => this.results.find((r) => r.backend === 'taichi-js' && r.particleCount === count)?.fps || 0
+      count =>
+        this.results.find(r => r.backend === 'taichi-js' && r.particleCount === count)?.fps || 0
     )
 
     return {
-      labels: labels.map((n) => n.toString()),
+      labels: labels.map(n => n.toString()),
       datasets: [
         {
           label: 'Three.js TSL',

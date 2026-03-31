@@ -167,4 +167,3 @@ function startGame(gameType: string) {
   color: #888;
 }
 </style>
-

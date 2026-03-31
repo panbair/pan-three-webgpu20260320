@@ -58,7 +58,14 @@
       </button>
       <div v-if="active" class="speed-control">
         <label>旋转速度: {{ rotateSpeed.toFixed(1) }}</label>
-        <input type="range" :value="rotateSpeed" min="0.1" max="5" step="0.1" @input="$emit('updateSpeed', Number.parseFloat($event.target.value))" />
+        <input
+          type="range"
+          :value="rotateSpeed"
+          min="0.1"
+          max="5"
+          step="0.1"
+          @input="$emit('updateSpeed', Number.parseFloat($event.target.value))"
+        />
       </div>
     </div>
 

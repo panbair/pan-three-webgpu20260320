@@ -242,7 +242,7 @@ const loadModel = async (path: string) => {
   }
 
   currentModel.value = path
-  const modelName = modelFiles.find((m) => m.path === path)?.name || ''
+  const modelName = modelFiles.find(m => m.path === path)?.name || ''
   currentModelName.value = modelName
 
   // 显示加载状态
@@ -347,7 +347,7 @@ const loadAllModels = async (count: number = 4) => {
   }
 
   // 清除之前的所有模型并释放资源
-  allGLTFs.forEach((gltf) => {
+  allGLTFs.forEach(gltf => {
     disposeModel(gltf)
     scene?.remove(gltf.scene)
   })
@@ -371,7 +371,7 @@ const loadAllModels = async (count: number = 4) => {
       const batch = modelsToLoad.slice(i, i + maxConcurrent)
 
       const loadPromises = batch.map((modelFile, index) => {
-        return new Promise<void>((resolve) => {
+        return new Promise<void>(resolve => {
           loader.load(
             modelFile.path,
             (gltf: any) => {
@@ -422,8 +422,7 @@ const loadAllModels = async (count: number = 4) => {
             },
             (progress: any) => {
               const percent = (progress.loaded / progress.total) * 100
-              const overallProgress =
-                ((loadedCount * 100 + percent) / count).toFixed(1)
+              const overallProgress = ((loadedCount * 100 + percent) / count).toFixed(1)
               loadingProgress.value = Number.parseFloat(overallProgress)
               console.log(`${modelFile.name} 加载进度: ${percent.toFixed(1)}%`)
             },
@@ -485,7 +484,7 @@ const loadAllModels = async (count: number = 4) => {
 const clearAllModels = () => {
   if (!scene) return
 
-  allGLTFs.forEach((gltf) => {
+  allGLTFs.forEach(gltf => {
     disposeModel(gltf)
     scene.remove(gltf.scene)
   })
@@ -720,7 +719,7 @@ const cleanup = () => {
   }
 
   // 清除所有模型并释放资源
-  allGLTFs.forEach((gltf) => {
+  allGLTFs.forEach(gltf => {
     disposeModel(gltf)
     scene?.remove(gltf.scene)
   })
@@ -991,4 +990,3 @@ onBeforeUnmount(() => {
   text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
 }
 </style>
-

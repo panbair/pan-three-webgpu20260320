@@ -8,12 +8,8 @@
     </div>
     <div ref="testContainerRef" class="test-canvas-container"></div>
     <button @click="testImageLoad" class="test-button">测试图片加载</button>
-    <div v-if="loadError" class="error-message">
-      错误: {{ loadError }}
-    </div>
-    <div v-if="loadSuccess" class="success-message">
-      ✓ 图片加载成功!
-    </div>
+    <div v-if="loadError" class="error-message">错误: {{ loadError }}</div>
+    <div v-if="loadSuccess" class="success-message">✓ 图片加载成功!</div>
   </div>
 </template>
 
@@ -67,7 +63,7 @@ const testImageLoad = () => {
 
     textureLoader.load(
       currentPath,
-      (texture) => {
+      texture => {
         console.log('图片加载成功!', currentPath)
         loadSuccess.value = true
         loadError.value = ''
@@ -76,10 +72,10 @@ const testImageLoad = () => {
         // 创建一个简单的场景来显示图片
         displayTestImage(texture)
       },
-      (progress) => {
+      progress => {
         console.log('加载进度:', progress)
       },
-      (err) => {
+      err => {
         console.error(`路径 ${currentPath} 加载失败:`, err)
         currentPathIndex++
         tryLoad()

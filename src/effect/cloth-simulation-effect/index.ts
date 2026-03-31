@@ -137,12 +137,7 @@ export const clothSimulationEffect = (container: HTMLElement) => {
   let cameraTimeline: gsap.core.Timeline | null = null
   const allTweens: gsap.core.Tween[] = []
 
-  const {
-    clothWidth,
-    clothHeight,
-    clothSegmentsX,
-    clothSegmentsY
-  } = clothSimulationEffectParams
+  const { clothWidth, clothHeight, clothSegmentsX, clothSegmentsY } = clothSimulationEffectParams
 
   const init = async () => {
     try {
@@ -164,7 +159,7 @@ export const clothSimulationEffect = (container: HTMLElement) => {
       camera.position.set(-3.5, -0.3, -3.5)
 
       scene = new THREE.Scene()
-      scene.background = null  // 使用透明背景，避免覆盖整个页面
+      scene.background = null // 使用透明背景，避免覆盖整个页面
 
       // 添加环境光和方向光
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.3)
@@ -359,7 +354,9 @@ export const clothSimulationEffect = (container: HTMLElement) => {
       const dist = delta.length().max(0.000001).toVar()
       const force = dist.sub(restLength).mul(stiffnessUniform).mul(delta).mul(0.5).div(dist)
       springForceBuffer.element(instanceIndex).assign(force)
-    })().compute(springCount).setName('Spring Forces')
+    })()
+      .compute(springCount)
+      .setName('Spring Forces')
 
     // 顶点力计算
     computeVertexForces = Fn(() => {
@@ -407,7 +404,9 @@ export const clothSimulationEffect = (container: HTMLElement) => {
       const rippleWave1 = sin(rippleDist.mul(8).sub(time.mul(2)))
       const rippleWave2 = sin(rippleDist.mul(5).sub(time.mul(3)))
       const rippleWave3 = sin(position.x.mul(10).add(time.mul(1.5)))
-      const rippleWave = rippleWave1.mul(rippleWave2).add(rippleWave3.mul(0.5))
+      const rippleWave = rippleWave1
+        .mul(rippleWave2)
+        .add(rippleWave3.mul(0.5))
         .mul(rippleStrengthUniform)
         .mul(rippleUniform)
         .mul(0.0003)
@@ -424,7 +423,9 @@ export const clothSimulationEffect = (container: HTMLElement) => {
 
       vertexForceBuffer.element(instanceIndex).assign(force)
       vertexPositionBuffer.element(instanceIndex).addAssign(force)
-    })().compute(vertexCount).setName('Vertex Forces')
+    })()
+      .compute(vertexCount)
+      .setName('Vertex Forces')
   }
 
   // 设置丝绸网格
@@ -455,7 +456,10 @@ export const clothSimulationEffect = (container: HTMLElement) => {
     }
 
     const verletVertexIdBufferAttr = new THREE.BufferAttribute(verletVertexIdArray, 4, false)
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertexCount * 3), 3, false))
+    geometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(new Float32Array(vertexCount * 3), 3, false)
+    )
     geometry.setAttribute('vertexIds', verletVertexIdBufferAttr)
     geometry.setIndex(indices)
 
@@ -531,13 +535,16 @@ export const clothSimulationEffect = (container: HTMLElement) => {
         const finalMix = mix(mix1, mix2, heightFactor)
 
         // 添加时间变化
-        const auroraPulse = sin(position.y.mul(4).add(time.mul(2))).mul(0.3).add(0.7)
+        const auroraPulse = sin(position.y.mul(4).add(time.mul(2)))
+          .mul(0.3)
+          .add(0.7)
         clothMaterial.colorNode = finalMix.mul(auroraPulse)
       }
 
       // 动态光泽（虹彩效果）
-      const sheenIntensity = smoothstep(-clothHeight * 0.5, clothHeight * 0.5, position.y)
-        .mul(sin(time).mul(0.2).add(0.8))
+      const sheenIntensity = smoothstep(-clothHeight * 0.5, clothHeight * 0.5, position.y).mul(
+        sin(time).mul(0.2).add(0.8)
+      )
       clothMaterial.sheenNode = uniform(clothSimulationEffectParams.sheen).mul(sheenIntensity)
 
       return position
@@ -591,11 +598,13 @@ export const clothSimulationEffect = (container: HTMLElement) => {
       const z = radius * Math.sin(phi) * Math.sin(theta)
 
       particles.push(new THREE.Vector3(x, y, z))
-      particleVelocities.push(new THREE.Vector3(
-        (Math.random() - 0.5) * 0.002,
-        (Math.random() - 0.5) * 0.002,
-        (Math.random() - 0.5) * 0.002
-      ))
+      particleVelocities.push(
+        new THREE.Vector3(
+          (Math.random() - 0.5) * 0.002,
+          (Math.random() - 0.5) * 0.002,
+          (Math.random() - 0.5) * 0.002
+        )
+      )
       particlePhases.push(Math.random() * Math.PI * 2)
     }
 
@@ -969,22 +978,30 @@ export const clothSimulationEffect = (container: HTMLElement) => {
 
     // 淡出布料
     if (clothMesh && clothMesh.material instanceof THREE.Material) {
-      fadeOutTimeline.to(clothMesh.material, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        clothMesh.material,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
 
     // 淡出粒子缩放
     if (particleMesh) {
-      fadeOutTimeline.to(particleMesh.scale, {
-        x: 0.01,
-        y: 0.01,
-        z: 0.01,
-        duration: 0.6,
-        ease: 'back.in(1.7)'
-      }, 0)
+      fadeOutTimeline.to(
+        particleMesh.scale,
+        {
+          x: 0.01,
+          y: 0.01,
+          z: 0.01,
+          duration: 0.6,
+          ease: 'back.in(1.7)'
+        },
+        0
+      )
     }
   }
 

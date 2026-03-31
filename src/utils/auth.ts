@@ -6,7 +6,7 @@ const TOKEN_KEY = 'ACCESS_TOKEN'
 export function getToken(): string {
   // 优先从 cookie 获取（更安全）
   const cookies = document.cookie.split(';')
-  const tokenCookie = cookies.find((c) => c.trim().startsWith(`${TOKEN_KEY}=`))
+  const tokenCookie = cookies.find(c => c.trim().startsWith(`${TOKEN_KEY}=`))
   if (tokenCookie) {
     return tokenCookie.split('=')[1]
   }

@@ -26,35 +26,38 @@
 
 ```typescript
 export const quantumWaveEffectParams = {
-  particleCount: 400,          // 粒子数量
-  particleSize: 0.15,          // 粒子大小
-  alpha: 0.8,                  // 透明度
-  alphaHash: true,            // 启用透明哈希
-  rotationSpeed: 0.0002,       // 整体旋转速度
-  autoRotate: true,           // 自动旋转
-  colorCycleSpeed: 0.0003,    // 颜色变化速度
-  waveSpeed: 1.5,             // 波动速度
-  waveAmplitude: 0.8,         // 波动幅度
-  entanglementStrength: 0.5,  // 纠缠强度
+  particleCount: 400, // 粒子数量
+  particleSize: 0.15, // 粒子大小
+  alpha: 0.8, // 透明度
+  alphaHash: true, // 启用透明哈希
+  rotationSpeed: 0.0002, // 整体旋转速度
+  autoRotate: true, // 自动旋转
+  colorCycleSpeed: 0.0003, // 颜色变化速度
+  waveSpeed: 1.5, // 波动速度
+  waveAmplitude: 0.8, // 波动幅度
+  entanglementStrength: 0.5, // 纠缠强度
   interferencePattern: true, // 显示干涉图案
-  pulseSpeed: 2.0,            // 脉冲速度
-  updateInterval: 4          // 颜色更新间隔
+  pulseSpeed: 2.0, // 脉冲速度
+  updateInterval: 4 // 颜色更新间隔
 }
 ```
 
 ## 视觉效果
 
 ### 粒子运动
+
 - 每个粒子沿螺旋轨道运动
 - 叠加波动位移，产生波浪效果
 - 与纠缠粒子相互作用，产生复杂轨迹
 
 ### 颜色变化
+
 - 基于 HSL 颜色空间的动态渐变
 - 干涉图案使颜色随波动相位变化
 - 降频更新优化性能（每 4 帧更新一次）
 
 ### 运镜轨迹
+
 1. 经典环绕视角 (15, 12, 15)
 2. 顶部俯视 (5, 20, 5)
 3. 穿梭视角 (-18, 5, -18)

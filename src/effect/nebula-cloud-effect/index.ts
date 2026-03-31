@@ -309,13 +309,22 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
         layer,
         orbitRadius: Math.sqrt(x * x + z * z),
         orbitAngle: Math.atan2(z, x),
-        orbitSpeed: (0.8 + Math.random() * 0.4) * 0.0005 * (layer === NebulaLayer.CORE ? 1 : layer === NebulaLayer.INNER ? 0.8 : 0.6),
+        orbitSpeed:
+          (0.8 + Math.random() * 0.4) *
+          0.0005 *
+          (layer === NebulaLayer.CORE ? 1 : layer === NebulaLayer.INNER ? 0.8 : 0.6),
         orbitHeight: y,
         orbitPhase: Math.random() * Math.PI * 2,
         baseSize: config.size * (0.8 + Math.random() * 0.4),
-        hue: config.hue + Math.random() * (layer === NebulaLayer.CORE ? 0.1 : layer === NebulaLayer.INNER ? 0.15 : 0.2),
+        hue:
+          config.hue +
+          Math.random() *
+            (layer === NebulaLayer.CORE ? 0.1 : layer === NebulaLayer.INNER ? 0.15 : 0.2),
         saturation: 0.85 + Math.random() * 0.15 - (layer === NebulaLayer.OUTER ? 0.2 : 0),
-        lightness: config.lightness + Math.random() * (layer === NebulaLayer.CORE ? 0.1 : layer === NebulaLayer.INNER ? 0.15 : 0.2),
+        lightness:
+          config.lightness +
+          Math.random() *
+            (layer === NebulaLayer.CORE ? 0.1 : layer === NebulaLayer.INNER ? 0.15 : 0.2),
         noiseOffset: Math.random() * 100,
         flowDirection: Math.random() > 0.5 ? 1 : -1
       })
@@ -325,11 +334,7 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       dummy.updateMatrix()
       mesh.setMatrixAt(meshIndex, dummy.matrix)
 
-      color.setHSL(
-        particles[index].hue,
-        particles[index].saturation,
-        particles[index].lightness
-      )
+      color.setHSL(particles[index].hue, particles[index].saturation, particles[index].lightness)
       mesh.setColorAt(meshIndex, color)
     }
 
@@ -372,7 +377,15 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
       const y = (Math.random() - 0.5) * config.radius * 0.4
       const z = Math.sin(phi) * radius
 
-      createParticle(NebulaLayer.OUTER, coreCount + innerCount + outerIndex, x, y, z, outerMesh, outerIndex)
+      createParticle(
+        NebulaLayer.OUTER,
+        coreCount + innerCount + outerIndex,
+        x,
+        y,
+        z,
+        outerMesh,
+        outerIndex
+      )
       outerIndex++
     }
 
@@ -563,7 +576,8 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
     const dy = particleY - mousePos.y
     const dz = particleZ - mousePos.z
     const distanceSquared = dx * dx + dy * dy + dz * dz
-    const radiusSquared = nebulaCloudEffectParams.interactionRadius * nebulaCloudEffectParams.interactionRadius
+    const radiusSquared =
+      nebulaCloudEffectParams.interactionRadius * nebulaCloudEffectParams.interactionRadius
 
     if (distanceSquared > radiusSquared) {
       return { offsetX: 0, offsetY: 0, offsetZ: 0 }
@@ -918,25 +932,37 @@ export const nebulaCloudEffect = (container: HTMLElement) => {
 
     // 淡出星云粒子
     if (coreMaterial) {
-      fadeOutTimeline.to(coreMaterial, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        coreMaterial,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
     if (innerMaterial) {
-      fadeOutTimeline.to(innerMaterial, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0.2)
+      fadeOutTimeline.to(
+        innerMaterial,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0.2
+      )
     }
     if (outerMaterial) {
-      fadeOutTimeline.to(outerMaterial, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0.4)
+      fadeOutTimeline.to(
+        outerMaterial,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0.4
+      )
     }
   }
 

@@ -47,26 +47,26 @@ export const quantumStormEffectParams = {
   particleSize: 3.0,
 
   // 漩涡参数
-  vortexStrength: 50.0,      // 漩涡强度
-  vortexRadius: 60.0,         // 漩涡影响半径
-  vortexRotationSpeed: 2.0,   // 漩涡旋转速度
+  vortexStrength: 50.0, // 漩涡强度
+  vortexRadius: 60.0, // 漩涡影响半径
+  vortexRotationSpeed: 2.0, // 漩涡旋转速度
 
   // 闪电参数
-  lightningCount: 500,        // 闪电粒子数量
-  lightningInterval: 30,      // 闪电间隔（帧数）
+  lightningCount: 500, // 闪电粒子数量
+  lightningInterval: 30, // 闪电间隔（帧数）
 
   // 能量光环参数
-  haloCount: 8,              // 光环数量
-  haloRadius: 40.0,          // 光环半径
+  haloCount: 8, // 光环数量
+  haloRadius: 40.0, // 光环半径
 
   // 物理参数
-  gravity: -2.0,             // 微弱重力
-  damping: 0.985,            // 速度衰减
-  boundaryRadius: 100.0,      // 边界半径
-  restitution: 0.6,          // 碰撞弹性
+  gravity: -2.0, // 微弱重力
+  damping: 0.985, // 速度衰减
+  boundaryRadius: 100.0, // 边界半径
+  restitution: 0.6, // 碰撞弹性
 
   // 交互参数
-  interactionRadius: 20.0,    // 鼠标交互半径
+  interactionRadius: 20.0, // 鼠标交互半径
   interactionStrength: 150.0, // 鼠标交互强度
 
   // 渲染参数
@@ -84,7 +84,7 @@ export const quantumStormEffectParams = {
 // 2. 主特效函数
 // ============================================
 
-export const quantumStormEffect = async (container: HTMLElement): Promise<(() => void)> => {
+export const quantumStormEffect = async (container: HTMLElement): Promise<() => void> => {
   console.log('[QuantumStorm] 开始初始化量子风暴特效...')
 
   // ============================================
@@ -261,8 +261,12 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
     const interactionRadius = uniform(config.interactionRadius)
     const interactionStrength = uniform(config.interactionStrength)
 
-    const stormPositions = instancedArray(stormPositionArray, 'vec3').setName('stormPositionStorage')
-    const stormVelocities = instancedArray(stormVelocityArray, 'vec3').setName('stormVelocityStorage')
+    const stormPositions = instancedArray(stormPositionArray, 'vec3').setName(
+      'stormPositionStorage'
+    )
+    const stormVelocities = instancedArray(stormVelocityArray, 'vec3').setName(
+      'stormVelocityStorage'
+    )
 
     const updateVortexPhysics = Fn(() => {
       const idx = instanceIndex.toConst()
@@ -274,9 +278,13 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
       const toCenter = pos.negate()
       const distToCenter = length(toCenter)
 
-      const inwardForce = toCenter.normalize().mul(vortexStrength.mul(deltaTime).mul(
-        float(1.0).sub(distToCenter.div(vortexRadius)).max(float(0))
-      ))
+      const inwardForce = toCenter
+        .normalize()
+        .mul(
+          vortexStrength
+            .mul(deltaTime)
+            .mul(float(1.0).sub(distToCenter.div(vortexRadius)).max(float(0)))
+        )
 
       vel.addAssign(inwardForce)
 
@@ -309,7 +317,9 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
       vel.mulAssign(damping)
     })
 
-    const vortexPipeline = updateVortexPhysics().compute(config.particleCount).setName('vortexUpdate')
+    const vortexPipeline = updateVortexPhysics()
+      .compute(config.particleCount)
+      .setName('vortexUpdate')
 
     // ============================================
     // 2.6 创建闪电 Compute Shader
@@ -317,8 +327,12 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
 
     console.log('[QuantumStorm] 创建闪电 Compute Shader...')
 
-    const lightningPositions = instancedArray(lightningPositionArray, 'vec3').setName('lightningPositionStorage')
-    const lightningVelocities = instancedArray(lightningVelocityArray, 'vec3').setName('lightningVelocityStorage')
+    const lightningPositions = instancedArray(lightningPositionArray, 'vec3').setName(
+      'lightningPositionStorage'
+    )
+    const lightningVelocities = instancedArray(lightningVelocityArray, 'vec3').setName(
+      'lightningVelocityStorage'
+    )
     const isActive = uniform(0.0) // 闪电激活状态
 
     const updateLightningPhysics = Fn(() => {
@@ -347,7 +361,9 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
       pos.addAssign(vel.mul(deltaTime))
     })
 
-    const lightningPipeline = updateLightningPhysics().compute(config.lightningCount).setName('lightningUpdate')
+    const lightningPipeline = updateLightningPhysics()
+      .compute(config.lightningCount)
+      .setName('lightningUpdate')
 
     // ============================================
     // 2.7 创建能量光环
@@ -358,8 +374,8 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
     const haloColors = [
       new THREE.Color(0x00ffff), // 青色
       new THREE.Color(0xff00ff), // 紫色
-      new THREE.Color(0xffff00),  // 黄色
-      new THREE.Color(0xff0000),  // 红色
+      new THREE.Color(0xffff00), // 黄色
+      new THREE.Color(0xff0000) // 红色
     ]
 
     for (let i = 0; i < config.haloCount; i++) {
@@ -418,7 +434,10 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
         const dist = length(pos)
 
         const colorIndex = float(idx).div(config.particleCount).mul(float(5)).floor()
-        const baseHue = colorIndex.mul(float(0.2)).add(time.mul(float(0.08))).add(dist.mul(float(0.02)))
+        const baseHue = colorIndex
+          .mul(float(0.2))
+          .add(time.mul(float(0.08)))
+          .add(dist.mul(float(0.02)))
         const hue = baseHue.mod(float(1.0))
 
         // 动态色相映射
@@ -426,28 +445,60 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
         const segmentIndex = segment.floor().clamp(float(0), float(4))
         const segmentT = segment.sub(segmentIndex)
 
-        const color0 = segmentIndex.equal(float(0)).select(stormColor0,
-                       segmentIndex.equal(float(1)).select(stormColor1,
-                       segmentIndex.equal(float(2)).select(stormColor2,
-                       segmentIndex.equal(float(3)).select(stormColor3, stormColor4))))
+        const color0 = segmentIndex
+          .equal(float(0))
+          .select(
+            stormColor0,
+            segmentIndex
+              .equal(float(1))
+              .select(
+                stormColor1,
+                segmentIndex
+                  .equal(float(2))
+                  .select(
+                    stormColor2,
+                    segmentIndex.equal(float(3)).select(stormColor3, stormColor4)
+                  )
+              )
+          )
 
-        const color1 = segmentIndex.equal(float(0)).select(stormColor1,
-                       segmentIndex.equal(float(1)).select(stormColor2,
-                       segmentIndex.equal(float(2)).select(stormColor3,
-                       segmentIndex.equal(float(3)).select(stormColor4, stormColor0))))
+        const color1 = segmentIndex
+          .equal(float(0))
+          .select(
+            stormColor1,
+            segmentIndex
+              .equal(float(1))
+              .select(
+                stormColor2,
+                segmentIndex
+                  .equal(float(2))
+                  .select(
+                    stormColor3,
+                    segmentIndex.equal(float(3)).select(stormColor4, stormColor0)
+                  )
+              )
+          )
 
         return mix(color0, color1, segmentT)
       })()
     })
 
-    stormMesh = new THREE.InstancedMesh(stormGeometry, stormMaterial as THREE.Material, config.particleCount)
+    stormMesh = new THREE.InstancedMesh(
+      stormGeometry,
+      stormMaterial as THREE.Material,
+      config.particleCount
+    )
     stormMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     stormMesh.frustumCulled = false
 
     // 设置初始实例矩阵
     const dummyInit = new THREE.Object3D()
     for (let i = 0; i < config.particleCount; i++) {
-      dummyInit.position.set(stormPositionArray[i * 3], stormPositionArray[i * 3 + 1], stormPositionArray[i * 3 + 2])
+      dummyInit.position.set(
+        stormPositionArray[i * 3],
+        stormPositionArray[i * 3 + 1],
+        stormPositionArray[i * 3 + 2]
+      )
       dummyInit.updateMatrix()
       stormMesh.setMatrixAt(i, dummyInit.matrix)
       stormMesh.setColorAt(i, stormColors[Math.floor((i / config.particleCount) * 5)])
@@ -471,7 +522,13 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
         const idx = instanceIndex.toVar()
 
         // 基于时间和索引的闪烁效果
-        const flicker = sin(time.mul(float(20)).add(float(idx).mul(float(0.1))).mul(float(0.5)).add(float(0.5)))
+        const flicker = sin(
+          time
+            .mul(float(20))
+            .add(float(idx).mul(float(0.1)))
+            .mul(float(0.5))
+            .add(float(0.5))
+        )
 
         // 纯白色闪电
         const lightningColor = vec3(float(1.0))
@@ -480,13 +537,21 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
       })()
     })
 
-    lightningMesh = new THREE.InstancedMesh(lightningGeometry, lightningMaterial as THREE.Material, config.lightningCount)
+    lightningMesh = new THREE.InstancedMesh(
+      lightningGeometry,
+      lightningMaterial as THREE.Material,
+      config.lightningCount
+    )
     lightningMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     lightningMesh.frustumCulled = false
 
     // 设置初始实例矩阵
     for (let i = 0; i < config.lightningCount; i++) {
-      dummyInit.position.set(lightningPositionArray[i * 3], lightningPositionArray[i * 3 + 1], lightningPositionArray[i * 3 + 2])
+      dummyInit.position.set(
+        lightningPositionArray[i * 3],
+        lightningPositionArray[i * 3 + 1],
+        lightningPositionArray[i * 3 + 2]
+      )
       dummyInit.updateMatrix()
       lightningMesh.setMatrixAt(i, dummyInit.matrix)
     }
@@ -513,7 +578,11 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
 
       for (let i = 0; i < config.particleCount; i++) {
         const idx = i * 3
-        dummy.position.set(stormPositionCache[idx], stormPositionCache[idx + 1], stormPositionCache[idx + 2])
+        dummy.position.set(
+          stormPositionCache[idx],
+          stormPositionCache[idx + 1],
+          stormPositionCache[idx + 2]
+        )
         dummy.updateMatrix()
         stormMesh!.setMatrixAt(i, dummy.matrix)
 
@@ -536,7 +605,11 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
 
       for (let i = 0; i < config.lightningCount; i++) {
         const idx = i * 3
-        dummy.position.set(lightningPositionCache[idx], lightningPositionCache[idx + 1], lightningPositionCache[idx + 2])
+        dummy.position.set(
+          lightningPositionCache[idx],
+          lightningPositionCache[idx + 1],
+          lightningPositionCache[idx + 2]
+        )
         dummy.updateMatrix()
         lightningMesh!.setMatrixAt(i, dummy.matrix)
       }
@@ -559,42 +632,54 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
 
     // 镜头 1: 俯视漩涡
     cinematicTimeline.to(camera.position, {
-      x: 0, y: 150, z: 30,
+      x: 0,
+      y: 150,
+      z: 30,
       duration: 4,
       ease: 'power2.inOut'
     })
 
     // 镜头 2: 环绕俯冲
     cinematicTimeline.to(camera.position, {
-      x: 80, y: 60, z: -50,
+      x: 80,
+      y: 60,
+      z: -50,
       duration: 4,
       ease: 'power2.inOut'
     })
 
     // 镜头 3: 近景漩涡中心
     cinematicTimeline.to(camera.position, {
-      x: 20, y: 20, z: 20,
+      x: 20,
+      y: 20,
+      z: 20,
       duration: 3,
       ease: 'power2.inOut'
     })
 
     // 镜头 4: 底部仰视
     cinematicTimeline.to(camera.position, {
-      x: 0, y: -100, z: 60,
+      x: 0,
+      y: -100,
+      z: 60,
       duration: 4,
       ease: 'power2.inOut'
     })
 
     // 镜头 5: 侧面全景
     cinematicTimeline.to(camera.position, {
-      x: 120, y: 40, z: 0,
+      x: 120,
+      y: 40,
+      z: 0,
       duration: 4,
       ease: 'power2.inOut'
     })
 
     // 镜头 6: 远景（回到初始位置）
     cinematicTimeline.to(camera.position, {
-      x: 0, y: 50, z: 120,
+      x: 0,
+      y: 50,
+      z: 120,
       duration: 3,
       ease: 'power2.inOut'
     })
@@ -624,7 +709,9 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
       })
 
       entranceTimeline.to(haloMeshes[i].scale, {
-        x: 1, y: 1, z: 1,
+        x: 1,
+        y: 1,
+        z: 1,
         duration: 2,
         delay: i * 0.1,
         ease: 'back.out(1.5)'
@@ -667,7 +754,7 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
 
       const currentTime = performance.now()
       if (currentTime - lastTime >= 1000) {
-        fps = frameCount * 1000 / (currentTime - lastTime)
+        fps = (frameCount * 1000) / (currentTime - lastTime)
         frameCount = 0
         lastTime = currentTime
       }
@@ -767,7 +854,7 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
         })
       }
 
-      haloMaterials.forEach((mat) => {
+      haloMaterials.forEach(mat => {
         fadeOutTimeline.to(mat, {
           opacity: 0,
           duration: 1,
@@ -849,10 +936,10 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
     if (lightningMaterial) {
       gsap.killTweensOf(lightningMaterial)
     }
-    haloMaterials.forEach((mat) => {
+    haloMaterials.forEach(mat => {
       gsap.killTweensOf(mat)
     })
-    haloMeshes.forEach((halo) => {
+    haloMeshes.forEach(halo => {
       gsap.killTweensOf(halo.scale)
     })
     if (camera) {
@@ -871,7 +958,7 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
     if (lightningMesh && scene) {
       scene.remove(lightningMesh)
     }
-    haloMeshes.forEach((halo) => {
+    haloMeshes.forEach(halo => {
       if (scene) scene.remove(halo)
     })
 
@@ -882,16 +969,16 @@ export const quantumStormEffect = async (container: HTMLElement): Promise<(() =>
     if (lightningMesh && lightningMesh.geometry) {
       lightningMesh.geometry.dispose()
     }
-    haloGeometries.forEach((geo) => geo.dispose())
+    haloGeometries.forEach(geo => geo.dispose())
 
     // 8. 释放材质
     if (stormMesh && stormMesh.material) {
-      (stormMesh.material as THREE.Material).dispose()
+      ;(stormMesh.material as THREE.Material).dispose()
     }
     if (lightningMesh && lightningMesh.material) {
-      (lightningMesh.material as THREE.Material).dispose()
+      ;(lightningMesh.material as THREE.Material).dispose()
     }
-    haloMaterials.forEach((mat) => mat.dispose())
+    haloMaterials.forEach(mat => mat.dispose())
 
     // 9. 释放渲染器
     if (renderer) {

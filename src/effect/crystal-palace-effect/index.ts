@@ -180,7 +180,8 @@ export const interstellarPortalEffect = (container: HTMLElement) => {
 
   // 创建能量环
   const createEnergyRings = () => {
-    const { ringCount, ringColor1, ringColor2, ringColor3, portalRadius, ringFlowGradient } = interstellarPortalEffectParams
+    const { ringCount, ringColor1, ringColor2, ringColor3, portalRadius, ringFlowGradient } =
+      interstellarPortalEffectParams
     const colors = [ringColor1, ringColor2, ringColor3]
 
     // 流动渐变色数组
@@ -353,44 +354,60 @@ export const interstellarPortalEffect = (container: HTMLElement) => {
     })
 
     // 第一阶段：正面推进
-    cameraTimeline.to(camera.position, {
-      x: 0,
-      y: 1,
-      z: 7,
-      duration: 5,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, 0)
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: 0,
+        y: 1,
+        z: 7,
+        duration: 5,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      0
+    )
 
     // 第二阶段：环绕上升
-    cameraTimeline.to(camera.position, {
-      x: 6,
-      y: 4,
-      z: 6,
-      duration: 5,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, 5)
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: 6,
+        y: 4,
+        z: 6,
+        duration: 5,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      5
+    )
 
     // 第三阶段：俯视穿越
-    cameraTimeline.to(camera.position, {
-      x: -4,
-      y: 5,
-      z: 8,
-      duration: 4,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, 10)
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: -4,
+        y: 5,
+        z: 8,
+        duration: 4,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      10
+    )
 
     // 第四阶段：返回起始
-    cameraTimeline.to(camera.position, {
-      x: 0,
-      y: 2,
-      z: 10,
-      duration: 4,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, 14)
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: 0,
+        y: 2,
+        z: 10,
+        duration: 4,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      14
+    )
   }
 
   // 入场动画
@@ -691,29 +708,41 @@ export const interstellarPortalEffect = (container: HTMLElement) => {
 
     // 淡出传送门核心
     if (portalCore && portalCore.material instanceof THREE.Material) {
-      fadeOutTimeline.to(portalCore.material, {
-        opacity: 0,
-        duration: 1,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        portalCore.material,
+        {
+          opacity: 0,
+          duration: 1,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
 
     // 淡出传送门内部
     if (portalInner && portalInner.material instanceof THREE.Material) {
-      fadeOutTimeline.to(portalInner.material, {
-        opacity: 0,
-        duration: 1,
-        ease: 'power2.out'
-      }, 0.2)
+      fadeOutTimeline.to(
+        portalInner.material,
+        {
+          opacity: 0,
+          duration: 1,
+          ease: 'power2.out'
+        },
+        0.2
+      )
     }
 
     // 淡出粒子系统
     if (particleSystem && particleSystem.material instanceof THREE.Material) {
-      fadeOutTimeline.to(particleSystem.material, {
-        opacity: 0,
-        duration: 1,
-        ease: 'power2.out'
-      }, 0.4)
+      fadeOutTimeline.to(
+        particleSystem.material,
+        {
+          opacity: 0,
+          duration: 1,
+          ease: 'power2.out'
+        },
+        0.4
+      )
     }
   }
 

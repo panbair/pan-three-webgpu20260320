@@ -218,7 +218,8 @@ export const quantumConsciousnessEffect = (container: HTMLElement) => {
 
   // 创建突触连接
   const createSynapses = () => {
-    const { connectionDistance, consciousnessColors, signalSpeed } = quantumConsciousnessEffectParams
+    const { connectionDistance, consciousnessColors, signalSpeed } =
+      quantumConsciousnessEffectParams
 
     for (let i = 0; i < neuronPositions.length; i++) {
       const connections: number[] = []
@@ -266,7 +267,8 @@ export const quantumConsciousnessEffect = (container: HTMLElement) => {
 
   // 创建思维粒子
   const createThoughtParticles = () => {
-    const { thoughtParticleCount, networkRadius, consciousnessColors } = quantumConsciousnessEffectParams
+    const { thoughtParticleCount, networkRadius, consciousnessColors } =
+      quantumConsciousnessEffectParams
 
     const geometry = new THREE.SphereGeometry(0.03, 8, 8)
     const material = new THREE.MeshBasicMaterial({
@@ -336,7 +338,8 @@ export const quantumConsciousnessEffect = (container: HTMLElement) => {
 
   // 创建光照系统
   const createLighting = () => {
-    const { consciousnessColors, pointLightIntensity, ambientLightIntensity } = quantumConsciousnessEffectParams
+    const { consciousnessColors, pointLightIntensity, ambientLightIntensity } =
+      quantumConsciousnessEffectParams
 
     // 多个彩色点光源
     const lightPositions = [
@@ -377,44 +380,60 @@ export const quantumConsciousnessEffect = (container: HTMLElement) => {
     })
 
     // 第一阶段：正面深入
-    cameraTimeline.to(camera.position, {
-      x: 0,
-      y: 2,
-      z: 15,
-      duration: 5,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, 0)
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: 0,
+        y: 2,
+        z: 15,
+        duration: 5,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      0
+    )
 
     // 第二阶段：环绕上升
-    cameraTimeline.to(camera.position, {
-      x: 12,
-      y: 8,
-      z: 10,
-      duration: 5,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, '>')
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: 12,
+        y: 8,
+        z: 10,
+        duration: 5,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      '>'
+    )
 
     // 第三阶段：穿越核心
-    cameraTimeline.to(camera.position, {
-      x: -10,
-      y: -5,
-      z: 12,
-      duration: 4.5,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, '>')
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: -10,
+        y: -5,
+        z: 12,
+        duration: 4.5,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      '>'
+    )
 
     // 第四阶段：返回高空
-    cameraTimeline.to(camera.position, {
-      x: 0,
-      y: 5,
-      z: 20,
-      duration: 5.5,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, '>')
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: 0,
+        y: 5,
+        z: 20,
+        duration: 5.5,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      '>'
+    )
   }
 
   // 入场动画
@@ -564,8 +583,12 @@ export const quantumConsciousnessEffect = (container: HTMLElement) => {
         if (thoughtFlow) {
           // 流动效果：粒子围绕中心旋转
           const angle = timestamp * 0.2 * particle.speed
-          const x = particle.originalPosition.x * Math.cos(angle) - particle.originalPosition.z * Math.sin(angle)
-          const z = particle.originalPosition.x * Math.sin(angle) + particle.originalPosition.z * Math.cos(angle)
+          const x =
+            particle.originalPosition.x * Math.cos(angle) -
+            particle.originalPosition.z * Math.sin(angle)
+          const z =
+            particle.originalPosition.x * Math.sin(angle) +
+            particle.originalPosition.z * Math.cos(angle)
 
           particle.position.x = x
           particle.position.y = particle.originalPosition.y + orbit
@@ -607,7 +630,8 @@ export const quantumConsciousnessEffect = (container: HTMLElement) => {
         const hue = (timestamp * 0.08 + i * 0.15) % 1
         const color = new THREE.Color().setHSL(hue, 1, 0.6)
         light.color.lerp(color, 0.01)
-        light.intensity = quantumConsciousnessEffectParams.pointLightIntensity + Math.sin(timestamp * 3 + i) * 0.3
+        light.intensity =
+          quantumConsciousnessEffectParams.pointLightIntensity + Math.sin(timestamp * 3 + i) * 0.3
       }
     })
 
@@ -758,37 +782,53 @@ export const quantumConsciousnessEffect = (container: HTMLElement) => {
     })
 
     // 淡出神经元
-    neurons.forEach((neuron) => {
-      fadeOutTimeline.to(neuron.mesh.material, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0)
+    neurons.forEach(neuron => {
+      fadeOutTimeline.to(
+        neuron.mesh.material,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0
+      )
     })
 
     // 淡出突触
-    synapses.forEach((synapse) => {
-      fadeOutTimeline.to(synapse.mesh.material, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0.2)
+    synapses.forEach(synapse => {
+      fadeOutTimeline.to(
+        synapse.mesh.material,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0.2
+      )
     })
 
     // 淡出思维粒子
-    fadeOutTimeline.to(thoughtParticleSystem.material, {
-      opacity: 0,
-      duration: 0.8,
-      ease: 'power2.out'
-    }, 0.3)
-
-    // 淡出意识环
-    consciousnessRings.forEach((ring) => {
-      fadeOutTimeline.to(ring.material, {
+    fadeOutTimeline.to(
+      thoughtParticleSystem.material,
+      {
         opacity: 0,
         duration: 0.8,
         ease: 'power2.out'
-      }, 0.4)
+      },
+      0.3
+    )
+
+    // 淡出意识环
+    consciousnessRings.forEach(ring => {
+      fadeOutTimeline.to(
+        ring.material,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0.4
+      )
     })
   }
 

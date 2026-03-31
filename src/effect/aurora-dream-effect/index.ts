@@ -22,15 +22,7 @@
 
 import * as THREE from 'three/webgpu'
 import gsap from 'gsap'
-import {
-  Fn,
-  float,
-  instanceIndex,
-  sin,
-  time,
-  uniform,
-  mix
-} from 'three/tsl'
+import { Fn, float, instanceIndex, sin, time, uniform, mix } from 'three/tsl'
 
 // ============================================
 // 特效参数配置
@@ -38,21 +30,22 @@ import {
 
 export const AuroraFantasyEffectParams = {
   // 粒子系统参数
-  starDustCount: 50000,     // 星尘粒子数量
+  starDustCount: 50000, // 星尘粒子数量
 
   // 极光参数
-  auroraRibbons: 8,          // 极光带数量
-  lightPillars: 6,           // 光柱数量
-  energyRipples: 5,          // 能量涟漪层数量
+  auroraRibbons: 8, // 极光带数量
+  lightPillars: 6, // 光柱数量
+  energyRipples: 5, // 能量涟漪层数量
 
   // 渲染参数（性能优化）
   pixelRatio: Math.min(window.devicePixelRatio, 0.75),
   antialias: false,
-  updateInterval: 2,         // 每2帧更新一次
+  updateInterval: 2, // 每2帧更新一次
 
   // 动画参数
-  cinematicDuration: 30,     // 运镜时长
-  cameraPositions: [         // 相机位置数组
+  cinematicDuration: 30, // 运镜时长
+  cameraPositions: [
+    // 相机位置数组
     { x: 0, y: 60, z: 120 },
     { x: 80, y: 40, z: 80 },
     { x: -80, y: 60, z: 100 },
@@ -159,19 +152,59 @@ export const auroraFantasyEffect = (container: HTMLElement) => {
         const segmentT = segment.sub(segmentIndex)
 
         // 根据段索引选择颜色对进行混合
-        const color0 = segmentIndex.equal(float(0)).select(neonColor0,
-                       segmentIndex.equal(float(1)).select(neonColor1,
-                       segmentIndex.equal(float(2)).select(neonColor2,
-                       segmentIndex.equal(float(3)).select(neonColor3,
-                       segmentIndex.equal(float(4)).select(neonColor4,
-                       segmentIndex.equal(float(5)).select(neonColor5, neonColor6))))))
+        const color0 = segmentIndex
+          .equal(float(0))
+          .select(
+            neonColor0,
+            segmentIndex
+              .equal(float(1))
+              .select(
+                neonColor1,
+                segmentIndex
+                  .equal(float(2))
+                  .select(
+                    neonColor2,
+                    segmentIndex
+                      .equal(float(3))
+                      .select(
+                        neonColor3,
+                        segmentIndex
+                          .equal(float(4))
+                          .select(
+                            neonColor4,
+                            segmentIndex.equal(float(5)).select(neonColor5, neonColor6)
+                          )
+                      )
+                  )
+              )
+          )
 
-        const color1 = segmentIndex.equal(float(0)).select(neonColor1,
-                       segmentIndex.equal(float(1)).select(neonColor2,
-                       segmentIndex.equal(float(2)).select(neonColor3,
-                       segmentIndex.equal(float(3)).select(neonColor4,
-                       segmentIndex.equal(float(4)).select(neonColor5,
-                       segmentIndex.equal(float(5)).select(neonColor6, neonColor0))))))
+        const color1 = segmentIndex
+          .equal(float(0))
+          .select(
+            neonColor1,
+            segmentIndex
+              .equal(float(1))
+              .select(
+                neonColor2,
+                segmentIndex
+                  .equal(float(2))
+                  .select(
+                    neonColor3,
+                    segmentIndex
+                      .equal(float(3))
+                      .select(
+                        neonColor4,
+                        segmentIndex
+                          .equal(float(4))
+                          .select(
+                            neonColor5,
+                            segmentIndex.equal(float(5)).select(neonColor6, neonColor0)
+                          )
+                      )
+                  )
+              )
+          )
 
         // 在颜色对之间进行平滑过渡
         const color = mix(color0, color1, segmentT)
@@ -186,7 +219,11 @@ export const auroraFantasyEffect = (container: HTMLElement) => {
       })()
     })
 
-    starMesh = new THREE.InstancedMesh(starGeometry, starMaterial as THREE.Material, config.starDustCount)
+    starMesh = new THREE.InstancedMesh(
+      starGeometry,
+      starMaterial as THREE.Material,
+      config.starDustCount
+    )
     starMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     starMesh.frustumCulled = false
 
@@ -254,17 +291,13 @@ export const auroraFantasyEffect = (container: HTMLElement) => {
       const radius = 50
 
       const pillarGeometry = new THREE.CylinderGeometry(2, 2, 150, 16, 1, true)
-      pillarGeometry.translate(
-        Math.cos(angle) * radius,
-        0,
-        Math.sin(angle) * radius
-      )
+      pillarGeometry.translate(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)
 
       const pillarMat = new THREE.MeshBasicNodeMaterial({
         transparent: true,
         opacity: 0.4,
         side: THREE.DoubleSide,
-        color: new THREE.Color().setHSL(0.6 + (i * 0.1) % 0.4, 0.8, 0.5)
+        color: new THREE.Color().setHSL(0.6 + ((i * 0.1) % 0.4), 0.8, 0.5)
       })
 
       pillarMaterials.push(pillarMat)
@@ -281,19 +314,14 @@ export const auroraFantasyEffect = (container: HTMLElement) => {
     console.log('[AuroraFantasy] 创建能量涟漪...')
 
     for (let i = 0; i < config.energyRipples; i++) {
-      const rippleGeometry = new THREE.RingGeometry(
-        10 + i * 15,
-        12 + i * 15,
-        64,
-        1
-      )
+      const rippleGeometry = new THREE.RingGeometry(10 + i * 15, 12 + i * 15, 64, 1)
       rippleGeometry.rotateX(-Math.PI / 2)
 
       const rippleMat = new THREE.MeshBasicNodeMaterial({
         transparent: true,
         opacity: 0.3,
         side: THREE.DoubleSide,
-        color: new THREE.Color().setHSL(0.4 + (i * 0.1) % 0.3, 0.9, 0.6)
+        color: new THREE.Color().setHSL(0.4 + ((i * 0.1) % 0.3), 0.9, 0.6)
       })
 
       rippleMaterials.push(rippleMat)
@@ -407,18 +435,22 @@ export const auroraFantasyEffect = (container: HTMLElement) => {
 
     config.cameraPositions.forEach((pos, index) => {
       if (cinematicTimeline) {
-        cinematicTimeline.to(camera!.position, {
-          x: pos.x,
-          y: pos.y,
-          z: pos.z,
-          duration: 1.8,
-          ease: 'power2.inOut',
-          onUpdate: () => {
-            if (camera) {
-              camera!.lookAt(0, 0, 0)
+        cinematicTimeline.to(
+          camera!.position,
+          {
+            x: pos.x,
+            y: pos.y,
+            z: pos.z,
+            duration: 1.8,
+            ease: 'power2.inOut',
+            onUpdate: () => {
+              if (camera) {
+                camera!.lookAt(0, 0, 0)
+              }
             }
-          }
-        }, index * 1.8) // 每个相机位置延迟 1.8 秒
+          },
+          index * 1.8
+        ) // 每个相机位置延迟 1.8 秒
       }
     })
 
@@ -501,38 +533,54 @@ export const auroraFantasyEffect = (container: HTMLElement) => {
 
     // 淡出星尘粒子
     if (starMaterial) {
-      fadeOutTimeline.to(starMaterial, {
-        opacity: 0,
-        duration: 1,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        starMaterial,
+        {
+          opacity: 0,
+          duration: 1,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
 
     // 淡出极光带
     auroraMaterials.forEach((mat, i) => {
-      fadeOutTimeline.to(mat, {
-        opacity: 0,
-        duration: 1,
-        ease: 'power2.out'
-      }, 0.2 + i * 0.05)
+      fadeOutTimeline.to(
+        mat,
+        {
+          opacity: 0,
+          duration: 1,
+          ease: 'power2.out'
+        },
+        0.2 + i * 0.05
+      )
     })
 
     // 淡出光柱
     pillarMaterials.forEach((mat, i) => {
-      fadeOutTimeline.to(mat, {
-        opacity: 0,
-        duration: 1,
-        ease: 'power2.out'
-      }, 0.3 + i * 0.05)
+      fadeOutTimeline.to(
+        mat,
+        {
+          opacity: 0,
+          duration: 1,
+          ease: 'power2.out'
+        },
+        0.3 + i * 0.05
+      )
     })
 
     // 淡出能量涟漪
     rippleMaterials.forEach((mat, i) => {
-      fadeOutTimeline.to(mat, {
-        opacity: 0,
-        duration: 1,
-        ease: 'power2.out'
-      }, 0.4 + i * 0.05)
+      fadeOutTimeline.to(
+        mat,
+        {
+          opacity: 0,
+          duration: 1,
+          ease: 'power2.out'
+        },
+        0.4 + i * 0.05
+      )
     })
   }
 
@@ -543,7 +591,7 @@ export const auroraFantasyEffect = (container: HTMLElement) => {
     console.log('[AuroraFantasy] 执行内部清理...')
 
     // 1. 停止所有动画
-    allTweens.forEach((tween) => {
+    allTweens.forEach(tween => {
       tween.kill()
     })
     allTweens = []
@@ -565,7 +613,7 @@ export const auroraFantasyEffect = (container: HTMLElement) => {
     // 4. 清空所有数组
     auroraCurves = []
 
-    auroraTubes.forEach((mesh) => {
+    auroraTubes.forEach(mesh => {
       scene?.remove(mesh)
       mesh.geometry.dispose()
       if (Array.isArray(mesh.material)) {
@@ -576,10 +624,10 @@ export const auroraFantasyEffect = (container: HTMLElement) => {
     })
     auroraTubes = []
 
-    auroraMaterials.forEach((mat) => mat.dispose())
+    auroraMaterials.forEach(mat => mat.dispose())
     auroraMaterials = []
 
-    lightPillars.forEach((mesh) => {
+    lightPillars.forEach(mesh => {
       scene?.remove(mesh)
       mesh.geometry.dispose()
       if (Array.isArray(mesh.material)) {
@@ -590,10 +638,10 @@ export const auroraFantasyEffect = (container: HTMLElement) => {
     })
     lightPillars = []
 
-    pillarMaterials.forEach((mat) => mat.dispose())
+    pillarMaterials.forEach(mat => mat.dispose())
     pillarMaterials = []
 
-    energyRipples.forEach((mesh) => {
+    energyRipples.forEach(mesh => {
       scene?.remove(mesh)
       mesh.geometry.dispose()
       if (Array.isArray(mesh.material)) {
@@ -604,7 +652,7 @@ export const auroraFantasyEffect = (container: HTMLElement) => {
     })
     energyRipples = []
 
-    rippleMaterials.forEach((mat) => mat.dispose())
+    rippleMaterials.forEach(mat => mat.dispose())
     rippleMaterials = []
 
     // 5. 移除星尘网格

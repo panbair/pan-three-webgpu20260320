@@ -42,10 +42,18 @@ computeVelocity = Fn(() => {
 
 ```typescript
 import {
-  uniform, varying, vec4,
-  instancedArray, instanceIndex,
-  Fn, If, Loop, Continue,
-  normalize, length, dot
+  uniform,
+  varying,
+  vec4,
+  instancedArray,
+  instanceIndex,
+  Fn,
+  If,
+  Loop,
+  Continue,
+  normalize,
+  length,
+  dot
 } from 'three/tsl'
 ```
 

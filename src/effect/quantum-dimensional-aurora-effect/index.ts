@@ -63,19 +63,19 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
 
   // ========== 配置 ==========
   const config = {
-    crystalCount: 16,          // 量子水晶数量
-    photonCount: 5000,         // 光子粒子数量
-    auroraCount: 12,           // 极光流数量
-    stardustCount: 3000,       // 星尘雨数量
-    rippleCount: 6,            // 时空涟漪数量
+    crystalCount: 16, // 量子水晶数量
+    photonCount: 5000, // 光子粒子数量
+    auroraCount: 12, // 极光流数量
+    stardustCount: 3000, // 星尘雨数量
+    rippleCount: 6, // 时空涟漪数量
 
     // 6段色相循环
     hueCycle: [0.45, 0.55, 0.65, 0.75, 0.85, 0.95],
-    saturation: 0.92,          // 高饱和度
+    saturation: 0.92, // 高饱和度
     lightness: 0.65,
 
     // 运镜时长
-    cameraSegmentDuration: 4.5,  // 每段运镜4.5秒，共27秒
+    cameraSegmentDuration: 4.5 // 每段运镜4.5秒，共27秒
   }
 
   // ========== 初始化渲染器 ==========
@@ -85,7 +85,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
 
     renderer = new THREE.WebGPURenderer({
       antialias: false,
-      alpha: true,
+      alpha: true
     }) as typeof THREE.WebGPURenderer
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0))
@@ -103,22 +103,22 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
   const loadTextures = async () => {
     const textureLoader = new THREE.TextureLoader()
 
-    crystalTexture = await new Promise<THREE.Texture>((resolve) => {
-      textureLoader.load('/images/shuijing1.jpg', (tex) => {
+    crystalTexture = await new Promise<THREE.Texture>(resolve => {
+      textureLoader.load('/images/shuijing1.jpg', tex => {
         tex.colorSpace = THREE.SRGBColorSpace
         resolve(tex)
       })
     })
 
-    butterflyTexture = await new Promise<THREE.Texture>((resolve) => {
-      textureLoader.load('/images/hudie.jpg', (tex) => {
+    butterflyTexture = await new Promise<THREE.Texture>(resolve => {
+      textureLoader.load('/images/hudie.jpg', tex => {
         tex.colorSpace = THREE.SRGBColorSpace
         resolve(tex)
       })
     })
 
-    diamondTexture = await new Promise<THREE.Texture>((resolve) => {
-      textureLoader.load('/images/zuanshi1.jpg', (tex) => {
+    diamondTexture = await new Promise<THREE.Texture>(resolve => {
+      textureLoader.load('/images/zuanshi1.jpg', tex => {
         tex.colorSpace = THREE.SRGBColorSpace
         resolve(tex)
       })
@@ -163,7 +163,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
       map: crystalTexture,
       side: THREE.DoubleSide,
       depthWrite: false,
-      blending: AdditiveBlending,
+      blending: AdditiveBlending
     })
 
     crystalMesh = new THREE.InstancedMesh(crystalGeometry, crystalMaterial, config.crystalCount)
@@ -204,7 +204,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
       map: butterflyTexture,
       side: THREE.DoubleSide,
       depthWrite: false,
-      blending: AdditiveBlending,
+      blending: AdditiveBlending
     })
 
     photonMesh = new THREE.InstancedMesh(photonGeometry, photonMaterial, config.photonCount)
@@ -246,7 +246,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
       transparent: true,
       side: THREE.DoubleSide,
       depthWrite: false,
-      blending: AdditiveBlending,
+      blending: AdditiveBlending
     })
 
     auroraMesh = new THREE.InstancedMesh(auroraGeometry, auroraMaterial, config.auroraCount)
@@ -277,7 +277,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
       transparent: true,
       map: diamondTexture,
       depthWrite: false,
-      blending: AdditiveBlending,
+      blending: AdditiveBlending
     })
 
     stardustMesh = new THREE.InstancedMesh(stardustGeometry, stardustMaterial, config.stardustCount)
@@ -305,7 +305,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
       transparent: true,
       side: THREE.DoubleSide,
       depthWrite: false,
-      blending: AdditiveBlending,
+      blending: AdditiveBlending
     })
 
     rippleMesh = new THREE.InstancedMesh(rippleGeometry, rippleMaterial, config.rippleCount)
@@ -324,7 +324,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
       y: 10,
       z: 30,
       duration: duration,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
 
     // 第2段：环绕旋转
@@ -334,7 +334,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
       z: 0,
       duration: duration,
       ease: 'power2.inOut',
-      delay: duration,
+      delay: duration
     })
 
     // 第3段：穿梭穿越
@@ -344,7 +344,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
       z: -30,
       duration: duration,
       ease: 'power2.inOut',
-      delay: duration * 2,
+      delay: duration * 2
     })
 
     // 第4段：全景扫视
@@ -354,7 +354,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
       z: 20,
       duration: duration,
       ease: 'power2.inOut',
-      delay: duration * 3,
+      delay: duration * 3
     })
 
     // 第5段：仰拍仰望
@@ -364,7 +364,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
       z: 30,
       duration: duration,
       ease: 'power2.inOut',
-      delay: duration * 4,
+      delay: duration * 4
     })
 
     // 第6段：螺旋上升
@@ -374,7 +374,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
       z: 0,
       duration: duration,
       ease: 'power2.out',
-      delay: duration * 5,
+      delay: duration * 5
     })
 
     allTweens.push(seg1, seg2, seg3, seg4, seg5, seg6)
@@ -398,7 +398,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
         z: 0,
         duration: 1.5,
         ease: 'elastic.out(1, 0.5)',
-        stagger: 0.05,
+        stagger: 0.05
       })
     }
 
@@ -412,7 +412,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
           z: 0,
           duration: 2,
           ease: 'power2.out',
-          delay: 0.3,
+          delay: 0.3
         },
         '<'
       )
@@ -426,7 +426,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
           opacity: 0,
           duration: 1.5,
           ease: 'power2.out',
-          delay: 0.5,
+          delay: 0.5
         },
         '<'
       )
@@ -440,7 +440,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
           opacity: 0,
           duration: 1.5,
           ease: 'power2.out',
-          delay: 0.7,
+          delay: 0.7
         },
         '<'
       )
@@ -454,16 +454,20 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
           opacity: 0,
           duration: 1.5,
           ease: 'power2.out',
-          delay: 0.9,
+          delay: 0.9
         },
         '<'
       )
     }
 
     // 启动运镜
-    timeline.call(() => {
-      playCameraAnimation()
-    }, null, '>')
+    timeline.call(
+      () => {
+        playCameraAnimation()
+      },
+      null,
+      '>'
+    )
 
     allTweens.push(timeline)
   }
@@ -581,11 +585,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
         dummy.position.set(stardustData[idx], stardustData[idx + 1], stardustData[idx + 2])
 
         // 旋转
-        dummy.rotation.set(
-          elapsed * stardustData[idx + 4],
-          elapsed * stardustData[idx + 5],
-          0
-        )
+        dummy.rotation.set(elapsed * stardustData[idx + 4], elapsed * stardustData[idx + 5], 0)
 
         // 缩放脉冲
         const pulse = 0.8 + 0.4 * Math.sin(elapsed * 3 + stardustData[idx + 3])
@@ -616,7 +616,8 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
         dummy.rotation.set(-Math.PI / 2, 0, elapsed * rippleData[idx + 4])
 
         // 扩散脉冲
-        const pulse = 1 + Math.sin(elapsed * rippleData[idx + 4] + rippleData[idx + 3]) * rippleData[idx + 5]
+        const pulse =
+          1 + Math.sin(elapsed * rippleData[idx + 4] + rippleData[idx + 3]) * rippleData[idx + 5]
         dummy.scale.set(pulse, pulse, pulse)
 
         dummy.updateMatrix()
@@ -642,7 +643,7 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
   // ========== 清理函数 ==========
   const cleanup = () => {
     // 步骤1: 杀死所有 GSAP tween
-    allTweens.forEach((tween) => tween.kill())
+    allTweens.forEach(tween => tween.kill())
 
     // 步骤2: 杀死所有对象上的 tween
     gsap.killTweensOf(camera?.position)
@@ -743,5 +744,5 @@ export const quantumDimensionalAuroraEffect = (container: HTMLElement): (() => v
 // ========== 参数导出 ==========
 export const quantumDimensionalAuroraEffectParams = {
   name: '量子维度极光之息',
-  effect: quantumDimensionalAuroraEffect,
+  effect: quantumDimensionalAuroraEffect
 }

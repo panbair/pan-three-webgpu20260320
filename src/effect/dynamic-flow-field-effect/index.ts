@@ -148,7 +148,7 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
       const wavePhase = Math.random() * Math.PI * 2
       const waveAmp = 0.3 + Math.random() * 0.7
 
-      const hue = (i / count * 0.5 + Math.random() * 0.1) % 1
+      const hue = ((i / count) * 0.5 + Math.random() * 0.1) % 1
       const saturation = 0.7 + Math.random() * 0.3
       const lightness = 0.5 + Math.random() * 0.2
       const scale = 0.8 + Math.random() * 0.8
@@ -209,23 +209,31 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
       }
     })
 
-    cameraTimeline.to(camera.position, {
-      x: 20,
-      y: 10,
-      z: 10,
-      duration: 4,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, 0)
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: 20,
+        y: 10,
+        z: 10,
+        duration: 4,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      0
+    )
 
-    cameraTimeline.to(camera.position, {
-      x: 10,
-      y: 15,
-      z: 20,
-      duration: 4,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, 4)
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: 10,
+        y: 15,
+        z: 20,
+        duration: 4,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      4
+    )
   }
 
   // 停止运镜动画
@@ -290,22 +298,31 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
       const p = particles[i]
 
       // 流场运动
-      const flowX = Math.sin(timeValue * p.flowSpeed + p.flowOffset) * dynamicFlowFieldEffectParams.waveAmplitude * intensity
-      const flowZ = Math.cos(timeValue * p.flowSpeed + p.flowOffset) * dynamicFlowFieldEffectParams.waveAmplitude * intensity
+      const flowX =
+        Math.sin(timeValue * p.flowSpeed + p.flowOffset) *
+        dynamicFlowFieldEffectParams.waveAmplitude *
+        intensity
+      const flowZ =
+        Math.cos(timeValue * p.flowSpeed + p.flowOffset) *
+        dynamicFlowFieldEffectParams.waveAmplitude *
+        intensity
 
       // 波浪运动
-      const waveY = Math.sin(p.baseX * dynamicFlowFieldEffectParams.waveFrequency + timeValue + p.wavePhase)
-        * Math.cos(p.baseZ * dynamicFlowFieldEffectParams.waveFrequency + timeValue + p.wavePhase)
-        * p.waveAmplitude
-        * dynamicFlowFieldEffectParams.waveAmplitude
-        * intensity
+      const waveY =
+        Math.sin(p.baseX * dynamicFlowFieldEffectParams.waveFrequency + timeValue + p.wavePhase) *
+        Math.cos(p.baseZ * dynamicFlowFieldEffectParams.waveFrequency + timeValue + p.wavePhase) *
+        p.waveAmplitude *
+        dynamicFlowFieldEffectParams.waveAmplitude *
+        intensity
 
       const x = p.baseX + flowX
       const y = p.baseY + waveY
       const z = p.baseZ + flowZ
 
       dummy.position.set(x, y, z)
-      dummy.scale.setScalar(p.scale * dynamicFlowFieldEffectParams.baseSize * (0.8 + 0.4 * flowIntensity.value))
+      dummy.scale.setScalar(
+        p.scale * dynamicFlowFieldEffectParams.baseSize * (0.8 + 0.4 * flowIntensity.value)
+      )
       dummy.updateMatrix()
       mesh.setMatrixAt(i, dummy.matrix)
 
@@ -449,11 +466,15 @@ export const dynamicFlowFieldEffect = (container: HTMLElement) => {
 
     // 淡出粒子
     if (material) {
-      fadeOutTimeline.to(material, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        material,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
   }
 

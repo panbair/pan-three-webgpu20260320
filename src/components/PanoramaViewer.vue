@@ -31,17 +31,30 @@ let renderer: THREE.WebGLRenderer | null = null
 let controls: OrbitControls | null = null
 let sphere: THREE.Mesh | null = null
 let animationId: number | null = null
-let autoRotate = true
-let autoRotateSpeed = 0.8
 let hintTimeout: number | null = null
 
 // 使用 public 目录的图片路径
-const PANORAMA_IMAGE = '/quanjingtu/home.png'
+// const PANORAMA_IMAGE = '/quanjingtu/home.png'
+
+const props = defineProps({
+  imageUrl: {
+    type: String,
+    default: '/quanjingtu/home.png'
+  },
+  autoRotate: {
+    type: Boolean,
+    default: true
+  },
+  autoRotateSpeed: {
+    type: Number,
+    default: 0.8
+  }
+})
 
 const initThree = async () => {
   try {
     console.log('PanoramaViewer: 初始化开始')
-    console.log('PanoramaViewer: 图片路径:', PANORAMA_IMAGE)
+    console.log('PanoramaViewer: 图片路径:', props.imageUrl)
 
     if (!containerRef.value) {
       console.error('PanoramaViewer: containerRef 为空')
@@ -58,8 +71,7 @@ const initThree = async () => {
 
     // 创建相机 - 相机在球体内部原点
     camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
-    camera.position.set( 0.00993113, 0.000887497, -0.0007647989)
-
+    camera.position.set(0.00993113, 0.000887497, -0.0007647989)
 
     // 创建WebGL渲染器，优先使用WebGPU（如果可用）
     renderer = new THREE.WebGLRenderer({
@@ -93,8 +105,8 @@ const initThree = async () => {
     controls.maxDistance = 10
     controls.rotateSpeed = -0.5
     controls.zoomSpeed = 1.2
-    controls.autoRotate = true
-    controls.autoRotateSpeed = autoRotateSpeed
+    controls.autoRotate = props.autoRotate
+    controls.autoRotateSpeed = props.autoRotateSpeed
     controls.enableKeys = false
 
     // 加载全景图纹理
@@ -103,15 +115,15 @@ const initThree = async () => {
     // 使用加载进度回调
     const texture = await new Promise<THREE.Texture>((resolve, reject) => {
       textureLoader.load(
-        PANORAMA_IMAGE,
-        (loadedTexture) => {
+        props.imageUrl,
+        loadedTexture => {
           resolve(loadedTexture)
         },
-        (progress) => {
+        progress => {
           const percent = (progress.loaded / progress.total) * 100
           loadingProgress.value = Math.round(percent)
         },
-        (err) => {
+        err => {
           console.error('加载全景图失败:', err)
           reject(err)
         }
@@ -176,9 +188,7 @@ const retry = () => {
 
 const handleDoubleClick = () => {
   if (controls) {
-    autoRotate = !autoRotate
-    controls.autoRotate = autoRotate
-    controls.autoRotateSpeed = autoRotateSpeed
+    controls.autoRotate = !controls.autoRotate
 
     // 显示提示
     if (hintTimeout) {

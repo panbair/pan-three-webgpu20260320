@@ -120,7 +120,7 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
         butterflyTexture = await new Promise<THREE.Texture>((resolve, reject) => {
           textureLoader.load(
             '/images/mifeng.jpg',
-            (texture) => {
+            texture => {
               texture.colorSpace = THREE.SRGBColorSpace
               // 启用透明度处理
               texture.minFilter = THREE.LinearMipMapLinearFilter
@@ -130,7 +130,7 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
               resolve(texture)
             },
             undefined,
-            (error) => {
+            error => {
               console.error('[GPU 粒子群集特效]纹理加载失败，使用备用方案', error)
               // 创建简单的圆形纹理作为备用
               const canvas = document.createElement('canvas')
@@ -234,7 +234,7 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
       material.transparent = true
       material.side = THREE.DoubleSide
       material.depthWrite = false
-      material.alphaToCoverage = true  // 使用 alpha to coverage 改善透明边缘
+      material.alphaToCoverage = true // 使用 alpha to coverage 改善透明边缘
 
       mesh = new THREE.InstancedMesh(geometry, material, count)
       mesh.matrixAutoUpdate = false
@@ -265,7 +265,9 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
 
         // Billboard：将位置变换到世界空间后，让平面始终朝向相机
         const worldPosition = particlePos.add(position)
-        const viewPosition = cameraViewMatrix.mul(vec4(worldPosition.x, worldPosition.y, worldPosition.z, 1.0))
+        const viewPosition = cameraViewMatrix.mul(
+          vec4(worldPosition.x, worldPosition.y, worldPosition.z, 1.0)
+        )
 
         return cameraProjectionMatrix.mul(viewPosition)
       })
@@ -719,11 +721,15 @@ export const gpuParticleFlockEffect = (container: HTMLElement) => {
 
     // 淡出粒子
     if (material) {
-      fadeOutTimeline.to(material, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        material,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
   }
 

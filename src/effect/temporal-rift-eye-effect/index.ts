@@ -29,7 +29,9 @@ export const temporalRiftEyeEffectParams = {
   animationDuration: 20
 }
 
-export const temporalRiftEyeEffect = (container: HTMLElement): {
+export const temporalRiftEyeEffect = (
+  container: HTMLElement
+): {
   cleanup: () => void
   stopCameraAnimation: () => void
   clearEffect: () => void
@@ -265,7 +267,7 @@ export const temporalRiftEyeEffect = (container: HTMLElement): {
     const endRadius = 200
 
     const startAngle = (i / config.spaceRays) * Math.PI * 2
-    const endAngle = startAngle + Math.PI / 4 + Math.random() * Math.PI / 4
+    const endAngle = startAngle + Math.PI / 4 + (Math.random() * Math.PI) / 4
 
     for (let j = 0; j <= 20; j++) {
       const t = j / 20
@@ -273,11 +275,7 @@ export const temporalRiftEyeEffect = (container: HTMLElement): {
       const angle = startAngle + (endAngle - startAngle) * t
       const height = Math.sin(t * Math.PI * 3) * 30
 
-      points.push(new THREE.Vector3(
-        Math.cos(angle) * radius,
-        height,
-        Math.sin(angle) * radius
-      ))
+      points.push(new THREE.Vector3(Math.cos(angle) * radius, height, Math.sin(angle) * radius))
     }
 
     const geometry = new THREE.BufferGeometry().setFromPoints(points)
@@ -345,7 +343,7 @@ export const temporalRiftEyeEffect = (container: HTMLElement): {
     stagger: 0.15,
     ease: 'elastic.out(1, 0.5)',
     delay: 0.5,
-    onUpdate: function() {
+    onUpdate: function () {
       for (let i = 0; i < diamondData.length; i++) {
         diamondMesh.getMatrixAt(i, dummy.matrix)
         dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale)
@@ -369,12 +367,15 @@ export const temporalRiftEyeEffect = (container: HTMLElement): {
   })
   allTweensArray.push(particleFadeIn)
 
-  const particleExpand = gsap.to({ progress: 0 }, {
-    progress: 1,
-    duration: 1.8,
-    ease: 'power3.out',
-    delay: 0.8
-  })
+  const particleExpand = gsap.to(
+    { progress: 0 },
+    {
+      progress: 1,
+      duration: 1.8,
+      ease: 'power3.out',
+      delay: 0.8
+    }
+  )
   allTweensArray.push(particleExpand)
 
   // 入场动画：裂隙环
@@ -410,13 +411,13 @@ export const temporalRiftEyeEffect = (container: HTMLElement): {
       ease: 'power1.out',
       repeat: -1,
       repeatDelay: 1,
-      onRepeat: function() {
+      onRepeat: function () {
         ripple.scale.set(0, 0, 1)
       },
-      onStart: function() {
+      onStart: function () {
         ripple.material.opacity = 0.6
       },
-      onUpdate: function() {
+      onUpdate: function () {
         const progress = this.progress()
         ripple.material.opacity = 0.6 * (1 - progress * 0.8)
       }
@@ -426,13 +427,17 @@ export const temporalRiftEyeEffect = (container: HTMLElement): {
 
   // 入场动画：相机推近
   const cameraTimeline = gsap.timeline({ paused: true })
-  cameraTimeline.to(camera.position, {
-    x: 0,
-    y: 40,
-    z: 200,
-    duration: 2.5,
-    ease: 'power3.out'
-  }, 0)
+  cameraTimeline.to(
+    camera.position,
+    {
+      x: 0,
+      y: 40,
+      z: 200,
+      duration: 2.5,
+      ease: 'power3.out'
+    },
+    0
+  )
 
   // 运镜动画：多角度观察
   const cinematicTimeline = gsap.timeline({
@@ -445,49 +450,69 @@ export const temporalRiftEyeEffect = (container: HTMLElement): {
   })
 
   // 角度1：俯视
-  cinematicTimeline.to(camera.position, {
-    x: 80,
-    y: 140,
-    z: 160,
-    duration: 3,
-    ease: 'power2.inOut'
-  }, 0)
+  cinematicTimeline.to(
+    camera.position,
+    {
+      x: 80,
+      y: 140,
+      z: 160,
+      duration: 3,
+      ease: 'power2.inOut'
+    },
+    0
+  )
 
   // 角度2：侧面
-  cinematicTimeline.to(camera.position, {
-    x: -160,
-    y: 50,
-    z: 120,
-    duration: 3,
-    ease: 'power2.inOut'
-  }, 3)
+  cinematicTimeline.to(
+    camera.position,
+    {
+      x: -160,
+      y: 50,
+      z: 120,
+      duration: 3,
+      ease: 'power2.inOut'
+    },
+    3
+  )
 
   // 角度3：底部仰视
-  cinematicTimeline.to(camera.position, {
-    x: 60,
-    y: -120,
-    z: 160,
-    duration: 3,
-    ease: 'power2.inOut'
-  }, 6)
+  cinematicTimeline.to(
+    camera.position,
+    {
+      x: 60,
+      y: -120,
+      z: 160,
+      duration: 3,
+      ease: 'power2.inOut'
+    },
+    6
+  )
 
   // 角度4：环绕
-  cinematicTimeline.to(camera.position, {
-    x: -80,
-    y: 80,
-    z: 180,
-    duration: 3,
-    ease: 'power2.inOut'
-  }, 9)
+  cinematicTimeline.to(
+    camera.position,
+    {
+      x: -80,
+      y: 80,
+      z: 180,
+      duration: 3,
+      ease: 'power2.inOut'
+    },
+    9
+  )
 
   // 角度5：回归正面
-  cinematicTimeline.to(camera.position, {
-    x: 0,
-    y: 40,
-    z: 200,
-    duration: 3,
-    ease: 'power2.inOut'
-  }, 12)
+  cinematicTimeline.to(
+    camera.position,
+    {
+      x: 0,
+      y: 40,
+      z: 200,
+      duration: 3,
+      ease: 'power2.inOut'
+    },
+    12
+  )
 
   // ============================================================
   // 🔄 动画循环
@@ -630,35 +655,51 @@ export const temporalRiftEyeEffect = (container: HTMLElement): {
     })
 
     // 淡出钻石
-    fadeOutTimeline.to(diamondMaterial, {
-      opacity: 0,
-      duration: 1,
-      ease: 'power2.out'
-    }, 0)
-
-    // 淡出粒子
-    fadeOutTimeline.to(particleMaterial, {
-      opacity: 0,
-      duration: 1,
-      ease: 'power2.out'
-    }, 0.2)
-
-    // 淡出裂隙环
-    ringMaterials.forEach((mat, i) => {
-      fadeOutTimeline.to(mat, {
+    fadeOutTimeline.to(
+      diamondMaterial,
+      {
         opacity: 0,
         duration: 1,
         ease: 'power2.out'
-      }, 0.3 + i * 0.05)
+      },
+      0
+    )
+
+    // 淡出粒子
+    fadeOutTimeline.to(
+      particleMaterial,
+      {
+        opacity: 0,
+        duration: 1,
+        ease: 'power2.out'
+      },
+      0.2
+    )
+
+    // 淡出裂隙环
+    ringMaterials.forEach((mat, i) => {
+      fadeOutTimeline.to(
+        mat,
+        {
+          opacity: 0,
+          duration: 1,
+          ease: 'power2.out'
+        },
+        0.3 + i * 0.05
+      )
     })
 
     // 淡出时空射线
     rayMaterials.forEach((mat, i) => {
-      fadeOutTimeline.to(mat, {
-        opacity: 0,
-        duration: 1,
-        ease: 'power2.out'
-      }, 0.4 + i * 0.05)
+      fadeOutTimeline.to(
+        mat,
+        {
+          opacity: 0,
+          duration: 1,
+          ease: 'power2.out'
+        },
+        0.4 + i * 0.05
+      )
     })
 
     // 停止运镜
@@ -670,7 +711,7 @@ export const temporalRiftEyeEffect = (container: HTMLElement): {
   // ============================================================
   const performCleanup = () => {
     // 1. 停止所有GSAP动画
-    allTweensArray.forEach((tween) => {
+    allTweensArray.forEach(tween => {
       try {
         tween.kill()
       } catch (e) {}
@@ -714,16 +755,16 @@ export const temporalRiftEyeEffect = (container: HTMLElement): {
     // 8. 释放几何体
     diamondGeometry.dispose()
     particleGeometry.dispose()
-    ringGeometries.forEach((geo) => geo.dispose())
-    rayGeometries.forEach((geo) => geo.dispose())
-    rippleGeometries.forEach((geo) => geo.dispose())
+    ringGeometries.forEach(geo => geo.dispose())
+    rayGeometries.forEach(geo => geo.dispose())
+    rippleGeometries.forEach(geo => geo.dispose())
 
     // 9. 释放材质
     diamondMaterial.dispose()
     particleMaterial.dispose()
-    ringMaterials.forEach((mat) => mat.dispose())
-    rayMaterials.forEach((mat) => mat.dispose())
-    rippleMaterials.forEach((mat) => mat.dispose())
+    ringMaterials.forEach(mat => mat.dispose())
+    rayMaterials.forEach(mat => mat.dispose())
+    rippleMaterials.forEach(mat => mat.dispose())
 
     // 10. 从容器移除
     if (renderer.domElement.parentNode === container) {

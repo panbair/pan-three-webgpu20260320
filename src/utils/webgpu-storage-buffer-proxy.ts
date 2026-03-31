@@ -97,7 +97,12 @@ export class HighPerformanceBoidsEffect {
   async init() {
     // 初始化 Three.js
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 1, 5000)
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      container.clientWidth / container.clientHeight,
+      1,
+      5000
+    )
     camera.position.set(0, 200, 500)
 
     this.renderer = new THREE.WebGPURenderer({
@@ -155,7 +160,7 @@ export class HighPerformanceBoidsEffect {
 
         if (count > 0) {
           alignment = alignment / count
-          cohesion = (cohesion / count) - pos
+          cohesion = cohesion / count - pos
         }
 
         // 更新速度
@@ -164,7 +169,7 @@ export class HighPerformanceBoidsEffect {
         // 速度限制
         let speed = norm(vel)
         if (speed > SPEED_LIMIT) {
-          vel = vel / speed * SPEED_LIMIT
+          vel = (vel / speed) * SPEED_LIMIT
         }
 
         // 更新位置

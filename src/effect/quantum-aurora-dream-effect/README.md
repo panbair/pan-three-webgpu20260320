@@ -5,6 +5,7 @@
 ### 四层粒子系统
 
 #### 1. 水晶立方体（量子节点）
+
 - **数量**: 12个
 - **几何体**: BoxGeometry (立方体)
 - **纹理**: shuijing1.jpg (水晶贴图)
@@ -21,6 +22,7 @@
 - **颜色**: 五段色相循环 (0.45 → 0.85)
 
 #### 2. 蝴蝶粒子（灵性飞舞）
+
 - **数量**: 4000个
 - **几何体**: PlaneGeometry (矩形平面)
 - **纹理**: hudie.jpg (蝴蝶贴图)
@@ -37,6 +39,7 @@
 - **颜色**: 高饱和度青-蓝-紫循环
 
 #### 3. 钻石粒子（星光闪烁）
+
 - **数量**: 2500个
 - **几何体**: BoxGeometry (立方体)
 - **纹理**: zuanshi1.jpg (钻石贴图)
@@ -51,6 +54,7 @@
 - **颜色**: 亮色调循环 (0.55 → 0.85)
 
 #### 4. 极光光带（赛博流动）
+
 - **数量**: 8条
 - **几何体**: TubeGeometry (管道)
 - **曲线**: CatmullRomCurve3 (贝塞尔曲线)
@@ -67,16 +71,19 @@
 ### 震撼配色系统
 
 #### 原版配色
+
 ```
 0.5(青) → 0.7(紫)
 ```
 
 #### 升级版配色（五段循环）
+
 ```
 0.45(深蓝) → 0.55(青) → 0.65(蓝) → 0.75(紫) → 0.85(粉红)
 ```
 
 #### 颜色参数
+
 - **饱和度**: 0.85-0.95 (极高饱和度)
 - **亮度**: 0.6-0.8 (明亮发光)
 - **色相速度**: 0.0004 rad/frame
@@ -85,6 +92,7 @@
 ### 电影级运镜系统（6段）
 
 #### 运镜阶段
+
 1. **远景俯冲** (4s): (30, 35, 30) → (22, 15, 22)
    - 从高空俯冲，展现全景
    - 缓动函数: power2.inOut
@@ -110,12 +118,14 @@
    - 缓动函数: power4.out
 
 #### 运镜特点
+
 - **入场完成**: 相机推近后自动触发运镜
 - **自动清理**: 运镜完成后自动执行淡出清理
 - **手动控制**: 支持 `stopCameraAnimation()` 停止运镜
 - **平滑过渡**: 每段运镜使用不同缓动函数
 
 #### 清理流程
+
 1. 运镜完成 → 自动触发 `performCleanup()`
 2. 淡出动画 (1.5s):
    - 所有材质 opacity → 0
@@ -133,9 +143,9 @@ const controller = quantumAuroraDreamEffect(containerElement)
 
 // 控制器接口：
 interface EffectController {
-  cleanup: () => void              // 立即清理特效（不等待淡出）
-  clearEffect: () => void       // 淡出清理特效（带1.5秒淡出动画）
-  stopCameraAnimation: () => void  // 停止运镜动画
+  cleanup: () => void // 立即清理特效（不等待淡出）
+  clearEffect: () => void // 淡出清理特效（带1.5秒淡出动画）
+  stopCameraAnimation: () => void // 停止运镜动画
 }
 
 // 使用示例：
@@ -166,6 +176,7 @@ cleanupFn() // 等同于 cleanup()
 ## 🎨 视觉效果描述
 
 ### 入场阶段 (0-2.5s)
+
 1. **0-0.5s**: 相机从远处 (45, 40, 45) 快速推近到 (22, 15, 22)
 2. **0-2.2s**: 水晶立方体从中心弹入 (back.out 弹性)
 3. **0.15-2.55s**: 蝴蝶粒子向外扩散 (back.out 弹性)
@@ -173,6 +184,7 @@ cleanupFn() // 等同于 cleanup()
 5. **0-1.5s**: 所有材质淡入 (opacity 0 → 目标值)
 
 ### 运镜阶段 (2.5s-27.5s)
+
 1. **远景俯冲** (4s): 相机移动到 (30, 35, 30)
 2. **环绕左侧** (4.5s): 相机环绕到左侧 (-25, 18, 20)
 3. **环绕右侧** (4.5s): 相机环绕到右侧 (25, 12, -22)
@@ -181,11 +193,13 @@ cleanupFn() // 等同于 cleanup()
 6. **缓慢拉远** (5s): 相机拉远到 (22, 15, 22)
 
 ### 淡出阶段 (27.5s-29s)
+
 1. 所有材质淡出 (opacity → 0)
 2. 所有粒子缩小 (scale → 0.01)
 3. 相机拉远到 (50, 50, 50)
 
 ### 持续效果
+
 - **呼吸动画**: 水晶整体缩放 1.0 ↔ 1.2 (2s 周期)
 - **脉冲动画**: 钻石整体缩放 1.0 ↔ 1.4 (1.5s 周期)
 - **蝴蝶振翅**: z 轴摆动模拟翅膀拍动
@@ -195,7 +209,9 @@ cleanupFn() // 等同于 cleanup()
 - **极光波浪**: 光带上下浮动 + 轻微旋转
 
 ### 整体呈现
+
 **赛博极光宇宙**的梦幻氛围：
+
 - 水晶立方体作为量子节点，高光反射
 - 蝴蝶粒子灵性飞舞，Billboard 效果始终朝向相机
 - 钻石粒子星光闪烁，AdditiveBlending 叠加光晕
@@ -207,6 +223,7 @@ cleanupFn() // 等同于 cleanup()
 ### 核心技术
 
 #### 1. WebGPU 渲染器
+
 ```typescript
 renderer = new THREE.WebGPURenderer({
   antialias: false,
@@ -216,30 +233,20 @@ renderer = new THREE.WebGPURenderer({
 ```
 
 #### 2. InstancedMesh 批量渲染
+
 ```typescript
 // 水晶: 12个实例
-crystalMesh = new THREE.InstancedMesh(
-  crystalGeometry,
-  crystalMaterial,
-  12
-)
+crystalMesh = new THREE.InstancedMesh(crystalGeometry, crystalMaterial, 12)
 
 // 蝴蝶: 4000个实例
-butterflyMesh = new THREE.InstancedMesh(
-  butterflyGeometry,
-  butterflyMaterial,
-  4000
-)
+butterflyMesh = new THREE.InstancedMesh(butterflyGeometry, butterflyMaterial, 4000)
 
 // 钻石: 2500个实例
-diamondMesh = new THREE.InstancedMesh(
-  diamondGeometry,
-  diamondMaterial,
-  2500
-)
+diamondMesh = new THREE.InstancedMesh(diamondGeometry, diamondMaterial, 2500)
 ```
 
 #### 3. Billboard 效果（蝴蝶）
+
 ```typescript
 // 始终朝向相机
 dummy.lookAt(camera.position)
@@ -248,6 +255,7 @@ dummy.rotation.z = Math.sin(time * 5 + phase) * 0.3
 ```
 
 #### 4. GSAP 动画系统
+
 ```typescript
 // 入场动画
 gsap.from(camera.position, {
@@ -274,6 +282,7 @@ cameraTimeline.to(camera.position, { ... })
 ```
 
 #### 5. 色相循环
+
 ```typescript
 // 五段色相循环
 let h = baseHue + time * colorCycleSpeed
@@ -326,19 +335,19 @@ color.setHSL(h, saturation, lightness)
 
 ## 🆚 与原版对比
 
-| 指标 | 原版 (ethereal-aurora) | 升级版 (quantum-aurora-dream) |
-|------|-------------------------|----------------------------------|
-| 渲染器 | WebGL | WebGPU |
-| 层次 | 3层 | 4层 |
-| 粒子总数 | 15000 | 6512 |
-| 几何体 | Points (点云) | InstancedMesh (实体) |
-| 纹理支持 | 程序化纹理 | 真实图片纹理 |
-| 入场 | 简单缩放 | 4段电影级 |
-| 配色 | 2段色相 | 5段色相 |
-| 饱和度 | 0.6-0.8 | 0.85-0.95 |
-| 运镜 | 无 | 6段电影级 |
-| 总时长 | 15秒 | 29秒 |
-| 清理 | 简单删除 | 淡出动画 |
+| 指标     | 原版 (ethereal-aurora) | 升级版 (quantum-aurora-dream) |
+| -------- | ---------------------- | ----------------------------- |
+| 渲染器   | WebGL                  | WebGPU                        |
+| 层次     | 3层                    | 4层                           |
+| 粒子总数 | 15000                  | 6512                          |
+| 几何体   | Points (点云)          | InstancedMesh (实体)          |
+| 纹理支持 | 程序化纹理             | 真实图片纹理                  |
+| 入场     | 简单缩放               | 4段电影级                     |
+| 配色     | 2段色相                | 5段色相                       |
+| 饱和度   | 0.6-0.8                | 0.85-0.95                     |
+| 运镜     | 无                     | 6段电影级                     |
+| 总时长   | 15秒                   | 29秒                          |
+| 清理     | 简单删除               | 淡出动画                      |
 
 ## 📁 文件结构
 

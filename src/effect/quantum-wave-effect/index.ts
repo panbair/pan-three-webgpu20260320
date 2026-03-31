@@ -560,11 +560,15 @@ export const quantumWaveEffect = (container: HTMLElement) => {
 
     // 淡出粒子
     if (material) {
-      fadeOutTimeline.to(material, {
-        opacity: 0,
-        duration: 1,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        material,
+        {
+          opacity: 0,
+          duration: 1,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
   }
 

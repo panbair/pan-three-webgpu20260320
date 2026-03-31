@@ -18,8 +18,8 @@
 ```typescript
 hueCycle: [0.92, 0.55, 0.35, 0.78, 0.08, 0.95]
 // 霓虹红 → 电光蓝 → 激光绿 → 紫罗兰 → 金橙 → 霓虹粉
-saturation: 0.95  // 超高饱和度
-lightness: 0.60
+saturation: 0.95 // 超高饱和度
+lightness: 0.6
 ```
 
 ### 3. 八段电影级运镜
@@ -186,18 +186,18 @@ cleanup()
 
 ```typescript
 const config = {
-  neuronCount: 32,          // 神经元数量
-  dataFlowCount: 5000,       // 数据流粒子数量
-  pulseCount: 16,           // 神经脉冲数量
-  sparkCount: 2000,         // 火花粒子数量
+  neuronCount: 32, // 神经元数量
+  dataFlowCount: 5000, // 数据流粒子数量
+  pulseCount: 16, // 神经脉冲数量
+  sparkCount: 2000, // 火花粒子数量
 
   // 6段色相循环（赛博朋克配色）
   hueCycle: [0.92, 0.55, 0.35, 0.78, 0.08, 0.95],
-  saturation: 0.95,          // 超高饱和度
-  lightness: 0.60,
+  saturation: 0.95, // 超高饱和度
+  lightness: 0.6,
 
   // 运镜时长
-  cameraSegmentDuration: 4.0,  // 每段运镜4秒，共32秒
+  cameraSegmentDuration: 4.0 // 每段运镜4秒，共32秒
 }
 ```
 
@@ -210,8 +210,8 @@ const config = {
 ```typescript
 // 初始化 WebGPU 渲染器
 renderer = new THREE.WebGPURenderer({
-  antialias: false,  // 禁用抗锯齿提升性能
-  alpha: true,      // 支持透明背景
+  antialias: false, // 禁用抗锯齿提升性能
+  alpha: true // 支持透明背景
 })
 
 // 必须先初始化 backend
@@ -275,20 +275,22 @@ const computeFn = Fn(() => {
 })
 
 // 创建循环
-const loopFn = Loop(10, (i) => {
+const loopFn = Loop(10, i => {
   const value = float(i)
   const result = value.mul(2.0)
   // 循环体
 })
 
 // 条件判断
-const conditionalFn = If(condition).Then(
-  // 为真时执行
-  value.assign(1.0)
-).Else(
-  // 为假时执行
-  value.assign(0.0)
-)
+const conditionalFn = If(condition)
+  .Then(
+    // 为真时执行
+    value.assign(1.0)
+  )
+  .Else(
+    // 为假时执行
+    value.assign(0.0)
+  )
 ```
 
 ### 3. Taichi.js 高性能计算
@@ -320,12 +322,12 @@ update(0.016)
 
 ### 4. 性能对比
 
-| 技术 | 粒子数量 | 性能 | 复杂度 |
-|------|----------|------|--------|
-| CPU 动画 | < 1000 | 低 | 低 |
-| Three.js TSL | 1000-5000 | 中 | 中 |
-| Taichi.js | 5000-50000 | 高 | 高 |
-| WebGPU Compute | 10000+ | 极高 | 极高 |
+| 技术           | 粒子数量   | 性能 | 复杂度 |
+| -------------- | ---------- | ---- | ------ |
+| CPU 动画       | < 1000     | 低   | 低     |
+| Three.js TSL   | 1000-5000  | 中   | 中     |
+| Taichi.js      | 5000-50000 | 高   | 高     |
+| WebGPU Compute | 10000+     | 极高 | 极高   |
 
 ### 5. 选择建议
 
@@ -338,14 +340,14 @@ update(0.016)
 
 ### vs 传统特效
 
-| 特性 | 传统特效 | 本特效 | 提升 |
-|------|----------|--------|------|
-| 粒子层数 | 2-3 | 4 | +33-100% |
-| 粒子总数 | 1000-5000 | 9032 | +80-900% |
-| 色相段数 | 2-3 | 6 | +100-200% |
-| 运镜段数 | 0-4 | 8 | +100-∞% |
-| 饱和度 | 0.7-0.8 | 0.95 | +18-35% |
-| 交互性 | 无 | 鼠标控制 | ∞ |
+| 特性     | 传统特效  | 本特效   | 提升      |
+| -------- | --------- | -------- | --------- |
+| 粒子层数 | 2-3       | 4        | +33-100%  |
+| 粒子总数 | 1000-5000 | 9032     | +80-900%  |
+| 色相段数 | 2-3       | 6        | +100-200% |
+| 运镜段数 | 0-4       | 8        | +100-∞%   |
+| 饱和度   | 0.7-0.8   | 0.95     | +18-35%   |
+| 交互性   | 无        | 鼠标控制 | ∞         |
 
 ## 已知限制
 

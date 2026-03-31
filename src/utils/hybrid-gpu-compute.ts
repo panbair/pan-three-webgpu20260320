@@ -19,10 +19,10 @@ import gsap from 'gsap'
  * 粒子复杂度分类
  */
 export enum ParticleComplexity {
-  Simple = 'simple',       // 简单粒子：随机运动、波浪、旋转
-  Medium = 'medium',       // 中等复杂度：简单的粒子间交互
-  Complex = 'complex',     // 复杂粒子：Boids、流体、大量邻居计算
-  Ultra = 'ultra'          // 超复杂：物理模拟、大规模交互
+  Simple = 'simple', // 简单粒子：随机运动、波浪、旋转
+  Medium = 'medium', // 中等复杂度：简单的粒子间交互
+  Complex = 'complex', // 复杂粒子：Boids、流体、大量邻居计算
+  Ultra = 'ultra' // 超复杂：物理模拟、大规模交互
 }
 
 /**
@@ -92,7 +92,9 @@ export class ThreeTSLParticleEffect {
       if (pos.x.abs().greaterThan(300)) vel.x.assign(vel.x.mul(-1))
       if (pos.y.abs().greaterThan(300)) vel.y.assign(vel.y.mul(-1))
       if (pos.z.abs().greaterThan(300)) vel.z.assign(vel.z.mul(-1))
-    }).compute(this.particleCount).setName('ThreeTSLCompute')
+    })
+      .compute(this.particleCount)
+      .setName('ThreeTSLCompute')
 
     // 创建 Mesh
     const geometry = new THREE.IcosahedronGeometry(1, 0)
@@ -192,7 +194,7 @@ export class TaichiJSParticleEffect {
 
         if (count > 0) {
           alignment = alignment / count
-          cohesion = (cohesion / count) - pos
+          cohesion = cohesion / count - pos
         }
 
         // 更新速度
@@ -201,7 +203,7 @@ export class TaichiJSParticleEffect {
         // 速度限制
         let speed = norm(vel)
         if (speed > SPEED_LIMIT) {
-          vel = vel / speed * SPEED_LIMIT
+          vel = (vel / speed) * SPEED_LIMIT
         }
 
         // 更新位置
@@ -235,11 +237,7 @@ export class TaichiJSParticleEffect {
     const dummy = new THREE.Object3D()
 
     for (let i = 0; i < this.particleCount; i++) {
-      dummy.position.set(
-        positions[i * 3 + 0],
-        positions[i * 3 + 1],
-        positions[i * 3 + 2]
-      )
+      dummy.position.set(positions[i * 3 + 0], positions[i * 3 + 1], positions[i * 3 + 2])
       dummy.scale.setScalar(1)
       dummy.updateMatrix()
       this.mesh.setMatrixAt(i, dummy.matrix)
@@ -277,18 +275,10 @@ export class HybridParticleEffect {
 
     if (backend === 'taichi-js') {
       console.log(`[HybridGPU] 使用 Taichi.js 后端 (${this.particleCount} 粒子)`)
-      this.effect = new TaichiJSParticleEffect(
-        this.scene,
-        this.renderer,
-        this.particleCount
-      )
+      this.effect = new TaichiJSParticleEffect(this.scene, this.renderer, this.particleCount)
     } else {
       console.log(`[HybridGPU] 使用 Three.js TSL 后端 (${this.particleCount} 粒子)`)
-      this.effect = new ThreeTSLParticleEffect(
-        this.scene,
-        this.renderer,
-        this.particleCount
-      )
+      this.effect = new ThreeTSLParticleEffect(this.scene, this.renderer, this.particleCount)
     }
 
     await this.effect.init()
@@ -339,7 +329,12 @@ export async function createHybridEffect(
   complexity: ParticleComplexity
 ) {
   const scene = new THREE.Scene()
-  const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 1, 5000)
+  const camera = new THREE.PerspectiveCamera(
+    60,
+    container.clientWidth / container.clientHeight,
+    1,
+    5000
+  )
   camera.position.set(0, 200, 500)
 
   const renderer = new THREE.WebGPURenderer({ antialias: false, alpha: true })

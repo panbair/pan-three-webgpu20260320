@@ -7,11 +7,13 @@
 ## 🎯 核心特性
 
 ### 1. 超大规模粒子系统
+
 - **粒子数量**: 50,000 个
 - **渲染方式**: Three.js InstancedMesh 批量渲染
 - **计算方式**: Taichi.js GPU 并行计算
 
 ### 2. SPH 流体物理引擎
+
 - **密度计算**: Poly6 核函数
 - **压力计算**: Tait 方程
 - **粘度计算**: Spiky 核函数
@@ -19,18 +21,21 @@
 - **边界处理**: 圆柱体容器
 
 ### 3. 交互式流体
+
 - **鼠标扰动**: 移动鼠标推开流体
 - **交互半径**: 20 单位
 - **交互强度**: 0.8
 - **平滑过渡**: 使用 GSAP 实现鼠标位置平滑
 
 ### 4. 霓虹配色
+
 - **7 段色相循环**: 霓虹红 → 电光蓝 → 激光绿 → 紫罗兰 → 金橙 → 霓虹粉 → 青色
 - **饱和度**: 0.95 (超高饱和度)
 - **亮度**: 0.60
 - **动态颜色**: 基于位置和时间自动变换
 
 ### 5. 6 段电影级运镜
+
 - **俯冲推进** (5 秒)
 - **环绕旋转** (5 秒)
 - **穿梭穿越** (5 秒)
@@ -39,6 +44,7 @@
 - **螺旋上升** (5 秒)
 
 ### 6. 性能优化
+
 - **GPU 并行计算**: Taichi.js kernel
 - **降频更新**: 每 2 帧同步一次到 Three.js
 - **InstancedMesh**: 批量渲染
@@ -97,6 +103,7 @@ W_poly6(r, h) = (315 / (64πh⁹)) * (h² - r²)³
 ```
 
 其中：
+
 - `r`: 粒子间距离
 - `h`: 平滑半径 (2.5 单位)
 
@@ -109,6 +116,7 @@ pressure = stiffness * (density - restDensity)
 ```
 
 其中：
+
 - `stiffness`: 压力刚度 (1500)
 - `restDensity`: 休息密度 (1000)
 
@@ -123,6 +131,7 @@ F_pressure = -∇p = -r̂ * (p_i + p_j) / 2 * ∇W_spiky(r, h)
 ```
 
 其中：
+
 ```typescript
 ∇W_spiky(r, h) = - (45 / (πh⁶)) * (h - r)² * r̂
 ```
@@ -130,10 +139,11 @@ F_pressure = -∇p = -r̂ * (p_i + p_j) / 2 * ∇W_spiky(r, h)
 **粘度力**:
 
 ```typescript
-F_viscosity = μ * Σ (v_j - v_i) * W_poly6(r, h)
+F_viscosity = μ * Σ(v_j - v_i) * W_poly6(r, h)
 ```
 
 其中：
+
 - `μ`: 粘度系数 (3)
 
 **重力**:
@@ -152,17 +162,18 @@ p_new = p_old + v_new * dt
 ```
 
 其中：
+
 - `dt`: 时间步长 (0.004)
 
 ## 🚀 性能指标
 
-| 指标 | 数值 |
-|------|------|
-| 粒子数量 | 50,000 |
-| 计算帧率 | ~60 FPS |
-| 渲染帧率 | ~60 FPS |
-| 内存占用 | ~20 MB |
-| GPU 利用率 | ~80% |
+| 指标       | 数值    |
+| ---------- | ------- |
+| 粒子数量   | 50,000  |
+| 计算帧率   | ~60 FPS |
+| 渲染帧率   | ~60 FPS |
+| 内存占用   | ~20 MB  |
+| GPU 利用率 | ~80%    |
 | 初始化时间 | ~500 ms |
 
 ## 📦 依赖项
@@ -179,15 +190,15 @@ p_new = p_old + v_new * dt
 
 ```typescript
 export const EffectParams = {
-  particleCount: 50000,        // 粒子数量
-  smoothingRadius: 2.5,        // SPH 平滑半径
-  restDensity: 1000,           // 休息密度
-  stiffness: 1500,            // 压力刚度
-  viscosity: 3,                // 粘度
-  gravity: -9.8,               // 重力加速度
-  timeStep: 0.004,            // 时间步长
-  interactionRadius: 20,       // 交互半径
-  interactionStrength: 0.8,   // 交互强度
+  particleCount: 50000, // 粒子数量
+  smoothingRadius: 2.5, // SPH 平滑半径
+  restDensity: 1000, // 休息密度
+  stiffness: 1500, // 压力刚度
+  viscosity: 3, // 粘度
+  gravity: -9.8, // 重力加速度
+  timeStep: 0.004, // 时间步长
+  interactionRadius: 20, // 交互半径
+  interactionStrength: 0.8 // 交互强度
 }
 ```
 
@@ -210,13 +221,13 @@ cleanup()
 
 ```typescript
 const hueCycle = [
-  0.92,  // 霓虹红
-  0.55,  // 电光蓝
-  0.35,  // 激光绿
-  0.78,  // 紫罗兰
-  0.08,  // 金橙
-  0.95,  // 霓虹粉
-  0.65,  // 青色
+  0.92, // 霓虹红
+  0.55, // 电光蓝
+  0.35, // 激光绿
+  0.78, // 紫罗兰
+  0.08, // 金橙
+  0.95, // 霓虹粉
+  0.65 // 青色
 ]
 ```
 
@@ -263,6 +274,7 @@ const color = new THREE.Color()
 **问题**: `TiError: Taichi backend not initialized`
 
 **解决方案**:
+
 ```typescript
 await ti.init({ arch: ti.gpu })
 ```
@@ -273,7 +285,7 @@ await ti.init({ arch: ti.gpu })
 
 ```typescript
 const config = {
-  particleCount: 25000, // 降低到 25000
+  particleCount: 25000 // 降低到 25000
   // ...
 }
 ```
@@ -284,8 +296,8 @@ const config = {
 
 ```typescript
 if (r > boundary_radius) {
-  positions[i][0] = x / r * boundary_radius
-  positions[i][2] = z / r * boundary_radius
+  positions[i][0] = (x / r) * boundary_radius
+  positions[i][2] = (z / r) * boundary_radius
   velocities[i][0] = velocities[i][0] * -0.5
   velocities[i][2] = velocities[i][2] * -0.5
 }

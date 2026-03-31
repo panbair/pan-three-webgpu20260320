@@ -102,7 +102,7 @@ const handleSwitch = (effectId: string) => {
   flex-direction: column;
   gap: 4px;
   padding: 8px;
-  max-height:50vh;
+  max-height: 50vh;
   overflow-y: auto;
 }
 
@@ -135,7 +135,9 @@ const handleSwitch = (effectId: string) => {
     background: linear-gradient(135deg, rgba(74, 158, 255, 0.5), rgba(59, 130, 246, 0.5));
     border-color: #4a9eff;
     color: #fff;
-    box-shadow: 0 0 20px rgba(74, 158, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    box-shadow:
+      0 0 20px rgba(74, 158, 255, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 }
 
@@ -155,7 +157,8 @@ const handleSwitch = (effectId: string) => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

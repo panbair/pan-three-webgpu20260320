@@ -154,7 +154,14 @@ export const dimensionalRiftEffect = (container: HTMLElement) => {
     const { coreComplexity, coreRadius, dimensionColors } = dimensionalRiftEffectParams
 
     // 使用 TorusKnotGeometry 创建复杂核心
-    const geometry = new THREE.TorusKnotGeometry(coreRadius, coreRadius * 0.3, coreComplexity, 32, 2, 3)
+    const geometry = new THREE.TorusKnotGeometry(
+      coreRadius,
+      coreRadius * 0.3,
+      coreComplexity,
+      32,
+      2,
+      3
+    )
 
     // 使用 MeshPhysicalMaterial 实现发光和折射
     const material = new THREE.MeshPhysicalMaterial({
@@ -209,10 +216,12 @@ export const dimensionalRiftEffect = (container: HTMLElement) => {
 
   // 创建裂隙环
   const createRiftRings = () => {
-    const { riftRingCount, riftRadius, eventHorizonRadius, dimensionColors, riftIntensity } = dimensionalRiftEffectParams
+    const { riftRingCount, riftRadius, eventHorizonRadius, dimensionColors, riftIntensity } =
+      dimensionalRiftEffectParams
 
     for (let i = 0; i < riftRingCount; i++) {
-      const radius = eventHorizonRadius * 1.5 + i * (riftRadius - eventHorizonRadius * 1.5) / riftRingCount
+      const radius =
+        eventHorizonRadius * 1.5 + (i * (riftRadius - eventHorizonRadius * 1.5)) / riftRingCount
 
       // 使用 TorusGeometry 创建环
       const geometry = new THREE.TorusGeometry(radius, radius * 0.02, 16, 128)
@@ -251,7 +260,8 @@ export const dimensionalRiftEffect = (container: HTMLElement) => {
 
   // 创建量子粒子
   const createQuantumParticles = () => {
-    const { particleCount, riftRadius, eventHorizonRadius, quantumEntanglement } = dimensionalRiftEffectParams
+    const { particleCount, riftRadius, eventHorizonRadius, quantumEntanglement } =
+      dimensionalRiftEffectParams
 
     const geometry = new THREE.SphereGeometry(0.04, 8, 8)
     const material = new THREE.MeshBasicMaterial({
@@ -351,7 +361,8 @@ export const dimensionalRiftEffect = (container: HTMLElement) => {
 
   // 创建光照系统
   const createLighting = () => {
-    const { coreLightIntensity, ambientLightIntensity, dimensionColors } = dimensionalRiftEffectParams
+    const { coreLightIntensity, ambientLightIntensity, dimensionColors } =
+      dimensionalRiftEffectParams
 
     // 核心光源（模拟事件视界）
     coreLight = new THREE.PointLight(dimensionColors[0], coreLightIntensity, 30)
@@ -383,44 +394,60 @@ export const dimensionalRiftEffect = (container: HTMLElement) => {
     })
 
     // 第一阶段：正面俯视
-    cameraTimeline.to(camera.position, {
-      x: 0,
-      y: 12,
-      z: 18,
-      duration: 6,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, 0)
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: 0,
+        y: 12,
+        z: 18,
+        duration: 6,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      0
+    )
 
     // 第二阶段：环绕下降
-    cameraTimeline.to(camera.position, {
-      x: 15,
-      y: 5,
-      z: 15,
-      duration: 6,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, 6)
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: 15,
+        y: 5,
+        z: 15,
+        duration: 6,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      6
+    )
 
     // 第三阶段：穿越裂隙
-    cameraTimeline.to(camera.position, {
-      x: -12,
-      y: -8,
-      z: 20,
-      duration: 6,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, 12)
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: -12,
+        y: -8,
+        z: 20,
+        duration: 6,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      12
+    )
 
     // 第四阶段：返回起点
-    cameraTimeline.to(camera.position, {
-      x: 0,
-      y: 8,
-      z: 25,
-      duration: 6,
-      ease: 'power2.inOut',
-      onUpdate: () => camera.lookAt(0, 0, 0)
-    }, 18)
+    cameraTimeline.to(
+      camera.position,
+      {
+        x: 0,
+        y: 8,
+        z: 25,
+        duration: 6,
+        ease: 'power2.inOut',
+        onUpdate: () => camera.lookAt(0, 0, 0)
+      },
+      18
+    )
   }
 
   // 停止运镜动画
@@ -505,7 +532,8 @@ export const dimensionalRiftEffect = (container: HTMLElement) => {
           ease: 'none',
           delay: index * 0.2,
           onUpdate: function () {
-            disk.material.opacity = 0.25 + Math.sin(this.targets()[0].value * 1.5 + index * 0.5) * 0.1
+            disk.material.opacity =
+              0.25 + Math.sin(this.targets()[0].value * 1.5 + index * 0.5) * 0.1
           }
         }
       )
@@ -543,7 +571,9 @@ export const dimensionalRiftEffect = (container: HTMLElement) => {
           ease: 'none',
           onUpdate: function () {
             if (coreLight) {
-              coreLight.intensity = dimensionalRiftEffectParams.coreLightIntensity + Math.sin(this.targets()[0].value * 2.5) * 0.5
+              coreLight.intensity =
+                dimensionalRiftEffectParams.coreLightIntensity +
+                Math.sin(this.targets()[0].value * 2.5) * 0.5
             }
           }
         }
@@ -725,7 +755,8 @@ export const dimensionalRiftEffect = (container: HTMLElement) => {
         // 量子纠缠效果
         if (quantumEntanglement && particle.partnerIndex >= 0) {
           const partner = particles[particle.partnerIndex]
-          const entanglement = Math.sin(timestamp * 2 + particle.phase) * particle.entanglementStrength * 0.3
+          const entanglement =
+            Math.sin(timestamp * 2 + particle.phase) * particle.entanglementStrength * 0.3
 
           particle.position.x = particle.originalPosition.x + entanglement
           particle.position.y = particle.originalPosition.y + orbit
@@ -739,9 +770,13 @@ export const dimensionalRiftEffect = (container: HTMLElement) => {
           particleSystem.setMatrixAt(i, dummy.matrix)
         } else {
           // 常规运动
-          particle.position.x = particle.originalPosition.x * Math.cos(timestamp * 0.2) - particle.originalPosition.z * Math.sin(timestamp * 0.2)
+          particle.position.x =
+            particle.originalPosition.x * Math.cos(timestamp * 0.2) -
+            particle.originalPosition.z * Math.sin(timestamp * 0.2)
           particle.position.y = particle.originalPosition.y + orbit
-          particle.position.z = particle.originalPosition.x * Math.sin(timestamp * 0.2) + particle.originalPosition.z * Math.cos(timestamp * 0.2)
+          particle.position.z =
+            particle.originalPosition.x * Math.sin(timestamp * 0.2) +
+            particle.originalPosition.z * Math.cos(timestamp * 0.2)
 
           const flicker = 0.6 + Math.sin(timestamp * 5 + particle.phase) * 0.4
           dummy.position.copy(particle.position)
@@ -965,29 +1000,41 @@ export const dimensionalRiftEffect = (container: HTMLElement) => {
 
     // 淡出维度核心
     if (dimensionCore && dimensionCore.material instanceof THREE.Material) {
-      fadeOutTimeline.to(dimensionCore.material, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        dimensionCore.material,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
 
     // 淡出事件视界
     if (eventHorizon && eventHorizon.material instanceof THREE.Material) {
-      fadeOutTimeline.to(eventHorizon.material, {
-        opacity: 0,
-        duration: 0.8,
-        ease: 'power2.out'
-      }, 0)
+      fadeOutTimeline.to(
+        eventHorizon.material,
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        },
+        0
+      )
     }
 
     // 淡出粒子系统
     if (particleSystem && particleSystem.material instanceof THREE.Material) {
-      fadeOutTimeline.to(particleSystem.material, {
-        opacity: 0,
-        duration: 0.6,
-        ease: 'power2.out'
-      }, 0.2)
+      fadeOutTimeline.to(
+        particleSystem.material,
+        {
+          opacity: 0,
+          duration: 0.6,
+          ease: 'power2.out'
+        },
+        0.2
+      )
     }
 
     // 淡出吸积盘

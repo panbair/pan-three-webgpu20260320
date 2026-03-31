@@ -15,7 +15,19 @@
 
 import * as THREE from 'three/webgpu'
 import gsap from 'gsap'
-import { instancedArray, Fn, instanceIndex, uniform, float, storage, uint, vec3, If, Loop, Return } from 'three/tsl'
+import {
+  instancedArray,
+  Fn,
+  instanceIndex,
+  uniform,
+  float,
+  storage,
+  uint,
+  vec3,
+  If,
+  Loop,
+  Return
+} from 'three/tsl'
 
 // ============================================
 // 特效参数配置
@@ -45,7 +57,7 @@ export const QuantumFluidSimulationEffectParams = {
 
   // 边界
   boundaryRadius: 120.0,
-  boundaryHeight: 240.0,
+  boundaryHeight: 240.0
 }
 
 // ============================================
@@ -118,7 +130,7 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
     // 渲染器
     renderer = new THREE.WebGPURenderer({
       antialias: false,
-      alpha: true,
+      alpha: true
     }) as typeof THREE.WebGPURenderer
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0))
@@ -193,7 +205,8 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
     }
     if (transferEl) {
       transferEl.textContent = transferTime.toFixed(2)
-      transferEl.style.color = transferTime < 3 ? '#00ff66' : transferTime < 5 ? '#ffaa00' : '#ff3333'
+      transferEl.style.color =
+        transferTime < 3 ? '#00ff66' : transferTime < 5 ? '#ffaa00' : '#ff3333'
     }
     if (renderEl) {
       renderEl.textContent = renderTime.toFixed(2)
@@ -259,7 +272,7 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       C,
       J,
       grid_v,
-      grid_m,
+      grid_m
     })
 
     // MPM 子步 kernel
@@ -275,16 +288,12 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
         let Xp = x[p] / dx
         let base = ti.i32(Xp - 0.5)
         let fx = Xp - base
-        let w = [
-          0.5 * (1.5 - fx) ** 2,
-          0.75 - (fx - 1) ** 2,
-          0.5 * (fx - 0.5) ** 2,
-        ]
+        let w = [0.5 * (1.5 - fx) ** 2, 0.75 - (fx - 1) ** 2, 0.5 * (fx - 0.5) ** 2]
         let stress = (-dt * 4 * E * p_vol * (J[p] - 1)) / dx ** 2
         let identity = [
           [1.0, 0.0, 0.0],
           [0.0, 1.0, 0.0],
-          [0.0, 0.0, 1.0],
+          [0.0, 0.0, 1.0]
         ]
         let affine = stress * identity + p_mass * C[p]
 
@@ -343,16 +352,12 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
         let Xp = x[p] / dx
         let base = ti.i32(Xp - 0.5)
         let fx = Xp - base
-        let w = [
-          0.5 * (1.5 - fx) ** 2,
-          0.75 - (fx - 1.0) ** 2,
-          0.5 * (fx - 0.5) ** 2,
-        ]
+        let w = [0.5 * (1.5 - fx) ** 2, 0.75 - (fx - 1.0) ** 2, 0.5 * (fx - 0.5) ** 2]
         let new_v = ti.f32([0.0, 0.0, 0.0])
         let new_C = ti.f32([
           [0.0, 0.0, 0.0],
           [0.0, 0.0, 0.0],
-          [0.0, 0.0, 0.0],
+          [0.0, 0.0, 0.0]
         ])
 
         for (let i of ti.static(ti.range(3))) {
@@ -384,7 +389,7 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
         C[i] = [
           [0, 0, 0],
           [0, 0, 0],
-          [0, 0, 0],
+          [0, 0, 0]
         ]
       }
     })
@@ -411,7 +416,7 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       color: 0x00ffff,
       transparent: true,
       opacity: 0.85,
-      side: THREE.DoubleSide,
+      side: THREE.DoubleSide
     })
 
     fluidMesh = new THREE.InstancedMesh(geometry, material, config.particleCount)
@@ -465,7 +470,9 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       pos.x.addAssign(waveX)
       pos.y.addAssign(waveY)
       pos.z.addAssign(waveZ)
-    })().compute(config.particleCount).setName('fluidParticleUpdate')
+    })()
+      .compute(config.particleCount)
+      .setName('fluidParticleUpdate')
 
     // 保存 uniform 引用
     particleCompute = { shader: updateShader, time: timeUniform }
@@ -596,7 +603,7 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       y: 50,
       z: 200,
       duration: 2,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
 
     // 2. 粒子扩散
@@ -607,7 +614,7 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
         y: 1,
         z: 1,
         duration: 1.5,
-        ease: 'back.out(1.7)',
+        ease: 'back.out(1.7)'
       },
       '<0.5'
     )
@@ -618,7 +625,7 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       {
         y: Math.PI * 2,
         duration: 3,
-        ease: 'power2.inOut',
+        ease: 'power2.inOut'
       },
       '<'
     )
@@ -643,14 +650,18 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       y: 20,
       z: 80,
       duration: 3.5,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
-    tl.to(camera.rotation, {
-      x: 0,
-      y: 0,
-      z: 0,
-      duration: 3.5,
-    }, '<')
+    tl.to(
+      camera.rotation,
+      {
+        x: 0,
+        y: 0,
+        z: 0,
+        duration: 3.5
+      },
+      '<'
+    )
 
     // 2. 环绕旋转 - 360度旋转
     tl.to(camera.position, {
@@ -658,14 +669,18 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       y: 30,
       z: 80,
       duration: 3.5,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
-    tl.to(camera.rotation, {
-      x: -0.1,
-      y: Math.PI * 0.5,
-      z: 0,
-      duration: 3.5,
-    }, '<')
+    tl.to(
+      camera.rotation,
+      {
+        x: -0.1,
+        y: Math.PI * 0.5,
+        z: 0,
+        duration: 3.5
+      },
+      '<'
+    )
 
     // 3. 穿梭穿越 - 从中心穿过
     tl.to(camera.position, {
@@ -673,14 +688,18 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       y: -30,
       z: -120,
       duration: 3.5,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
-    tl.to(camera.rotation, {
-      x: 0,
-      y: Math.PI,
-      z: 0,
-      duration: 3.5,
-    }, '<')
+    tl.to(
+      camera.rotation,
+      {
+        x: 0,
+        y: Math.PI,
+        z: 0,
+        duration: 3.5
+      },
+      '<'
+    )
 
     // 4. 全景扫视 - 斜向扫视
     tl.to(camera.position, {
@@ -688,14 +707,18 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       y: 60,
       z: 60,
       duration: 3.5,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
-    tl.to(camera.rotation, {
-      x: -0.15,
-      y: Math.PI * 1.5,
-      z: 0,
-      duration: 3.5,
-    }, '<')
+    tl.to(
+      camera.rotation,
+      {
+        x: -0.15,
+        y: Math.PI * 1.5,
+        z: 0,
+        duration: 3.5
+      },
+      '<'
+    )
 
     // 5. 仰拍仰望 - 高角度
     tl.to(camera.position, {
@@ -703,14 +726,18 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       y: 180,
       z: 100,
       duration: 3.5,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
-    tl.to(camera.rotation, {
-      x: -0.8,
-      y: 0,
-      z: 0,
-      duration: 3.5,
-    }, '<')
+    tl.to(
+      camera.rotation,
+      {
+        x: -0.8,
+        y: 0,
+        z: 0,
+        duration: 3.5
+      },
+      '<'
+    )
 
     // 6. 螺旋上升
     tl.to(camera.position, {
@@ -718,7 +745,7 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       y: 50,
       z: 400,
       duration: 4,
-      ease: 'power2.inOut',
+      ease: 'power2.inOut'
     })
 
     // 相机始终朝向中心
@@ -729,7 +756,7 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
       duration: 0.1,
       onUpdate: () => {
         camera.lookAt(0, 0, 0)
-      },
+      }
     })
 
     allTweens.push(...tl.getChildren())
@@ -764,7 +791,7 @@ export const quantumFluidSimulationEffect = (container: HTMLElement): (() => voi
     }
 
     // 1. 停止所有 GSAP 动画
-    allTweens.forEach((tween) => {
+    allTweens.forEach(tween => {
       try {
         tween.kill()
       } catch (e) {
