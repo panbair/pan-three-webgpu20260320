@@ -237,16 +237,17 @@
 </template>
 
 <script setup>
+import {getMusic, getTexturePath,getBg} from './config.js'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import PanoramaViewer from '@/components/PanoramaViewer.vue'
 
-const PANORAMA_IMAGE = '/quanjingtu/game.png'
+const PANORAMA_IMAGE = getBg()  || `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/quanjing-v5/h-v5-${1}.png`
 
 // 音乐系统
 const bgMusic = new Audio()
-const musicTracks = ['/music/1.mp3', '/music/2.mp3', '/music/3.mp3']
+const musicTracks = getMusic()
 const currentMusicIndex = ref(0)
 const isMuted = ref(false)
 const musicVolume = ref(0.5)
@@ -652,8 +653,7 @@ const disposeBlock = block => {
 // 加载随机纹理
 const loadBlockTexture = () => {
   // 随机选择 1-68 之间的图片
-  const randomIndex = Math.floor(Math.random() * BLOCK_TEXTURE_COUNT) + 1
-  const texturePath = `/game/${randomIndex}.png`
+  const texturePath = getTexturePath()
 
   // 检查缓存中是否已有该纹理
   if (textureCache.has(texturePath)) {
