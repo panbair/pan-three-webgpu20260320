@@ -11,7 +11,7 @@
           <div
             class="timer-progress-fill-top"
             :style="{
-              width: (timeLeft / 90) * 100 + '%',
+              width: timerPercentage + '%',
               background: timerColor
             }"
           ></div>
@@ -213,12 +213,18 @@
             <p v-if="maxCombo >= 20">🔥 连击大师！继续保持！</p>
             <p v-else-if="accuracy >= 95">🎯 精准打击！准确率惊人！</p>
             <p v-else-if="wpm >= 60">⚡ 速度狂人！手速惊人！</p>
-            <p v-else>再接再厉，挑战更高分数！</p>
+            <p v-else>分数很高，太厉害了！</p>
           </div>
-          <button class="restart-btn" @click="restartGame">
-            <span class="btn-icon">🔄</span>
-            <span>重新开始</span>
-          </button>
+          <div class="game-buttons">
+            <button class="continue-btn" @click="continueGame">
+              <span class="btn-icon">➕</span>
+              <span>继续挑战 +30秒</span>
+            </button>
+            <button class="restart-btn" @click="restartGame">
+              <span class="btn-icon">🔄</span>
+              <span>重新开始</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -238,7 +244,7 @@
 
 <script setup>
 import {getMusic, getTexturePath,getBg} from './config.js'
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import PanoramaViewer from '@/components/PanoramaViewer.vue'
@@ -322,9 +328,14 @@ const level = ref(1)
 const gameCanvas = ref(null)
 
 // 倒计时系统
-const timeLeft = ref(90) // 每关90秒
+const timeLeft = ref(60) // 每关60秒
 const timerInterval = ref(null)
-const LEVEL_TIME = 90 // 每关时间（秒）
+const LEVEL_TIME = 60 // 每局时间（秒）
+
+// 计算属性：倒计时百分比
+const timerPercentage = computed(() => {
+  return (timeLeft.value / LEVEL_TIME) * 100
+})
 
 // 连击系统
 const combo = ref(0)
@@ -511,6 +522,52 @@ const particleColors = [
   0xff6ec7 // 粉色
 ]
 
+// 粒子对象池（用于性能优化）
+const particlePool = {
+  mesh: [],
+  material: [],
+  maxPoolSize: 200 // 最大池大小
+}
+
+// 从对象池获取粒子材质
+const getParticleMaterial = color => {
+  if (particlePool.material.length > 0) {
+    const material = particlePool.material.pop()
+    material.color.setHex(color)
+    material.opacity = 1
+    return material
+  }
+  return new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 1
+  })
+}
+
+// 从对象池获取粒子网格
+const getParticleMesh = material => {
+  if (particlePool.mesh.length > 0) {
+    const mesh = particlePool.mesh.pop()
+    mesh.material = material
+    return mesh
+  }
+  return new THREE.Mesh(particleGeometry, material)
+}
+
+// 回收粒子到对象池
+const recycleParticle = (mesh, material) => {
+  if (particlePool.mesh.length < particlePool.maxPoolSize) {
+    particlePool.mesh.push(mesh)
+  } else {
+    mesh.geometry && mesh.geometry.dispose()
+  }
+  if (particlePool.material.length < particlePool.maxPoolSize) {
+    particlePool.material.push(material)
+  } else {
+    material.dispose()
+  }
+}
+
 // 浮动文本追踪（用于清理）
 const floatingTextSprites = []
 
@@ -538,8 +595,8 @@ const geometryPool = {
 }
 
 // 游戏参数
-const letterSpeed = 0.03 // 提高基础下落速度
-const spawnRate = 3.0 // 生成速率（每秒生成的方块数）
+const letterSpeed = 0.01 // 降低基础下落速度
+const spawnRate = 1.5 // 生成速率（每秒生成的方块数）
 const blockSize = 0.8
 const frameSize = 0.96
 
@@ -554,8 +611,8 @@ const LEVEL_CONFIG = {
   maxLevel: 20,
   // 每个等级的方块下落速度倍率
   speedMultiplier: [
-    0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7,
-    1.8, 2.0
+    0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1, 1.2, 1.3,
+    1.4, 1.5
   ],
   // 每个等级的生成速率倍率
   spawnMultiplier: [
@@ -716,7 +773,7 @@ const createBigFrameForBlock = (letter, blockPosition, blockRotation) => {
         ctx.strokeRect(4, 4, 248, 248)
 
         // 白色粗体字母
-        ctx.fillStyle = '#04f3fc'
+        ctx.fillStyle = '#f31818'
         ctx.font = 'bold 200px Arial'
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
@@ -988,7 +1045,6 @@ const createLetterBlock = letter => {
     speed: baseSpeed + Math.random() * 0.005,
     hit: false,
     bigFrame,
-    physicsBody: null, // 禁用物理引擎
     blockType,
     specialConfig
   }
@@ -1024,13 +1080,9 @@ const createExplosion = (position, color = 0xffd93d) => {
   const particleCount = 20 + Math.floor(Math.random() * 15) // 15-35个粒子
 
   for (let i = 0; i < particleCount; i++) {
-    const material = new THREE.MeshBasicMaterial({
-      color: particleColors[Math.floor(Math.random() * particleColors.length)],
-      transparent: true,
-      opacity: 1
-    })
-
-    const mesh = new THREE.Mesh(particleGeometry, material)
+    const particleColor = particleColors[Math.floor(Math.random() * particleColors.length)]
+    const material = getParticleMaterial(particleColor)
+    const mesh = getParticleMesh(material)
     mesh.position.copy(position)
 
     // 添加一些随机偏移，使爆炸更自然
@@ -1058,7 +1110,8 @@ const createExplosion = (position, color = 0xffd93d) => {
       mesh,
       velocity,
       life: 1,
-      decay: 0.02 + Math.random() * 0.01
+      decay: 0.02 + Math.random() * 0.01,
+      material // 保存材质引用以便回收
     }
     particles.push(particle)
 
@@ -1104,7 +1157,8 @@ const createExplosion = (position, color = 0xffd93d) => {
         if (scene) {
           scene.remove(mesh)
         }
-        material.dispose()
+        // 回收到对象池而不是dispose
+        recycleParticle(mesh, material)
       }
     })
   }
@@ -1142,12 +1196,6 @@ const explodeLetter = block => {
 
   // 创建爆炸粒子
   createExplosion(position)
-
-  // 清理物理刚体
-  if (block.physicsBody && block.physicsBody.rigidBody && physicsWorld) {
-    physicsWorld.removeRigidBody(block.physicsBody.rigidBody)
-    physicsBodies.delete(block.mesh.uuid)
-  }
 }
 
 // 升级特效
@@ -1231,43 +1279,40 @@ const createLevelUpEffect = newLevel => {
   ]
 
   for (let i = 0; i < particleCount; i++) {
-    const particleMaterial = new THREE.MeshBasicMaterial({
-      color: upgradeColors[Math.floor(Math.random() * upgradeColors.length)],
-      transparent: true,
-      opacity: 1
-    })
-
-    const particleMesh = new THREE.Mesh(particleGeometry, particleMaterial)
-    particleMesh.position.set(
+    const color = upgradeColors[Math.floor(Math.random() * upgradeColors.length)]
+    const material = getParticleMaterial(color)
+    const mesh = getParticleMesh(material)
+    mesh.position.set(
       (Math.random() - 0.5) * 8,
       6 + (Math.random() - 0.5) * 4,
       5 + (Math.random() - 0.5) * 4
     )
 
     if (scene) {
-      scene.add(particleMesh)
+      scene.add(mesh)
     }
 
     const particle = {
-      mesh: particleMesh,
+      mesh,
       velocity: new THREE.Vector3(
         (Math.random() - 0.5) * 12,
         Math.random() * 8,
         (Math.random() - 0.5) * 12
       ),
       life: 1,
-      decay: 0.015 + Math.random() * 0.01
+      decay: 0.015 + Math.random() * 0.01,
+      material // 保存材质引用以便回收
     }
     particles.push(particle)
 
     const duration = 2 + Math.random() * 1
     const targetPos = {
-      x: particleMesh.position.x + particle.velocity.x * duration,
-      y: particleMesh.position.y + particle.velocity.y * duration - 4,
-      z: particleMesh.position.z + particle.velocity.z * duration
+      x: mesh.position.x + particle.velocity.x * duration,
+      y: mesh.position.y + particle.velocity.y * duration - 4,
+      z: mesh.position.z + particle.velocity.z * duration
     }
 
-    gsap.to(particleMesh.position, {
+    gsap.to(mesh.position, {
       x: targetPos.x,
       y: targetPos.y,
       z: targetPos.z,
@@ -1275,7 +1320,7 @@ const createLevelUpEffect = newLevel => {
       ease: 'power2.out'
     })
 
-    gsap.to(particleMesh.scale, {
+    gsap.to(mesh.scale, {
       x: 0.1,
       y: 0.1,
       z: 0.1,
@@ -1284,7 +1329,7 @@ const createLevelUpEffect = newLevel => {
       delay: duration * 0.3
     })
 
-    gsap.to(particleMaterial, {
+    gsap.to(material, {
       opacity: 0,
       duration: duration,
       ease: 'power2.in',
@@ -1295,9 +1340,10 @@ const createLevelUpEffect = newLevel => {
           particles.splice(index, 1)
         }
         if (scene) {
-          scene.remove(particleMesh)
+          scene.remove(mesh)
         }
-        particleMaterial.dispose()
+        // 回收到对象池
+        recycleParticle(mesh, material)
       }
     })
   }
@@ -1372,46 +1418,32 @@ const showFloatingText = (text, position, color) => {
   activeAnimations.push(positionTween, opacityTween)
 }
 
-// 创建特效方块特殊视觉效果
+// 创建特效方块特殊视觉效果（使用对象池优化）
 const createSpecialEffect = (position, type) => {
-  const effectParticles = []
   const particleCount = 30
 
+  const colors = {
+    fire: [0xff4500, 0xff6b35, 0xffd700],
+    time: [0x00bfff, 0x00d4ff, 0xffffff],
+    diamond: [0x00ffff, 0x40e0d0, 0xffffff],
+    ice: [0x87ceeb, 0xadd8e6, 0xffffff],
+    rainbow: [0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x0000ff, 0x4b0082, 0x9400d3]
+  }
+
+  const typeColors = colors[type] || [0xffffff]
+
   for (let i = 0; i < particleCount; i++) {
-    const color = (() => {
-      switch (type) {
-        case 'fire':
-          return [0xff4500, 0xff6b35, 0xffd700][Math.floor(Math.random() * 3)]
-        case 'time':
-          return [0x00bfff, 0x00d4ff, 0xffffff][Math.floor(Math.random() * 3)]
-        case 'diamond':
-          return [0x00ffff, 0x40e0d0, 0xffffff][Math.floor(Math.random() * 3)]
-        case 'ice':
-          return [0x87ceeb, 0xadd8e6, 0xffffff][Math.floor(Math.random() * 3)]
-        case 'rainbow':
-          return [
-            0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x0000ff, 0x4b0082, 0x9400d3
-          ][Math.floor(Math.random() * 7)]
-        default:
-          return 0xffffff
-      }
-    })()
-
-    const particleMaterial = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 1
-    })
-
-    const particleMesh = new THREE.Mesh(particleGeometry, particleMaterial)
-    particleMesh.position.copy(position)
+    const color = typeColors[Math.floor(Math.random() * typeColors.length)]
+    const material = getParticleMaterial(color)
+    const mesh = getParticleMesh(material)
+    mesh.position.copy(position)
 
     if (scene) {
-      scene.add(particleMesh)
+      scene.add(mesh)
     }
 
     const particle = {
-      mesh: particleMesh,
+      mesh,
       velocity: new THREE.Vector3(
         (Math.random() - 0.5) * 8,
         Math.random() * 6,
@@ -1419,19 +1451,19 @@ const createSpecialEffect = (position, type) => {
       ),
       life: 1,
       decay: 0.02 + Math.random() * 0.01,
-      material: particleMaterial // 追踪材质以便清理
+      material // 保存材质引用以便回收
     }
     particles.push(particle)
 
-    const positionTween = gsap.to(particleMesh.position, {
-      x: particleMesh.position.x + particle.velocity.x * 1.5,
-      y: particleMesh.position.y + particle.velocity.y * 1.5,
-      z: particleMesh.position.z + particle.velocity.z * 1.5,
+    const positionTween = gsap.to(mesh.position, {
+      x: mesh.position.x + particle.velocity.x * 1.5,
+      y: mesh.position.y + particle.velocity.y * 1.5,
+      z: mesh.position.z + particle.velocity.z * 1.5,
       duration: 1.5,
       ease: 'power2.out'
     })
 
-    const scaleTween = gsap.to(particleMesh.scale, {
+    const scaleTween = gsap.to(mesh.scale, {
       x: 0,
       y: 0,
       z: 0,
@@ -1439,7 +1471,7 @@ const createSpecialEffect = (position, type) => {
       ease: 'power2.in'
     })
 
-    const opacityTween = gsap.to(particleMaterial, {
+    const opacityTween = gsap.to(material, {
       opacity: 0,
       duration: 1.5,
       onComplete: () => {
@@ -1448,9 +1480,10 @@ const createSpecialEffect = (position, type) => {
           particles.splice(index, 1)
         }
         if (scene) {
-          scene.remove(particleMesh)
+          scene.remove(mesh)
         }
-        particleMaterial.dispose()
+        // 回收到对象池
+        recycleParticle(mesh, material)
       }
     })
 
@@ -1500,24 +1533,29 @@ const updateGame = () => {
       block.bigFrame.mesh.rotation.y = block.mesh.rotation.y
     }
 
-    // 彩虹方块动态变色（降低更新频率以优化性能）
-    if (block.blockType === SPECIAL_BLOCK_TYPES.RAINBOW && block.mesh.material && !block.lastColorUpdate) {
-      block.lastColorUpdate = 0
-    }
-    if (
-      block.blockType === SPECIAL_BLOCK_TYPES.RAINBOW &&
-      block.mesh.material &&
-      Date.now() - (block.lastColorUpdate || 0) > 100
-    ) {
-      block.lastColorUpdate = Date.now()
-      const time = Date.now() * 0.001
-      const hue = (time * 2) % 6
-      const color = new THREE.Color().setHSL(hue / 6, 1, 0.5)
-      const materials = Array.isArray(block.mesh.material) ? block.mesh.material : [block.mesh.material]
-      materials.forEach(mat => {
-        if (mat.color) mat.color.copy(color)
-        if (mat.emissive) mat.emissive.copy(color)
-      })
+    // 彩虹方块动态变色（优化：降低更新频率并使用缓存颜色）
+    if (block.blockType === SPECIAL_BLOCK_TYPES.RAINBOW && block.mesh.material) {
+      if (!block.lastColorUpdate) {
+        block.lastColorUpdate = 0
+        block.cachedColor = new THREE.Color() // 缓存颜色对象
+      }
+      const updateTime = 250 // 从100ms提升到250ms，减少70%更新频率
+      if (Date.now() - block.lastColorUpdate > updateTime) {
+        block.lastColorUpdate = Date.now()
+        const time = Date.now() * 0.0005 // 降低颜色变化速度
+        const hue = (time * 2) % 6
+        block.cachedColor.setHSL(hue / 6, 1, 0.5)
+        const materials = Array.isArray(block.mesh.material) ? block.mesh.material : [block.mesh.material]
+        // 只更新必要的属性
+        materials.forEach(mat => {
+          if (mat.color && mat.color.getHex() !== block.cachedColor.getHex()) {
+            mat.color.copy(block.cachedColor)
+          }
+          if (mat.emissive && mat.emissive.getHex() !== block.cachedColor.getHex()) {
+            mat.emissive.copy(block.cachedColor)
+          }
+        })
+      }
     }
 
     // 检查方块是否超出边界（左右上下前后）
@@ -1583,7 +1621,7 @@ const startGame = () => {
   startTimer()
 
   const levelConfig = getCurrentLevelConfig()
-  // 修正生成间隔计算，使生成更均匀
+  // 调整生成间隔，确保方块一个一个均匀生成
   const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier)
 
   spawnInterval = setInterval(() => {
@@ -1618,10 +1656,9 @@ const startTimer = () => {
   }, 100)
 }
 
-// 升级
+// 升级（每局90秒，升级不增加时间）
 const levelUp = () => {
   level.value++
-  timeLeft.value += 60 // 增加60秒
 
   // 升级特效：创建升级粒子爆炸
   createLevelUpEffect(level.value)
@@ -1643,6 +1680,50 @@ const checkLevelUp = () => {
   }
 }
 
+// 继续挑战（添加时间，保留分数）
+const continueGame = () => {
+  // 停止现有的计时器（防止重复）
+  if (timerInterval.value) {
+    clearInterval(timerInterval.value)
+    timerInterval.value = null
+  }
+
+  // 停止现有的方块生成（防止重复）
+  if (spawnInterval) {
+    clearInterval(spawnInterval)
+    spawnInterval = null
+  }
+
+  // 增加时间
+  timeLeft.value += 30
+
+  // 更新计时器颜色
+  updateTimerColor()
+  updateTimerTextColor()
+
+  // 重新开始游戏动画循环
+  gameState.value = 'playing'
+
+  // 播放音乐
+  playMusic()
+
+  animate()
+
+  // 启动倒计时
+  startTimer()
+
+  const levelConfig = getCurrentLevelConfig()
+  const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier)
+
+  spawnInterval = setInterval(() => {
+    if (gameState.value === 'playing') {
+      spawnLetterBlock()
+    } else {
+      clearInterval(spawnInterval)
+    }
+  }, spawnIntervalTime)
+}
+
 // 结束游戏
 const endGame = () => {
   gameState.value = 'gameover'
@@ -1651,6 +1732,12 @@ const endGame = () => {
   if (animationId) {
     cancelAnimationFrame(animationId)
     animationId = null
+  }
+
+  // 停止倒计时
+  if (timerInterval.value) {
+    clearInterval(timerInterval.value)
+    timerInterval.value = null
   }
 
   // 停止方块生成
@@ -1710,13 +1797,13 @@ const restartGame = () => {
   })
   floatingTextSprites.length = 0
 
-  // 清理粒子
+  // 清理粒子并回收到对象池
   particles.forEach(p => {
     if (p.mesh && scene) {
       scene.remove(p.mesh)
     }
-    if (p.material) {
-      p.material.dispose()
+    if (p.material && p.mesh) {
+      recycleParticle(p.mesh, p.material)
     }
   })
   particles.length = 0
@@ -1730,6 +1817,7 @@ const restartGame = () => {
   gameState.value = 'ready'
   score.value = 0
   level.value = 1
+  timeLeft.value = LEVEL_TIME // 重置倒计时
 
   // 重置统计
   combo.value = 0
@@ -1743,6 +1831,8 @@ const restartGame = () => {
 
   // 重置等级配置
   updateLevelConfig()
+  updateTimerColor()
+  updateTimerTextColor()
 
   updateFrustumBounds()
 }
@@ -1775,12 +1865,6 @@ const pauseGame = () => {
 // 继续游戏
 const resumeGame = () => {
   if (gameState.value === 'paused') {
-    if (spawnInterval) {
-      clearInterval(spawnInterval)
-    }
-
-    gameState.value = 'playing'
-
     // 恢复所有GSAP动画
     gsap.globalTimeline.resume()
 
@@ -1788,23 +1872,25 @@ const resumeGame = () => {
 
     // 播放音乐
     playMusic()
-    spawnInterval = null
-  }
 
-  gameState.value = 'playing'
-  animate()
+    gameState.value = 'playing'
 
-  const levelConfig = getCurrentLevelConfig()
-  // 修正生成间隔计算，使生成更均匀
-  const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier)
-
-  spawnInterval = setInterval(() => {
-    if (gameState.value === 'playing') {
-      spawnLetterBlock()
-    } else {
+    // 重新设置方块生成间隔
+    if (spawnInterval) {
       clearInterval(spawnInterval)
     }
-  }, spawnIntervalTime)
+
+    const levelConfig = getCurrentLevelConfig()
+    const spawnIntervalTime = 1000 / (spawnRate * levelConfig.spawnMultiplier)
+
+    spawnInterval = setInterval(() => {
+      if (gameState.value === 'playing') {
+        spawnLetterBlock()
+      } else {
+        clearInterval(spawnInterval)
+      }
+    }, spawnIntervalTime)
+  }
 }
 
 // 处理按键输入
@@ -2029,13 +2115,13 @@ onBeforeUnmount(() => {
   letterBlocks.forEach(block => disposeBlock(block))
   letterBlocks.length = 0
 
-  // 清理粒子
+  // 清理粒子并回收到对象池
   particles.forEach(p => {
     if (p.mesh && scene) {
       scene.remove(p.mesh)
     }
-    if (p.material) {
-      p.material.dispose()
+    if (p.material && p.mesh) {
+      recycleParticle(p.mesh, p.material)
     }
   })
   particles.length = 0
@@ -2088,11 +2174,25 @@ onBeforeUnmount(() => {
     geometryPool.frame = null
   }
 
-  // 清理粒子几何体
+  // 清理粒子几何体和对象池
   if (particleGeometry) {
     particleGeometry.dispose()
     particleGeometry = null
   }
+
+  // 清理粒子对象池
+  particlePool.mesh.forEach(mesh => {
+    if (mesh && mesh.geometry) {
+      mesh.geometry.dispose()
+    }
+  })
+  particlePool.material.forEach(material => {
+    if (material && typeof material.dispose === 'function') {
+      material.dispose()
+    }
+  })
+  particlePool.mesh.length = 0
+  particlePool.material.length = 0
 
   // 清理边界辅助线
   if (scene && scene.userData.boundaryHelpers) {
@@ -2837,7 +2937,7 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  padding: 18px 64px;
+  padding: 10px;
   font-size: 22px;
   font-weight: bold;
   border-radius: 30px;
@@ -2952,7 +3052,7 @@ onBeforeUnmount(() => {
 .game-status .restart-btn {
   background: linear-gradient(135deg, #ff6b6b 0%, #f093fb 100%);
   box-shadow: 0 6px 20px rgba(255, 107, 107, 0.5);
-  padding: 18px 64px;
+  padding: 10px;
   font-size: 22px;
   min-width: 200px;
 }
@@ -2963,6 +3063,32 @@ onBeforeUnmount(() => {
 }
 
 .game-status .restart-btn:active {
+  transform: translateY(-1px);
+}
+
+.game-status .game-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.game-status .continue-btn {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  box-shadow: 0 6px 20px rgba(79, 172, 254, 0.5);
+  padding: 10px;
+  font-size: 22px;
+  min-width: 200px;
+  transition: all 0.3s ease;
+}
+
+.game-status .continue-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(79, 172, 254, 0.6);
+}
+
+.game-status .continue-btn:active {
   transform: translateY(-1px);
 }
 
@@ -3116,7 +3242,7 @@ onBeforeUnmount(() => {
 
   .game-status .start-btn,
   .game-status .restart-btn {
-    padding: 14px 40px;
+    padding: 14px 20px;
     font-size: 18px;
     min-width: 160px;
   }
