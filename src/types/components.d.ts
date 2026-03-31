@@ -9,6 +9,8 @@ declare module 'vue' {
   export interface GlobalComponents {
     ControlsHint: typeof import('./../components/game/ControlsHint.vue')['default']
     EffectSwitcher: typeof import('./../components/EffectSwitcher.vue')['default']
+    ElButton: typeof import('element-plus/es')['ElButton']
+    ElResult: typeof import('element-plus/es')['ElResult']
     GameInfoPanel: typeof import('./../components/game/GameInfoPanel.vue')['default']
     GameStatus: typeof import('./../components/game/GameStatus.vue')['default']
     MapControls: typeof import('./../components/MapControls.vue')['default']
