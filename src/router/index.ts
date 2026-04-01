@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import type { AppRouteModule } from './types'
 
@@ -18,6 +18,12 @@ const routes: RouteRecordRaw[] = [
   },*/
   {
     path: '/',
+    name: 'game',
+    component: () => import('@/views/game/index.vue'),
+    meta: { title: '游戏' }
+  },
+  {
+    path: '/three-webgpu',
     name: 'three-webgpu',
     component: () => import('@/views/Home/index.vue'),
     meta: { title: 'three-webgpu' }
@@ -34,17 +40,18 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/model/index.vue'),
     meta: { title: '模型页面' }
   },
-  {
-    path: '/game',
-    name: 'game',
-    component: () => import('@/views/game/index.vue'),
-    meta: { title: '游戏' }
-  },
+
   {
     path: '/meteor-game',
     name: 'meteor-game',
     component: () => import('@/views/game/meteor-game.vue'),
     meta: { title: '陨石防御' }
+  },
+  {
+    path: '/game-2d',
+    name: 'game-2d',
+    component: () => import('@/views/game-2d/index.vue'),
+    meta: { title: '打字-2d' }
   },
   {
     path: '/:pathMatch(.*)*',
@@ -55,7 +62,7 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes
 })
 

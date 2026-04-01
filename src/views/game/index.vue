@@ -5,8 +5,8 @@
       <div class="game-cards">
         <div class="game-card" @click="startGame('meteor')">
           <div class="game-icon">☄️</div>
-          <h2 class="game-name">陨石防御</h2>
-          <p class="game-desc">陨石从天而降，输入字母摧毁它们！</p>
+          <h2 class="game-name">三维打字雨</h2>
+          <p class="game-desc">字母方块从天空掉落 按下对应按键消灭它们</p>
           <div class="game-features">
             <span>⭐ 推荐</span>
             <span>难度递增</span>
@@ -15,14 +15,16 @@
           <button class="play-btn">开始游戏</button>
         </div>
 
-        <div class="game-card disabled">
+        <div class="game-card" @click="startGame('game-2d')">
           <div class="game-icon">🌍</div>
-          <h2 class="game-name">星球保护</h2>
-          <p class="game-desc">敌人从四面八方进攻，保护中央星球</p>
+          <h2 class="game-name">我的世界打字高手</h2>
+          <p class="game-desc">字母方块从天空掉落 按下对应按键消灭它们</p>
           <div class="game-features">
-            <span>开发中</span>
+            <span>⭐ 推荐</span>
+            <span>难度递增</span>
+            <span>很酷</span>
           </div>
-          <button class="play-btn" disabled>敬请期待</button>
+          <button class="play-btn">敬请期待</button>
         </div>
 
         <div class="game-card disabled">
@@ -47,6 +49,9 @@ const router = useRouter()
 function startGame(gameType: string) {
   if (gameType === 'meteor') {
     router.push('/meteor-game')
+  }
+  if (gameType === 'game-2d') {
+    router.push('/game-2d')
   }
 }
 </script>
