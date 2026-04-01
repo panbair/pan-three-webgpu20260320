@@ -17,7 +17,7 @@ const routes: RouteRecordRaw[] = [
     ]
   },*/
   {
-    path: '/',
+    path: '/three-webgpu',
     name: 'three-webgpu',
     component: () => import('@/views/Home/index.vue'),
     meta: { title: 'three-webgpu' }
@@ -39,6 +39,10 @@ const routes: RouteRecordRaw[] = [
     name: 'game',
     component: () => import('@/views/game/index.vue'),
     meta: { title: '游戏' }
+  },
+  {
+    path: '/',
+    redirect: '/meteor-game'
   },
   {
     path: '/meteor-game',

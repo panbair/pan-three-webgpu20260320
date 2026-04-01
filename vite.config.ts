@@ -121,7 +121,7 @@ export default ({ mode }: ConfigEnv) => {
       outDir: env.VITE_OUT_DIR || 'dist',
       assetsDir: 'assets',
       sourcemap: env.VITE_SOURCEMAP === 'true',
-      minify: 'terser',
+      minify: 'esbuild',
       cssCodeSplit: true,
       rollupOptions: {
         output: {
