@@ -26,15 +26,23 @@ export const getMusic = () => {
 }
 
 export const getTexturePath = () => {
-  const randomIndex = Math.floor(Math.random() * 75) + 1
-  const url = `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game1/g-v2-${randomIndex}.png`
-
-  return url
+  try {
+    const randomIndex = Math.floor(Math.random() * 90) + 1
+    return `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game1/g-v2-${randomIndex}.png`
+  } catch (error) {
+    console.error('获取纹理路径失败:', error)
+    // 返回一个默认的纹理路径
+    return 'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game1/g-v2-1.png'
+  }
 }
 
 export const getBg = () => {
-  const randomIndex = Math.floor(Math.random() * 5) + 1
-  const url = `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/quanjing-v5/h-v5-${randomIndex}.png`
-
-  return url
+  try {
+    const randomIndex = Math.floor(Math.random() * 5) + 1
+    return `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/quanjing-v5/h-v5-${randomIndex}.png`
+  } catch (error) {
+    console.error('获取背景路径失败:', error)
+    // 返回一个默认的背景路径
+    return 'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/quanjing-v5/h-v5-1.png'
+  }
 }

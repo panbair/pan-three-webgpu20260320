@@ -1,7 +1,7 @@
 <template>
   <div class="meteor-game-container">
     <!-- 全景图背景 -->
-    <PanoramaViewer :image-url="PANORAMA_IMAGE" />
+    <PanoramaViewer :image-url="panoramaImage" />
 
     <!-- 游戏UI覆盖层 -->
     <div class="game-ui">
@@ -168,9 +168,30 @@
             <span class="feature-tag">🎯 精准打击</span>
             <span class="feature-tag">🏆 挑战极限</span>
           </div>
+
+          <!-- 时间选择 -->
+          <div class="time-selector">
+            <h3 class="selector-title">⏱️ 游戏时长</h3>
+            <div class="time-options">
+              <button
+                v-for="time in timeOptions"
+                :key="time.value"
+                class="time-option"
+                :class="{ active: selectedTime === time.value }"
+                @click="selectedTime = time.value"
+              >
+                <span class="time-value">{{ time.label }}</span>
+              </button>
+            </div>
+          </div>
+
           <button class="start-btn" @click="startGame">
             <span class="btn-icon">▶</span>
             <span>开始游戏</span>
+          </button>
+          <button class="back-home-btn" @click="goBack">
+            <span class="btn-icon">🏠</span>
+            <span>返回首页</span>
           </button>
         </div>
       </div>
@@ -224,6 +245,10 @@
               <span class="btn-icon">🔄</span>
               <span>重新开始</span>
             </button>
+            <button class="back-home-btn-gameover" @click="goBack">
+              <span class="btn-icon">🏠</span>
+              <span>返回首页</span>
+            </button>
           </div>
         </div>
       </div>
@@ -248,8 +273,14 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import PanoramaViewer from '@/components/PanoramaViewer.vue'
+import { useRouter } from 'vue-router'
 
-const PANORAMA_IMAGE = getBg()  || `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/quanjing-v5/h-v5-${1}.png`
+const router = useRouter()
+
+// 全景图背景（响应式，可在开始游戏时切换）
+const panoramaImage = ref(
+  getBg() || `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/quanjing-v5/h-v5-1.png`
+)
 
 // 音乐系统
 const bgMusic = new Audio()
@@ -258,6 +289,27 @@ const currentMusicIndex = ref(0)
 const isMuted = ref(false)
 const musicVolume = ref(0.5)
 const isMusicPanelExpanded = ref(false) // 音乐面板展开/收起状态
+
+// 音效系统 - 全局 AudioContext 实例
+let audioContext = null
+
+// 获取或创建 AudioContext
+let audioContextResumed = false // 标记 AudioContext 是否已恢复运行状态
+
+const getAudioContext = () => {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)()
+  }
+  // 确保 AudioContext 处于运行状态（浏览器策略要求）
+  if (!audioContextResumed && audioContext.state === 'suspended') {
+    audioContext.resume().then(() => {
+      audioContextResumed = true
+    }).catch(err => {
+      console.warn('AudioContext resume 失败:', err)
+    })
+  }
+  return audioContext
+}
 
 // 切换音乐面板展开/收起
 const toggleMusicPanel = () => {
@@ -338,13 +390,21 @@ const level = ref(1)
 const gameCanvas = ref(null)
 
 // 倒计时系统
-const timeLeft = ref(120) // 每关120秒
+// 时间选择
+const timeOptions = [
+  { label: '60秒', value: 60 },
+  { label: '90秒', value: 90 },
+  { label: '120秒', value: 120 }
+]
+const selectedTime = ref(90) // 默认90秒
+
+const timeLeft = ref(90) // 每关默认90秒
 const timerInterval = ref(null)
-const LEVEL_TIME = 120 // 每局时间（秒）
+const LEVEL_TIME = ref(90) // 每局时间（秒）
 
 // 计算属性：倒计时百分比
 const timerPercentage = computed(() => {
-  return (timeLeft.value / LEVEL_TIME) * 100
+  return (timeLeft.value / LEVEL_TIME.value) * 100
 })
 
 // 连击系统
@@ -637,7 +697,16 @@ const clearGameObjects = () => {
   particles.length = 0
 
   // 清理字母方块
-  letterBlocks.forEach(block => disposeBlock(block))
+  letterBlocks.forEach(block => {
+    // 清理彩虹方块的缓存属性
+    if (block.lastColorUpdate) {
+      delete block.lastColorUpdate
+    }
+    if (block.cachedColor) {
+      delete block.cachedColor
+    }
+    disposeBlock(block)
+  })
   letterBlocks.length = 0
 
   // 重置全场减速状态
@@ -652,7 +721,6 @@ const ROTATION_SPEED_Y = 0.01
 // 纹理缓存
 const textureCache = new Map()
 const textureLoader = new THREE.TextureLoader()
-let blockTexture = null // 用于纹理加载的临时变量
 const BLOCK_TEXTURE_COUNT = 68 // 材质图片总数
 
 // 材质缓存
@@ -779,8 +847,8 @@ const disposeBlock = block => {
 
 // 加载随机纹理
 const loadBlockTexture = () => {
-  // 随机选择 1-68 之间的图片
-  const texturePath = getTexturePath()
+  // 随机选择 1-68 之间的图片（带默认值处理）
+  const texturePath = getTexturePath() || `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game1/g-v2-1.png`
 
   // 检查缓存中是否已有该纹理
   if (textureCache.has(texturePath)) {
@@ -1226,6 +1294,63 @@ const createExplosion = (position, color = 0xffd93d) => {
   }
 }
 
+// 播放消除音效
+const playEliminateSound = block => {
+  try {
+    // 使用全局 AudioContext 实例
+    const ctx = getAudioContext()
+    const oscillator = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+
+    oscillator.connect(gainNode)
+    gainNode.connect(ctx.destination)
+
+    // 根据方块类型调整音效
+    if (block.blockType && block.blockType !== 'normal') {
+      const type = block.blockType
+      if (type === 'gold') {
+        // 金色方块 - 高频音
+        oscillator.frequency.setValueAtTime(880, ctx.currentTime)
+        oscillator.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1)
+      } else if (type === 'time') {
+        // 时钟方块 - 中高频音
+        oscillator.frequency.setValueAtTime(660, ctx.currentTime)
+        oscillator.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.1)
+      } else if (type === 'fire') {
+        // 火焰方块 - 低频到高频
+        oscillator.frequency.setValueAtTime(300, ctx.currentTime)
+        oscillator.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.15)
+      } else if (type === 'ice') {
+        // 冰冻方块 - 清脆音
+        oscillator.frequency.setValueAtTime(1000, ctx.currentTime)
+        oscillator.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime + 0.1)
+      } else if (type === 'diamond') {
+        // 钻石方块 - 双音
+        oscillator.frequency.setValueAtTime(1200, ctx.currentTime)
+        oscillator.frequency.exponentialRampToValueAtTime(2400, ctx.currentTime + 0.15)
+      } else if (type === 'rainbow') {
+        // 彩虹方块 - 多变音
+        oscillator.frequency.setValueAtTime(500, ctx.currentTime)
+        oscillator.frequency.setValueAtTime(1000, ctx.currentTime + 0.08)
+        oscillator.frequency.setValueAtTime(1500, ctx.currentTime + 0.16)
+      }
+    } else {
+      // 普通方块 - 随机音
+      oscillator.frequency.setValueAtTime(440 + Math.random() * 220, ctx.currentTime)
+      oscillator.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1)
+    }
+
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2)
+
+    oscillator.start(ctx.currentTime)
+    oscillator.stop(ctx.currentTime + 0.2)
+  } catch (err) {
+    // 音效播放失败时静默处理，不影响游戏体验
+    console.warn('音效播放失败:', err)
+  }
+}
+
 // 方块爆炸
 const explodeLetter = block => {
   if (!block || !block.mesh) return
@@ -1602,9 +1727,10 @@ const updateGame = () => {
         block.cachedColor = new THREE.Color() // 缓存颜色对象
       }
       const updateTime = 250 // 从100ms提升到250ms，减少70%更新频率
-      if (Date.now() - block.lastColorUpdate > updateTime) {
-        block.lastColorUpdate = Date.now()
-        const time = Date.now() * 0.0005 // 降低颜色变化速度
+      const currentTime = Date.now() // 缓存时间戳，避免重复调用
+      if (currentTime - block.lastColorUpdate > updateTime) {
+        block.lastColorUpdate = currentTime
+        const time = currentTime * 0.0005 // 使用缓存的时间戳
         const hue = (time * 2) % 6
         block.cachedColor.setHSL(hue / 6, 1, 0.5)
         const materials = Array.isArray(block.mesh.material) ? block.mesh.material : [block.mesh.material]
@@ -1647,10 +1773,10 @@ const animate = () => {
 
   // 启动渲染循环
   const renderLoop = () => {
-    if (gameState.value === 'playing' || gameState.value === 'paused') {
+    if (gameState.value === 'playing') {
       updateGame()
     }
-    if (renderer && scene && camera) {
+    if (renderer && scene && camera && (gameState.value === 'playing' || gameState.value === 'paused')) {
       renderer.render(scene, camera)
     }
     animationId = requestAnimationFrame(renderLoop)
@@ -1661,6 +1787,16 @@ const animate = () => {
 
 // 开始游戏
 const startGame = () => {
+  // 随机切换全景图背景（带默认值处理）
+  const randomPanoramaIndex = Math.floor(Math.random() * 10) + 1
+  panoramaImage.value =
+    `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/quanjing-v5/h-v5-${randomPanoramaIndex}.png` ||
+    `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/quanjing-v5/h-v5-1.png`
+
+  // 设置游戏时间
+  LEVEL_TIME.value = selectedTime.value
+  timeLeft.value = selectedTime.value
+
   // 清理所有旧的游戏对象（方块、粒子、动画）
   clearGameObjects()
 
@@ -1668,7 +1804,6 @@ const startGame = () => {
   score.value = 0
   level.value = 1
   letterBlocks.length = 0
-  timeLeft.value = LEVEL_TIME // 重置倒计时
 
   // 重置统计
   combo.value = 0
@@ -1821,6 +1956,63 @@ const endGame = () => {
   pauseMusic()
 }
 
+// 返回首页
+const goBack = () => {
+  // 停止动画循环
+  if (animationId) {
+    cancelAnimationFrame(animationId)
+    animationId = null
+  }
+
+  // 停止倒计时
+  if (timerInterval.value) {
+    clearInterval(timerInterval.value)
+    timerInterval.value = null
+  }
+
+  // 停止方块生成
+  if (spawnInterval) {
+    clearInterval(spawnInterval)
+    spawnInterval = null
+  }
+
+  // 停止连击计时器
+  if (comboTimer.value) {
+    clearTimeout(comboTimer.value)
+    comboTimer.value = null
+  }
+
+  // 停止音乐
+  pauseMusic()
+
+  // 清理所有方块
+  letterBlocks.forEach(block => {
+    // 清理彩虹方块的缓存属性
+    if (block.lastColorUpdate) {
+      delete block.lastColorUpdate
+    }
+    if (block.cachedColor) {
+      delete block.cachedColor
+    }
+    disposeBlock(block)
+  })
+  letterBlocks.length = 0
+
+  // 清理粒子并回收到对象池（统一使用对象池回收机制）
+  particles.forEach(p => {
+    if (p.mesh && scene) {
+      scene.remove(p.mesh)
+    }
+    if (p.material && p.mesh) {
+      recycleParticle(p.mesh, p.material)
+    }
+  })
+  particles.length = 0
+
+  // 返回首页
+  router.push('/')
+}
+
 // 重新开始
 const restartGame = () => {
   // 停止动画循环
@@ -1874,7 +2066,16 @@ const restartGame = () => {
   particles.length = 0
 
   // 清理字母方块
-  letterBlocks.forEach(block => disposeBlock(block))
+  letterBlocks.forEach(block => {
+    // 清理彩虹方块的缓存属性
+    if (block.lastColorUpdate) {
+      delete block.lastColorUpdate
+    }
+    if (block.cachedColor) {
+      delete block.cachedColor
+    }
+    disposeBlock(block)
+  })
   letterBlocks.length = 0
   keysPressed.value.clear()
 
@@ -1963,6 +2164,9 @@ const handleKeyPress = upperKey => {
     targetBlock.hit = true
     explodeLetter(targetBlock)
     letterBlocks.splice(letterBlocks.indexOf(targetBlock), 1)
+
+    // 播放击中音效
+    playEliminateSound(targetBlock)
 
     // 记录正确按键
     correctKeystrokes.value++
@@ -2100,17 +2304,25 @@ const handleKeyUp = event => {
   keysPressed.value.delete(key)
 }
 
-// 窗口大小调整
+// 窗口大小调整（带防抖优化）
+let resizeTimeout = null
 const handleResize = () => {
   if (!gameCanvas.value || !camera || !renderer) return
 
-  const width = gameCanvas.value.clientWidth
-  const height = gameCanvas.value.clientHeight
+  // 防抖：延迟执行，避免频繁调用
+  if (resizeTimeout) {
+    clearTimeout(resizeTimeout)
+  }
 
-  camera.aspect = width / height
-  camera.updateProjectionMatrix()
-  renderer.setSize(width, height)
-  updateFrustumBounds()
+  resizeTimeout = setTimeout(() => {
+    const width = gameCanvas.value.clientWidth
+    const height = gameCanvas.value.clientHeight
+
+    camera.aspect = width / height
+    camera.updateProjectionMatrix()
+    renderer.setSize(width, height)
+    updateFrustumBounds()
+  }, 100) // 100ms防抖延迟
 }
 
 // 生命周期
@@ -2174,7 +2386,16 @@ onBeforeUnmount(() => {
   document.removeEventListener('keyup', handleKeyUp)
 
   // 清理字母方块
-  letterBlocks.forEach(block => disposeBlock(block))
+  letterBlocks.forEach(block => {
+    // 清理彩虹方块的缓存属性
+    if (block.lastColorUpdate) {
+      delete block.lastColorUpdate
+    }
+    if (block.cachedColor) {
+      delete block.cachedColor
+    }
+    disposeBlock(block)
+  })
   letterBlocks.length = 0
 
   // 清理粒子并回收到对象池
@@ -2239,7 +2460,6 @@ onBeforeUnmount(() => {
   // 清理粒子几何体和对象池
   if (particleGeometry) {
     particleGeometry.dispose()
-    particleGeometry = null
   }
 
   // 清理粒子对象池
@@ -2277,13 +2497,20 @@ onBeforeUnmount(() => {
     bgMusic.pause()
     bgMusic.src = ''
     bgMusic.removeEventListener('ended', musicEndedHandler)
-    bgMusic = null
+  }
+
+  // 清理音效 AudioContext
+  if (audioContext) {
+    audioContext.close().catch(err => {
+      console.warn('AudioContext 关闭失败:', err)
+    })
+    audioContext = null
+    audioContextResumed = false // 重置恢复状态标志
   }
 
   // 清理渲染器
   if (renderer) {
     renderer.dispose()
-    renderer = null
   }
 
   // 清理场景
@@ -2303,10 +2530,7 @@ onBeforeUnmount(() => {
       }
     })
     scene.clear()
-    scene = null
   }
-
-  camera = null
 })
 </script>
 
@@ -2995,6 +3219,59 @@ onBeforeUnmount(() => {
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+.time-selector {
+  margin: 15px 0;
+
+  .selector-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    text-align: center;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .time-options {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .time-option {
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(102, 126, 234, 0.4);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    backdrop-filter: blur(10px);
+    min-width: 90px;
+  }
+
+  .time-option:hover {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+
+  .time-option.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #764ba2;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+  }
+
+  .time-option:active {
+    transform: translateY(0);
+  }
+}
+
 .game-status .start-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -3025,6 +3302,40 @@ onBeforeUnmount(() => {
   left: -100%;
   width: 100%;
   height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: btnShine 2s ease-in-out infinite;
+}
+
+.game-status .back-home-btn {
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  color: white;
+  border: none;
+  padding: 10px;
+  font-size: 22px;
+  font-weight: bold;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow:
+    0 6px 20px rgba(108, 117, 125, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+  position: relative;
+  overflow: hidden;
+  min-width: 200px;
+}
+
+.game-status .back-home-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
   transition: left 0.5s ease;
 }
@@ -3044,8 +3355,31 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
 }
 
+.game-status .back-home-btn:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 10px 30px rgba(108, 117, 125, 0.6),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.game-status .back-home-btn:hover::before {
+  left: 100%;
+}
+
+.game-status .back-home-btn:active {
+  transform: translateY(-1px);
+}
+
 .game-status.ready {
   background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(20, 20, 40, 0.9) 100%);
+}
+
+.game-status.ready .game-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10px;
 }
 
 .game-status.gameover {
@@ -3151,6 +3485,52 @@ onBeforeUnmount(() => {
 }
 
 .game-status .continue-btn:active {
+  transform: translateY(-1px);
+}
+
+.game-status .back-home-btn {
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  box-shadow: 0 6px 20px rgba(108, 117, 125, 0.5);
+  padding: 10px;
+  font-size: 22px;
+  min-width: 200px;
+  transition: all 0.3s ease;
+}
+
+.game-status .back-home-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(108, 117, 125, 0.6);
+}
+
+.game-status .back-home-btn:active {
+  transform: translateY(-1px);
+}
+
+.game-status .back-home-btn-gameover {
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  box-shadow: 0 6px 20px rgba(108, 117, 125, 0.5);
+  padding: 12px 24px;
+  font-size: 24px;
+  min-width: 220px;
+  transition: all 0.3s ease;
+  border: none;
+  border-radius: 30px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.game-status .back-home-btn-gameover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(108, 117, 125, 0.6);
+  background: linear-gradient(135deg, #7d868c 0%, #5a6268 100%);
+}
+
+.game-status .back-home-btn-gameover:active {
   transform: translateY(-1px);
 }
 
