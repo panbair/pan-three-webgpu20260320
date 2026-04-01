@@ -24,7 +24,7 @@
             <span>难度递增</span>
             <span>很酷</span>
           </div>
-          <button class="play-btn">敬请期待</button>
+          <button class="play-btn">开始游戏</button>
         </div>
 
         <div class="game-card disabled">

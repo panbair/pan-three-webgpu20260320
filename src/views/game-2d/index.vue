@@ -1,7 +1,7 @@
 <template>
   <div ref="gameContainer" class="game-2d">
     <!-- 游戏背景 -->
-    <div class="game-background"></div>
+    <div class="game-background" :style="{ backgroundImage: `url(${currentBackground})` }"></div>
 
     <!-- 游戏UI层 -->
     <div class="game-ui">
@@ -70,7 +70,14 @@
       >
         <!-- 字母本体 -->
         <div class="letter-3d" :style="{ backgroundImage: `url(${letter.imageUrl})` }">
-          <div class="letter-front">{{ letter.char }}</div>
+          <div class="letter-front" :style="{ color: letter.color }">
+            <span class="letter-shadow">{{ letter.char }}</span>
+            <span class="letter-highlight">{{ letter.char }}</span>
+            <span class="letter-text">{{ letter.char }}</span>
+          </div>
+          <!-- 3D边框效果 -->
+          <div class="letter-border" :style="{ borderColor: letter.color }"></div>
+          <div class="letter-glow" :style="{ background: letter.color, opacity: 0.3 }"></div>
         </div>
       </div>
     </div>
@@ -91,10 +98,10 @@
         <template v-if="effect.type === 'normal'">
           <div class="normal-effect">
             <div class="star-burst">
-              <div class="star" v-for="i in 12" :key="i"></div>
+              <div v-for="i in 12" :key="i" class="star"></div>
             </div>
             <div class="sparkles">
-              <div class="sparkle" v-for="i in 20" :key="i"></div>
+              <div v-for="i in 20" :key="i" class="sparkle"></div>
             </div>
             <div class="shockwave"></div>
           </div>
@@ -107,13 +114,13 @@
               <div class="crown"></div>
             </div>
             <div class="gold-shower">
-              <div class="gold-coin" v-for="i in 15" :key="i"></div>
+              <div v-for="i in 15" :key="i" class="gold-coin"></div>
             </div>
             <div class="royal-rays">
-              <div class="ray" v-for="i in 6" :key="i"></div>
+              <div v-for="i in 6" :key="i" class="ray"></div>
             </div>
             <div class="diamond-spark">
-              <div class="diamond" v-for="i in 4" :key="i"></div>
+              <div v-for="i in 4" :key="i" class="diamond"></div>
             </div>
           </div>
         </template>
@@ -122,16 +129,16 @@
         <template v-if="effect.type === 'time-bonus'">
           <div class="time-effect">
             <div class="time-warp">
-              <div class="clock-ring" v-for="i in 3" :key="i"></div>
+              <div v-for="i in 3" :key="i" class="clock-ring"></div>
             </div>
             <div class="time-particles">
-              <div class="time-particle" v-for="i in 12" :key="i"></div>
+              <div v-for="i in 12" :key="i" class="time-particle"></div>
             </div>
             <div class="hourglass-emit">
               <div class="hourglass">⏳</div>
             </div>
             <div class="time-dashes">
-              <div class="dash" v-for="i in 8" :key="i"></div>
+              <div v-for="i in 8" :key="i" class="dash"></div>
             </div>
           </div>
         </template>
@@ -151,27 +158,27 @@
 
         <!-- 旋转时钟环 -->
         <div class="time-rings">
-          <div class="time-ring" v-for="i in 4" :key="i"></div>
+          <div v-for="i in 4" :key="i" class="time-ring"></div>
         </div>
 
         <!-- 时光隧道 -->
         <div class="time-tunnel">
-          <div class="tunnel-layer" v-for="i in 5" :key="i"></div>
+          <div v-for="i in 5" :key="i" class="tunnel-layer"></div>
         </div>
 
         <!-- 时间碎片 -->
         <div class="time-shards">
-          <div class="shard" v-for="i in 16" :key="i"></div>
+          <div v-for="i in 16" :key="i" class="shard"></div>
         </div>
 
         <!-- 流光粒子 -->
         <div class="time-streams">
-          <div class="stream" v-for="i in 8" :key="i"></div>
+          <div v-for="i in 8" :key="i" class="stream"></div>
         </div>
 
         <!-- 闪电效果 -->
         <div class="lightning-bolts">
-          <div class="bolt" v-for="i in 6" :key="i"></div>
+          <div v-for="i in 6" :key="i" class="bolt"></div>
         </div>
       </div>
     </div>
@@ -187,38 +194,38 @@
 
         <!-- 星星爆炸 -->
         <div class="star-explosion">
-          <div class="star" v-for="i in 24" :key="i">⭐</div>
+          <div v-for="i in 24" :key="i" class="star">⭐</div>
         </div>
 
         <!-- 光环扩散 -->
         <div class="glow-rings">
-          <div class="glow-ring" v-for="i in 6" :key="i"></div>
+          <div v-for="i in 6" :key="i" class="glow-ring"></div>
         </div>
 
         <!-- 火箭升空 -->
         <div class="rocket-path">
           <div class="rocket">🚀</div>
-          <div class="rocket-trail" v-for="i in 8" :key="i"></div>
+          <div v-for="i in 8" :key="i" class="rocket-trail"></div>
         </div>
 
         <!-- 彩虹光环 -->
         <div class="rainbow-halo">
-          <div class="halo-segment" v-for="i in 12" :key="i"></div>
+          <div v-for="i in 12" :key="i" class="halo-segment"></div>
         </div>
 
         <!-- 金币雨 -->
         <div class="coin-rain">
-          <div class="coin" v-for="i in 20" :key="i">💰</div>
+          <div v-for="i in 20" :key="i" class="coin">💰</div>
         </div>
 
         <!-- 光束射线 -->
         <div class="light-rays">
-          <div class="ray" v-for="i in 12" :key="i"></div>
+          <div v-for="i in 12" :key="i" class="ray"></div>
         </div>
 
         <!-- 粒子爆炸 -->
         <div class="particle-burst">
-          <div class="particle" v-for="i in 30" :key="i"></div>
+          <div v-for="i in 30" :key="i" class="particle"></div>
         </div>
       </div>
     </div>
@@ -247,6 +254,8 @@
               <span class="stat-label">最终分数</span>
               <span class="stat-value">{{ score }}</span>
             </div>
+            <div v-if="score > 300" class="stat-icon">你已经无敌！</div>
+            <div v-else-if="score > 100" class="stat-icon">你强得可怕！</div>
           </div>
           <div class="stats-grid">
             <div class="stat-card">
@@ -283,7 +292,7 @@
         <div v-if="gameState === 'ready'" class="game-controls">
           <h3 class="controls-title">🎮 游戏说明</h3>
           <div class="controls-grid">
-            <div class="control-item">
+            <div class="control-item an-abc">
               <span class="control-icon">⌨️</span>
               <span>按下对应字母键消除</span>
             </div>
@@ -310,6 +319,8 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { gsap } from 'gsap'
 
+
+
 // 游戏配置
 const CONFIG = {
   initialTime: 60, // 初始时间（秒）
@@ -322,7 +333,20 @@ const CONFIG = {
   specialLetterChance: 0.2, // 特殊字母概率
   goldenLetterChance: 0.1, // 金色字母概率
   timeBonusLetterChance: 0.08, // 时间奖励字母概率
-  backgroundMusic: 'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/1.mp3'
+  // 音乐列表
+  musicList: [
+    'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/1.mp3',
+    'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/2.mp3',
+    'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/3.mp3',
+    'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/4.mp3',
+    'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/5.mp3',
+    'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/6.mp3',
+    'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/7.mp3'
+  ],
+  // 背景图列表
+  backgroundList: Array.from({ length: 17 }, (_, i) =>
+    `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game3/g-v3-${i + 1}.png`
+  )
 }
 
 // 游戏状态
@@ -334,12 +358,27 @@ const combo = ref(0)
 const maxCombo = ref(0)
 const totalEliminated = ref(0)
 const levelProgress = ref(0)
+const currentBackground = ref('')
 
 // 连击倍率
 const comboMultiplier = computed(() => {
   const multiplier = 1 + (combo.value - 1) * 0.2
   return Math.min(multiplier, CONFIG.maxComboMultiplier)
 })
+
+// 字母颜色配置
+const LETTER_COLORS = [
+  '#ef4444', // 红色
+  '#f97316', // 橙色
+  '#fbbf24', // 黄色
+  '#a3e635', // 浅绿
+  '#22c55e', // 绿色
+  '#06b6d4', // 青色
+  '#3b82f6', // 蓝色
+  '#8b5cf6', // 紫色
+  '#d946ef', // 粉紫
+  '#f43f5e' // 粉红
+]
 
 // 字母数据
 interface Letter {
@@ -357,6 +396,7 @@ interface Letter {
   isTimeBonus: boolean
   imageUrl: string
   baseScore: number
+  color: string
 }
 
 const letters = ref<Letter[]>([])
@@ -402,7 +442,7 @@ const effectsContainer = ref<HTMLElement | null>(null)
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 const getTexturePath = () => {
-  const randomIndex = Math.floor(Math.random() * 75) + 1
+  const randomIndex = Math.floor(Math.random() * 90) + 1
   const url = `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game1/g-v2-${randomIndex}.png`
 
   return url
@@ -446,7 +486,8 @@ const createLetter = () => {
     isGolden,
     isTimeBonus,
     imageUrl: getTexturePath() || LETTER_IMAGE_URL,
-    baseScore: isGolden ? 20 : isTimeBonus ? 15 : 10
+    baseScore: isGolden ? 20 : isTimeBonus ? 15 : 10,
+    color: LETTER_COLORS[Math.floor(Math.random() * LETTER_COLORS.length)]
   }
 
   letters.value.push(letter)
@@ -588,7 +629,9 @@ const createEliminationEffect = (letter: Letter, points: number) => {
 
     // 时间字母动画设置
     if (effect.type === 'time-bonus') {
-      const timeParticles = document.querySelectorAll(`.elimination-effect:last-child .time-particle`)
+      const timeParticles = document.querySelectorAll(
+        `.elimination-effect:last-child .time-particle`
+      )
       timeParticles.forEach((particle, i) => {
         const angle = (i / 12) * Math.PI * 2
         const distance = 50 + Math.random() * 40
@@ -757,6 +800,11 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
 // 开始游戏
 const startGame = () => {
+  // 随机选择背景图
+  const randomBgIndex = Math.floor(Math.random() * CONFIG.backgroundList.length)
+  currentBackground.value = CONFIG.backgroundList[randomBgIndex]
+  console.log(`使用背景图 #${randomBgIndex + 1}`)
+
   // 重置游戏状态
   score.value = 0
   level.value = 1
@@ -838,7 +886,12 @@ const playBackgroundMusic = () => {
     audio.currentTime = 0
   }
 
-  audio = new Audio(CONFIG.backgroundMusic)
+  // 随机选择一首音乐
+  const randomIndex = Math.floor(Math.random() * CONFIG.musicList.length)
+  const randomMusic = CONFIG.musicList[randomIndex]
+  console.log(`播放背景音乐 #${randomIndex + 1}`)
+
+  audio = new Audio(randomMusic)
   audio.loop = true
   audio.volume = 0.3
 
@@ -892,11 +945,11 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('/game/game-2d-2.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   pointer-events: none;
+  transition: background-image 0.5s ease-in-out;
 
   &::before {
     content: '';
@@ -947,12 +1000,14 @@ onUnmounted(() => {
     transform: translateX(-50%);
     width: 60%;
     height: 4px;
-    background: linear-gradient(90deg,
+    background: linear-gradient(
+      90deg,
       #fbbf24 0%,
       #f472b6 25%,
       #a855f7 50%,
       #3b82f6 75%,
-      #34d399 100%);
+      #34d399 100%
+    );
     border-radius: 0 0 4px 4px;
   }
 }
@@ -961,9 +1016,7 @@ onUnmounted(() => {
   text-align: center;
   position: relative;
   padding: 12px 20px;
-  background: linear-gradient(135deg,
-    rgba(255, 255, 255, 0.9) 0%,
-    rgba(255, 255, 255, 0.75) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.75) 100%);
   border-radius: 22px;
   box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.1),
@@ -1013,54 +1066,72 @@ onUnmounted(() => {
   &.score {
     background: linear-gradient(135deg, #fef9c3 0%, #fef08a 50%, #fde047 100%);
     border-color: #fbbf24;
-    .label { color: #92400e; }
+    .label {
+      color: #92400e;
+    }
     .value {
       color: #fff;
       text-shadow: 0 3px 8px rgba(251, 191, 36, 0.5);
     }
-    &::after { background: #fbbf24; }
+    &::after {
+      background: #fbbf24;
+    }
   }
 
   &.level {
     background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 50%, #93c5fd 100%);
     border-color: #60a5fa;
-    .label { color: #1e40af; }
+    .label {
+      color: #1e40af;
+    }
     .value {
       color: #fff;
       text-shadow: 0 3px 8px rgba(96, 165, 250, 0.5);
     }
-    &::after { background: #60a5fa; }
+    &::after {
+      background: #60a5fa;
+    }
   }
 
   &.time {
     background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #6ee7b7 100%);
     border-color: #34d399;
-    .label { color: #065f46; }
+    .label {
+      color: #065f46;
+    }
     .value {
       color: #fff;
       text-shadow: 0 3px 8px rgba(52, 211, 153, 0.5);
     }
-    &::after { background: #34d399; }
+    &::after {
+      background: #34d399;
+    }
   }
 
   &.combo {
     background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 50%, #f9a8d4 100%);
     border-color: #f472b6;
-    .label { color: #be185d; }
+    .label {
+      color: #be185d;
+    }
     .value {
       color: #fff;
       text-shadow: 0 3px 8px rgba(244, 114, 182, 0.5);
     }
-    &::after { background: #f472b6; }
+    &::after {
+      background: #f472b6;
+    }
   }
 }
 
 .progress-bar {
   height: 12px;
-  background: linear-gradient(90deg,
+  background: linear-gradient(
+    90deg,
     rgba(255, 255, 255, 0.6) 0%,
     rgba(255, 255, 255, 0.8) 50%,
-    rgba(255, 255, 255, 0.6) 100%);
+    rgba(255, 255, 255, 0.6) 100%
+  );
   margin: 10px 25px;
   border-radius: 10px;
   overflow: hidden;
@@ -1072,12 +1143,14 @@ onUnmounted(() => {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg,
+  background: linear-gradient(
+    90deg,
     #f472b6 0%,
     #a855f7 25%,
     #6366f1 50%,
     #3b82f6 75%,
-    #0ea5e9 100%);
+    #0ea5e9 100%
+  );
   background-size: 200% 100%;
   transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   animation: progressGradient 3s ease infinite;
@@ -1150,10 +1223,12 @@ onUnmounted(() => {
 
   &.golden {
     .letter-3d .letter-front {
-      background: linear-gradient(135deg,
+      background: linear-gradient(
+        135deg,
         rgba(251, 191, 36, 0.1) 0%,
         rgba(252, 211, 77, 0.1) 50%,
-        rgba(245, 158, 11, 0.1) 100%);
+        rgba(245, 158, 11, 0.1) 100%
+      );
       border: 4px solid rgba(255, 255, 255, 0.8);
       text-shadow: 0 0 30px rgba(251, 191, 36, 0.9);
       animation: goldenShine 1s ease-in-out infinite;
@@ -1162,10 +1237,12 @@ onUnmounted(() => {
 
   &.time-bonus {
     .letter-3d .letter-front {
-      background: linear-gradient(135deg,
+      background: linear-gradient(
+        135deg,
         rgba(16, 185, 129, 0.1) 0%,
         rgba(52, 211, 153, 0.1) 50%,
-        rgba(5, 150, 105, 0.1) 100%);
+        rgba(5, 150, 105, 0.1) 100%
+      );
       border: 4px solid rgba(255, 255, 255, 0.8);
       text-shadow: 0 0 30px rgba(52, 211, 153, 0.9);
       animation: timeGlow 1s ease-in-out infinite;
@@ -1195,21 +1272,93 @@ onUnmounted(() => {
   font-weight: 900;
   color: white;
   border-radius: 25px;
-  box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.15),
-    inset 0 4px 0 rgba(255, 255, 255, 0.4),
-    inset 0 -4px 0 rgba(0, 0, 0, 0.1);
-  text-shadow:
-    2px 2px 4px rgba(0, 0, 0, 0.2),
-    0 0 20px rgba(255, 255, 255, 0.6);
   transform: translateZ(10px);
   animation: letterBounce 1.5s ease-in-out infinite;
-  background: linear-gradient(135deg,
-    rgba(99, 102, 241, 0.1) 0%,
-    rgba(139, 92, 246, 0.2) 50%,
-    rgba(168, 85, 247, 0.3) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(0, 0, 0, 0.05) 100%
+  );
   border: 4px solid rgba(255, 255, 255, 0.6);
   z-index: 10;
+  overflow: hidden;
+
+  /* 3D浮雕效果 */
+  box-shadow:
+    0 15px 35px rgba(0, 0, 0, 0.3),
+    0 8px 15px rgba(0, 0, 0, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.15),
+    inset 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+/* 字母文字层 */
+.letter-text {
+  position: absolute;
+  font-family: 'Arial Black', 'Helvetica Black', sans-serif;
+  z-index: 3;
+  text-shadow:
+    3px 3px 0 rgba(0, 0, 0, 0.3),
+    -1px -1px 0 rgba(255, 255, 255, 0.3),
+    2px 2px 8px rgba(0, 0, 0, 0.4);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+/* 字母高光层 */
+.letter-highlight {
+  position: absolute;
+  font-family: 'Arial Black', 'Helvetica Black', sans-serif;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  z-index: 4;
+  clip-path: polygon(0 0, 100% 0, 100% 40%, 0 40%);
+  opacity: 0.8;
+}
+
+/* 字母阴影层 */
+.letter-shadow {
+  position: absolute;
+  font-family: 'Arial Black', 'Helvetica Black', sans-serif;
+  color: rgba(0, 0, 0, 0.4);
+  z-index: 1;
+  transform: translate(4px, 4px);
+  filter: blur(1px);
+}
+
+/* 3D边框装饰 */
+.letter-border {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  border-radius: 33px;
+  border: 3px solid;
+  opacity: 0.4;
+  z-index: 5;
+  pointer-events: none;
+  box-shadow:
+    0 0 15px currentColor,
+    0 0 30px currentColor;
+  animation: borderPulse 2s ease-in-out infinite;
+}
+
+/* 字母光晕效果 */
+.letter-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(40px);
+  animation: glowPulse 3s ease-in-out infinite;
 }
 
 .letter-side {
@@ -1273,7 +1422,9 @@ onUnmounted(() => {
     background: linear-gradient(180deg, #60a5fa, #3b82f6);
     transform-origin: center;
     border-radius: 2px;
-    box-shadow: 0 0 10px #60a5fa, 0 0 20px #3b82f6;
+    box-shadow:
+      0 0 10px #60a5fa,
+      0 0 20px #3b82f6;
     animation: starShoot 0.8s ease-out infinite;
   }
 
@@ -1301,7 +1452,9 @@ onUnmounted(() => {
     height: 6px;
     background: white;
     border-radius: 50%;
-    box-shadow: 0 0 8px #60a5fa, 0 0 16px #3b82f6;
+    box-shadow:
+      0 0 8px #60a5fa,
+      0 0 16px #3b82f6;
     animation: sparkleFloat 1s ease-out infinite;
   }
 
@@ -1360,7 +1513,9 @@ onUnmounted(() => {
     height: 12px;
     background: radial-gradient(circle, #fcd34d, #f59e0b);
     border-radius: 50%;
-    box-shadow: 0 0 10px #fcd34d, 0 0 20px #f59e0b;
+    box-shadow:
+      0 0 10px #fcd34d,
+      0 0 20px #f59e0b;
     animation: coinFall 1.5s ease-in infinite;
   }
 
@@ -1414,7 +1569,9 @@ onUnmounted(() => {
     height: 16px;
     background: linear-gradient(135deg, #fcd34d, #fbbf24, #f59e0b);
     transform: rotate(45deg);
-    box-shadow: 0 0 20px #fcd34d, 0 0 40px #fbbf24;
+    box-shadow:
+      0 0 20px #fcd34d,
+      0 0 40px #fbbf24;
     animation: diamondSpin 1s ease-out infinite;
   }
 
@@ -1652,11 +1809,13 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg,
+  background: linear-gradient(
+    135deg,
     rgba(255, 251, 235, 0.2) 0%,
     rgba(254, 243, 199, 0.2) 30%,
     rgba(252, 231, 243, 0.2) 60%,
-    rgba(219, 234, 254, 0.2) 100%);
+    rgba(219, 234, 254, 0.2) 100%
+  );
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1697,12 +1856,14 @@ onUnmounted(() => {
   font-size: 48px;
   font-weight: 900;
   margin: 0 0 25px 0;
-  background: linear-gradient(135deg,
+  background: linear-gradient(
+    135deg,
     #f472b6 0%,
     #a855f7 25%,
     #6366f1 50%,
     #3b82f6 75%,
-    #0ea5e9 100%);
+    #0ea5e9 100%
+  );
   background-size: 200% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -1712,12 +1873,14 @@ onUnmounted(() => {
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
 
   &.game-over {
-    background: linear-gradient(135deg,
+    background: linear-gradient(
+      135deg,
       #f87171 0%,
       #fb923c 25%,
       #fbbf24 50%,
       #34d399 75%,
-      #22d3d1 100%);
+      #22d3d1 100%
+    );
     background-size: 200% 100%;
     -webkit-background-clip: text;
     background-clip: text;
@@ -1832,10 +1995,7 @@ onUnmounted(() => {
   font-size: 24px;
   font-weight: 900;
   color: white;
-  background: linear-gradient(135deg,
-    #f472b6 0%,
-    #a855f7 50%,
-    #6366f1 100%);
+  background: linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6366f1 100%);
   border: 4px solid rgba(255, 255, 255, 0.8);
   border-radius: 60px;
   cursor: pointer;
@@ -1858,10 +2018,7 @@ onUnmounted(() => {
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg,
-      transparent,
-      rgba(255, 255, 255, 0.4),
-      transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
     animation: buttonShine 2s ease-in-out infinite;
   }
 
@@ -1910,9 +2067,7 @@ onUnmounted(() => {
 }
 
 .control-item {
-  background: linear-gradient(135deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(255, 255, 255, 0.85) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
   padding: 18px;
   border-radius: 18px;
   display: flex;
@@ -1932,6 +2087,10 @@ onUnmounted(() => {
     box-shadow:
       0 12px 25px rgba(0, 0, 0, 0.08),
       inset 0 2px 0 rgba(255, 255, 255, 1);
+  }
+  &.an-abc {
+    border-color: #5bcde7;
+    background: linear-gradient(135deg, #67d3c3 0%, #6ecce1 100%);
   }
 
   &.golden {
@@ -2023,7 +2182,8 @@ onUnmounted(() => {
 }
 
 @keyframes royalRayPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.3;
     transform: rotate(var(--rotation, 0deg)) translateY(-50%) scale(1);
   }
@@ -2070,7 +2230,8 @@ onUnmounted(() => {
 }
 
 @keyframes hourglassFlip {
-  0%, 100% {
+  0%,
+  100% {
     transform: rotate(0deg) scale(1);
   }
   25% {
@@ -2094,7 +2255,8 @@ onUnmounted(() => {
 
 // ==================== 新增儿童风格动画 ====================
 @keyframes twinkle {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -2103,7 +2265,8 @@ onUnmounted(() => {
 }
 
 @keyframes badgeBounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1) translateY(0);
   }
   50% {
@@ -2112,7 +2275,8 @@ onUnmounted(() => {
 }
 
 @keyframes progressGradient {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   50% {
@@ -2121,7 +2285,8 @@ onUnmounted(() => {
 }
 
 @keyframes letterBounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) scale(1);
   }
   50% {
@@ -2130,7 +2295,8 @@ onUnmounted(() => {
 }
 
 @keyframes goldenShine {
-  0%, 100% {
+  0%,
+  100% {
     filter: brightness(1) saturate(1);
   }
   50% {
@@ -2139,7 +2305,8 @@ onUnmounted(() => {
 }
 
 @keyframes timeGlow {
-  0%, 100% {
+  0%,
+  100% {
     filter: brightness(1) saturate(1);
     box-shadow:
       0 8px 20px rgba(0, 0, 0, 0.15),
@@ -2156,7 +2323,8 @@ onUnmounted(() => {
 }
 
 @keyframes logoBounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) rotate(0deg);
   }
   25% {
@@ -2168,7 +2336,8 @@ onUnmounted(() => {
 }
 
 @keyframes titleGradient {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   50% {
@@ -2177,7 +2346,8 @@ onUnmounted(() => {
 }
 
 @keyframes trophyWiggle {
-  0%, 100% {
+  0%,
+  100% {
     transform: rotate(-8deg);
   }
   50% {
@@ -2196,7 +2366,8 @@ onUnmounted(() => {
 
 // ==================== 文本动画 ====================
 @keyframes goldenTextGlow {
-  0%, 100% {
+  0%,
+  100% {
     filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.8));
     transform: translate(-50%, -50%) scale(1);
   }
@@ -2207,7 +2378,8 @@ onUnmounted(() => {
 }
 
 @keyframes timeTextGlow {
-  0%, 100% {
+  0%,
+  100% {
     filter: drop-shadow(0 0 20px rgba(52, 211, 153, 0.8));
     transform: translate(-50%, -50%) scale(1);
   }
@@ -2218,7 +2390,8 @@ onUnmounted(() => {
 }
 
 @keyframes normalTextGlow {
-  0%, 100% {
+  0%,
+  100% {
     filter: drop-shadow(0 0 20px rgba(96, 165, 250, 0.8));
     transform: translate(-50%, -50%) scale(1);
   }
@@ -2228,29 +2401,29 @@ onUnmounted(() => {
   }
 }
 
-  h3 {
-    font-size: 18px;
-    margin-bottom: 16px;
-    color: #fbbf24;
-  }
+h3 {
+  font-size: 18px;
+  margin-bottom: 16px;
+  color: #fbbf24;
+}
 
-  ul {
-    list-style: none;
-    padding: 0;
+ul {
+  list-style: none;
+  padding: 0;
 
-    li {
-      padding: 8px 0;
-      font-size: 14px;
-      color: #cbd5e1;
-      line-height: 1.6;
+  li {
+    padding: 8px 0;
+    font-size: 14px;
+    color: #cbd5e1;
+    line-height: 1.6;
 
-      &::before {
-        content: '▸ ';
-        color: #667eea;
-        margin-right: 8px;
-      }
+    &::before {
+      content: '▸ ';
+      color: #667eea;
+      margin-right: 8px;
     }
   }
+}
 
 @keyframes pulse {
   0%,
@@ -2281,6 +2454,30 @@ onUnmounted(() => {
   50% {
     opacity: 0.5;
     transform: translateX(-50%) scale(1.15);
+  }
+}
+
+@keyframes borderPulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0.4;
   }
 }
 
@@ -2330,7 +2527,8 @@ onUnmounted(() => {
 }
 
 @keyframes bounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -2339,7 +2537,8 @@ onUnmounted(() => {
 }
 
 @keyframes titleGlow {
-  0%, 100% {
+  0%,
+  100% {
     filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.4));
   }
   50% {
@@ -2348,7 +2547,8 @@ onUnmounted(() => {
 }
 
 @keyframes trophy {
-  0%, 100% {
+  0%,
+  100% {
     transform: rotate(-5deg);
   }
   50% {
@@ -2425,10 +2625,18 @@ onUnmounted(() => {
       height: #{100 + $i * 60}px;
       animation-duration: #{3 + $i * 0.5}s;
       animation-direction: #{if($i % 2 == 0, 'normal', 'reverse')};
-      @if $i == 1 { border-color: rgba(52, 211, 153, 0.65); }
-      @if $i == 2 { border-color: rgba(52, 211, 153, 0.5); }
-      @if $i == 3 { border-color: rgba(52, 211, 153, 0.35); }
-      @if $i == 4 { border-color: rgba(52, 211, 153, 0.2); }
+      @if $i == 1 {
+        border-color: rgba(52, 211, 153, 0.65);
+      }
+      @if $i == 2 {
+        border-color: rgba(52, 211, 153, 0.5);
+      }
+      @if $i == 3 {
+        border-color: rgba(52, 211, 153, 0.35);
+      }
+      @if $i == 4 {
+        border-color: rgba(52, 211, 153, 0.2);
+      }
     }
   }
 }
@@ -2444,7 +2652,12 @@ onUnmounted(() => {
     left: 50%;
     transform: translate(-50%, -50%);
     border-radius: 50%;
-    background: radial-gradient(circle, transparent 30%, rgba(52, 211, 153, 0.2) 70%, transparent 100%);
+    background: radial-gradient(
+      circle,
+      transparent 30%,
+      rgba(52, 211, 153, 0.2) 70%,
+      transparent 100%
+    );
     animation: tunnelExpand 2s ease-out infinite;
   }
 
@@ -2520,7 +2733,9 @@ onUnmounted(() => {
     height: 80px;
     background: linear-gradient(180deg, #fbbf24, #f59e0b);
     border-radius: 2px;
-    box-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b;
+    box-shadow:
+      0 0 20px #fbbf24,
+      0 0 40px #f59e0b;
     animation: boltFlash 0.8s ease-out infinite;
   }
 
@@ -2712,18 +2927,42 @@ onUnmounted(() => {
     .halo-segment:nth-child(#{$i}) {
       animation-delay: #{$i * 0.15}s;
       transform: translate(-50%, -50%) rotate(#{($i - 1) * 30}deg);
-      @if $i == 1 { border-top-color: hsl(0, 100%, 50%); }
-      @if $i == 2 { border-top-color: hsl(30, 100%, 50%); }
-      @if $i == 3 { border-top-color: hsl(60, 100%, 50%); }
-      @if $i == 4 { border-top-color: hsl(90, 100%, 50%); }
-      @if $i == 5 { border-top-color: hsl(120, 100%, 50%); }
-      @if $i == 6 { border-top-color: hsl(150, 100%, 50%); }
-      @if $i == 7 { border-top-color: hsl(180, 100%, 50%); }
-      @if $i == 8 { border-top-color: hsl(210, 100%, 50%); }
-      @if $i == 9 { border-top-color: hsl(240, 100%, 50%); }
-      @if $i == 10 { border-top-color: hsl(270, 100%, 50%); }
-      @if $i == 11 { border-top-color: hsl(300, 100%, 50%); }
-      @if $i == 12 { border-top-color: hsl(330, 100%, 50%); }
+      @if $i == 1 {
+        border-top-color: hsl(0, 100%, 50%);
+      }
+      @if $i == 2 {
+        border-top-color: hsl(30, 100%, 50%);
+      }
+      @if $i == 3 {
+        border-top-color: hsl(60, 100%, 50%);
+      }
+      @if $i == 4 {
+        border-top-color: hsl(90, 100%, 50%);
+      }
+      @if $i == 5 {
+        border-top-color: hsl(120, 100%, 50%);
+      }
+      @if $i == 6 {
+        border-top-color: hsl(150, 100%, 50%);
+      }
+      @if $i == 7 {
+        border-top-color: hsl(180, 100%, 50%);
+      }
+      @if $i == 8 {
+        border-top-color: hsl(210, 100%, 50%);
+      }
+      @if $i == 9 {
+        border-top-color: hsl(240, 100%, 50%);
+      }
+      @if $i == 10 {
+        border-top-color: hsl(270, 100%, 50%);
+      }
+      @if $i == 11 {
+        border-top-color: hsl(300, 100%, 50%);
+      }
+      @if $i == 12 {
+        border-top-color: hsl(330, 100%, 50%);
+      }
     }
   }
 }
@@ -2791,12 +3030,24 @@ onUnmounted(() => {
 
   @for $i from 1 through 30 {
     .particle:nth-child(#{$i}) {
-      @if $i % 6 == 1 { background: hsl(0, 100%, 60%); }
-      @if $i % 6 == 2 { background: hsl(60, 100%, 60%); }
-      @if $i % 6 == 3 { background: hsl(120, 100%, 60%); }
-      @if $i % 6 == 4 { background: hsl(180, 100%, 60%); }
-      @if $i % 6 == 5 { background: hsl(240, 100%, 60%); }
-      @if $i % 6 == 0 { background: hsl(300, 100%, 60%); }
+      @if $i % 6 == 1 {
+        background: hsl(0, 100%, 60%);
+      }
+      @if $i % 6 == 2 {
+        background: hsl(60, 100%, 60%);
+      }
+      @if $i % 6 == 3 {
+        background: hsl(120, 100%, 60%);
+      }
+      @if $i % 6 == 4 {
+        background: hsl(180, 100%, 60%);
+      }
+      @if $i % 6 == 5 {
+        background: hsl(240, 100%, 60%);
+      }
+      @if $i % 6 == 0 {
+        background: hsl(300, 100%, 60%);
+      }
       animation-delay: #{$i * 0.05}s;
       transform-origin: center;
     }
@@ -2816,7 +3067,8 @@ onUnmounted(() => {
 }
 
 @keyframes timeTextZoom {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     filter: drop-shadow(0 0 30px rgba(52, 211, 153, 0.8));
   }
@@ -2827,7 +3079,8 @@ onUnmounted(() => {
 }
 
 @keyframes timeIconPulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1) rotate(0deg);
   }
   50% {
@@ -2867,7 +3120,8 @@ onUnmounted(() => {
 }
 
 @keyframes streamFlow {
-  0%, 100% {
+  0%,
+  100% {
     transform: rotate(var(--rotation, 0deg)) translateY(-100px);
     opacity: 0;
   }
@@ -2878,7 +3132,8 @@ onUnmounted(() => {
 }
 
 @keyframes boltFlash {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0;
     transform: rotate(var(--rotation, 0deg)) scale(1);
   }
@@ -2890,7 +3145,8 @@ onUnmounted(() => {
 
 // ==================== 等级提升动画 ====================
 @keyframes levelTextBounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
   }
   50% {
@@ -2899,7 +3155,8 @@ onUnmounted(() => {
 }
 
 @keyframes levelNumberScale {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
   }
   50% {
@@ -2975,7 +3232,8 @@ onUnmounted(() => {
 }
 
 @keyframes rayPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.3;
     transform: rotate(var(--rotation, 0deg)) translateY(-100px) scale(1);
   }
