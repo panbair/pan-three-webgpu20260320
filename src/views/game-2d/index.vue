@@ -5,6 +5,12 @@
 
     <!-- 游戏UI层 -->
     <div class="game-ui">
+      <!-- 返回按钮 -->
+      <button class="back-button" @click="goBack">
+        <span class="back-icon">←</span>
+        <span class="back-text">返回</span>
+      </button>
+
       <!-- 顶部信息栏 -->
       <div class="top-bar">
         <div class="info-item">
@@ -288,6 +294,28 @@
           <span class="button-text">{{ gameState === 'ready' ? '开始游戏' : '再来一局' }}</span>
         </button>
 
+        <!-- 返回首页按钮 -->
+        <button class="home-button" @click="goBack">
+          <span class="button-icon">🏠</span>
+          <span class="button-text">返回首页</span>
+        </button>
+
+        <!-- 时间选择 -->
+        <div v-if="gameState === 'ready'" class="time-selector">
+          <h3 class="selector-title">⏱️ 游戏时长</h3>
+          <div class="time-options">
+            <button
+              v-for="time in timeOptions"
+              :key="time.value"
+              class="time-option"
+              :class="{ active: selectedTime === time.value }"
+              @click="selectedTime = time.value"
+            >
+              <span class="time-value">{{ time.label }}</span>
+            </button>
+          </div>
+        </div>
+
         <!-- 游戏说明 -->
         <div v-if="gameState === 'ready'" class="game-controls">
           <h3 class="controls-title">🎮 游戏说明</h3>
@@ -318,8 +346,17 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { gsap } from 'gsap'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 
+// 时间选项
+const timeOptions = [
+  { label: '60秒', value: 60 },
+  { label: '90秒', value: 90 },
+  { label: '120秒', value: 120 }
+]
+const selectedTime = ref(90) // 默认90秒
 
 // 游戏配置
 const CONFIG = {
@@ -346,7 +383,18 @@ const CONFIG = {
   // 背景图列表
   backgroundList: Array.from({ length: 17 }, (_, i) =>
     `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game3/g-v3-${i + 1}.png`
-  )
+  ),
+  // 字母纹理配置
+  textureBaseUrl: 'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game1',
+  textureMinIndex: 1,
+  textureMaxIndex: 90,
+  // 字母尺寸配置
+  letterWidth: 140,
+  letterInitialY: -60,
+  letterSize: 120,
+  // 音效配置
+  audioVolume: 0.3,
+  enableDebugLogs: false // 开发时可设为 true
 }
 
 // 游戏状态
@@ -442,9 +490,10 @@ const effectsContainer = ref<HTMLElement | null>(null)
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 const getTexturePath = () => {
-  const randomIndex = Math.floor(Math.random() * 90) + 1
-  const url = `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game1/g-v2-${randomIndex}.png`
-
+  const randomIndex = Math.floor(
+    Math.random() * (CONFIG.textureMaxIndex - CONFIG.textureMinIndex + 1)
+  ) + CONFIG.textureMinIndex
+  const url = `${CONFIG.textureBaseUrl}/g-v2-${randomIndex}.png`
   return url
 }
 
@@ -461,6 +510,22 @@ const formatTime = (seconds: number) => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
+// 返回主页
+const goBack = () => {
+  // 停止游戏
+  if (audio) {
+    audio.pause()
+    audio.currentTime = 0
+  }
+  if (gameLoop) cancelAnimationFrame(gameLoop)
+  if (spawnTimer) clearTimeout(spawnTimer)
+  if (comboTimer) clearTimeout(comboTimer)
+  if (effectTimer) clearInterval(effectTimer)
+
+  // 返回主页
+  router.push('/')
+}
+
 // 创建字母
 const createLetter = () => {
   if (gameState.value !== 'playing') return
@@ -475,8 +540,8 @@ const createLetter = () => {
   const letter: Letter = {
     id: generateId(),
     char: ALPHABET[Math.floor(Math.random() * ALPHABET.length)] || 'Q',
-    x: Math.random() * (containerWidth - 140) + 70,
-    y: -60,
+    x: Math.random() * (containerWidth - CONFIG.letterWidth) + CONFIG.letterWidth / 2,
+    y: CONFIG.letterInitialY,
     scale: 0,
     rotation: Math.random() * 30 - 15,
     zIndex: 10 + letters.value.length,
@@ -803,12 +868,14 @@ const startGame = () => {
   // 随机选择背景图
   const randomBgIndex = Math.floor(Math.random() * CONFIG.backgroundList.length)
   currentBackground.value = CONFIG.backgroundList[randomBgIndex]
-  console.log(`使用背景图 #${randomBgIndex + 1}`)
+  if (CONFIG.enableDebugLogs) {
+    console.log(`使用背景图 #${randomBgIndex + 1}`)
+  }
 
   // 重置游戏状态
   score.value = 0
   level.value = 1
-  timeLeft.value = CONFIG.initialTime
+  timeLeft.value = selectedTime.value
   combo.value = 0
   maxCombo.value = 0
   totalEliminated.value = 0
@@ -889,14 +956,18 @@ const playBackgroundMusic = () => {
   // 随机选择一首音乐
   const randomIndex = Math.floor(Math.random() * CONFIG.musicList.length)
   const randomMusic = CONFIG.musicList[randomIndex]
-  console.log(`播放背景音乐 #${randomIndex + 1}`)
+  if (CONFIG.enableDebugLogs) {
+    console.log(`播放背景音乐 #${randomIndex + 1}`)
+  }
 
   audio = new Audio(randomMusic)
   audio.loop = true
-  audio.volume = 0.3
+  audio.volume = CONFIG.audioVolume
 
   audio.play().catch(err => {
-    console.log('背景音乐播放失败:', err)
+    if (CONFIG.enableDebugLogs) {
+      console.log('背景音乐播放失败:', err)
+    }
   })
 }
 
@@ -978,12 +1049,10 @@ onUnmounted(() => {
 
 .top-bar {
   display: flex;
+  align-items: center;
   justify-content: center;
   gap: 20px;
   padding: 12px 20px;
-  //background: linear-gradient(180deg,
-  //  rgba(255, 255, 255, 0.95) 0%,
-  //  rgba(255, 255, 255, 0.85) 100%);
   backdrop-filter: blur(15px);
   border-bottom: 4px solid rgba(255, 255, 255, 0.6);
   box-shadow:
@@ -1009,6 +1078,50 @@ onUnmounted(() => {
       #34d399 100%
     );
     border-radius: 0 0 4px 4px;
+  }
+}
+
+.back-button {
+  position: fixed;
+  left: 20px;
+  top: 20px;
+  display: flex;
+  align-items: center;
+  z-index: 9999;
+  pointer-events: auto;
+  gap: 6px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+  border: none;
+  border-radius: 22px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow:
+      0 8px 20px rgba(0, 0, 0, 0.12),
+      0 4px 8px rgba(0, 0, 0, 0.06);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.9) 100%);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  .back-icon {
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  .back-text {
+    font-weight: 600;
   }
 }
 
@@ -1361,26 +1474,7 @@ onUnmounted(() => {
   animation: glowPulse 3s ease-in-out infinite;
 }
 
-.letter-side {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  background: linear-gradient(180deg, #764ba2, #667eea);
-  border-radius: 12px;
-  transform: translateZ(-5px);
-  opacity: 0.6;
-}
-
-.letter-shadow {
-  position: absolute;
-  width: 60px;
-  height: 20px;
-  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.3) 0%, transparent 70%);
-  bottom: -30px;
-  left: 50%;
-  transform: translateX(-50%);
-  animation: shadowPulse 2s ease-in-out infinite;
-}
+/* 删除重复的 .letter-shadow 定义，已在1322行定义 */
 
 .effects-container {
   position: absolute;
@@ -1694,51 +1788,12 @@ onUnmounted(() => {
   font-weight: 900;
   letter-spacing: 2px;
   white-space: nowrap;
-  z-index: 100;
-}
-
-.elimination-effect.golden .effect-text {
-  background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 50%, #f59e0b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.8));
-  animation: goldenTextGlow 1s ease-out infinite;
-}
-
-.elimination-effect.time-bonus .effect-text {
-  background: linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 0 20px rgba(52, 211, 153, 0.8));
-  animation: timeTextGlow 1s ease-out infinite;
-}
-
-.elimination-effect.normal .effect-text {
-  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 0 20px rgba(96, 165, 250, 0.8));
-  animation: normalTextGlow 1s ease-out infinite;
-}
-
-// 分数文本
-.effect-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 42px;
-  font-weight: 900;
-  letter-spacing: 2px;
-  white-space: nowrap;
   text-shadow:
     0 0 10px currentColor,
     0 0 20px currentColor,
     0 0 30px currentColor,
     0 4px 8px rgba(0, 0, 0, 0.3);
+  z-index: 100;
 }
 
 .elimination-effect.golden .effect-text {
@@ -2041,6 +2096,154 @@ onUnmounted(() => {
   .button-text {
     font-size: 20px;
     font-weight: 900;
+  }
+}
+
+.home-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  padding: 18px 60px;
+  font-size: 20px;
+  font-weight: 900;
+  color: white;
+  background: linear-gradient(135deg, #374151 0%, #1f2937 50%, #111827 100%);
+  border: 3px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.3),
+    inset 0 3px 0 rgba(255, 255, 255, 0.2);
+  margin: 0 auto;
+  width: 100%;
+  max-width: 280px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
+  pointer-events: auto;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: buttonShine 2.5s ease-in-out infinite;
+  }
+
+  &:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow:
+      0 15px 35px rgba(0, 0, 0, 0.4),
+      inset 0 3px 0 rgba(255, 255, 255, 0.25);
+    background: linear-gradient(135deg, #4b5563 0%, #374151 50%, #1f2937 100%);
+  }
+
+  &:active {
+    transform: translateY(-1px) scale(1.01);
+  }
+
+  .button-icon {
+    font-size: 24px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  }
+
+  .button-text {
+    font-size: 18px;
+    font-weight: 700;
+  }
+}
+
+.time-selector {
+  margin-top: 30px;
+
+  .selector-title {
+    font-size: 24px;
+    font-weight: 900;
+    color: #1f2937;
+    text-align: center;
+    margin-bottom: 20px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .time-options {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+  }
+
+  .time-option {
+    flex: 1;
+    max-width: 120px;
+    padding: 16px 20px;
+    font-size: 20px;
+    font-weight: 800;
+    color: #374151;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.75) 100%);
+    border: 3px solid rgba(168, 85, 247, 0.3);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.1),
+      inset 0 2px 0 rgba(255, 255, 255, 0.5);
+    position: relative;
+    overflow: hidden;
+    pointer-events: auto;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .time-value {
+      position: relative;
+      z-index: 1;
+      display: block;
+      color: inherit;
+    }
+
+    &:hover {
+      transform: translateY(-3px) scale(1.05);
+      border-color: #a855f7;
+      box-shadow:
+        0 8px 20px rgba(168, 85, 247, 0.3),
+        inset 0 2px 0 rgba(255, 255, 255, 0.5);
+    }
+
+    &.active {
+      transform: translateY(-3px) scale(1.08);
+      border-color: #a855f7;
+      background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+      color: white;
+      box-shadow:
+        0 10px 25px rgba(168, 85, 247, 0.4),
+        inset 0 3px 0 rgba(255, 255, 255, 0.3);
+
+      &::before {
+        opacity: 1;
+      }
+
+      .time-value {
+        color: white;
+      }
+    }
+
+    &:active {
+      transform: translateY(-1px) scale(1.02);
+    }
   }
 }
 
