@@ -73,6 +73,21 @@
             <button class="play-btn">开始冒险</button>
           </div>
         </div>
+
+        <div class="game-card pinyin-card-entry" @click="startGame('pinyin-game')">
+          <div class="game-icon">🎓</div>
+          <div class="card-body">
+            <h2 class="game-name">拼音小乐园</h2>
+            <p class="game-desc">儿童养成类拼音学习，有趣卡片互动，轻松掌握拼音</p>
+            <div class="game-features">
+              <span>🌟 新上线</span>
+              <span>👶 儿童友好</span>
+              <span>养成学习</span>
+              <span>星星奖励</span>
+            </div>
+            <button class="play-btn">开始学习</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -98,6 +113,9 @@ function startGame(gameType: string) {
   }
   if (gameType === 'game-mc') {
     router.push('/game-mc')
+  }
+  if (gameType === 'pinyin-game') {
+    router.push('/pinyin-game')
   }
 }
 </script>
@@ -276,6 +294,27 @@ function startGame(gameType: string) {
 .mc-card-entry .play-btn:hover {
   background: linear-gradient(135deg, #c8f582, #a8e063) !important;
   box-shadow: 0 10px 30px rgba(168, 224, 99, 0.4) !important;
+}
+
+/* ─── 拼音学习卡片专属 ─── */
+.pinyin-card-entry {
+  border-color: #ff9a9e;
+}
+.pinyin-card-entry:hover:not(.disabled) {
+  border-color: #ffb8bc !important;
+  box-shadow: 0 20px 40px rgba(255, 154, 158, 0.3) !important;
+}
+.pinyin-card-entry .game-features span {
+  background: rgba(255, 154, 158, 0.15);
+  color: #ff9a9e;
+  border-color: #ff9a9e;
+}
+.pinyin-card-entry .play-btn {
+  background: linear-gradient(135deg, #ff9a9e, #fecfef);
+}
+.pinyin-card-entry .play-btn:hover {
+  background: linear-gradient(135deg, #ffb8bc, #ff9a9e) !important;
+  box-shadow: 0 10px 30px rgba(255, 154, 158, 0.4) !important;
 }
 
 /* ═══ 移动端断点 ═══ */

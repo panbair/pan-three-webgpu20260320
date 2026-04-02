@@ -72,6 +72,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '我的世界打字冒险' }
   },
   {
+    path: '/pinyin-game',
+    name: 'pinyin-game',
+    component: () => import('@/views/pinyin-game/index.vue'),
+    meta: { title: '拼音小乐园' }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/Error/404.vue'),
