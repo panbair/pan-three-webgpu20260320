@@ -60,6 +60,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '打字-text' }
   },
   {
+    path: '/game-gushi',
+    name: 'game-gushi',
+    component: () => import('@/views/game-gushi/index.vue'),
+    meta: { title: '打字-gushi' }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/Error/404.vue'),
