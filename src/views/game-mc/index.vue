@@ -149,12 +149,15 @@
     <div class="bottom-panel">
       <div class="finger-hint">
         <template v-if="activeNextChars.length > 0">
-          <span class="finger-dot" :style="{ background: nextFingerInfo?.color || 'rgba(255,255,255,0.3)' }"></span>
+          <span
+            class="finger-dot"
+            :style="{ background: nextFingerInfo?.color || 'rgba(255,255,255,0.3)' }"
+          ></span>
           <span class="finger-text">{{ nextFingerInfo?.name || '按键盘输入' }}</span>
           <span class="finger-key">{{ activeNextChars[0].toUpperCase() }}</span>
         </template>
         <template v-else>
-          <span class="finger-dot" style="background: rgba(255,255,255,0.3)"></span>
+          <span class="finger-dot" style="background: rgba(255, 255, 255, 0.3)"></span>
           <span class="finger-text">等待方块出现</span>
           <span class="finger-key" style="opacity: 0.5">?</span>
         </template>
@@ -186,7 +189,10 @@
         @keydown="onKeyDown"
         @input="onInput"
         @compositionstart="composing = true"
-        @compositionend="composing = false; onInput()"
+        @compositionend="
+          composing = false
+          onInput()
+        "
       />
       <div class="input-hint" @click="focusInput">
         <span v-if="focusedBlockId !== null">
@@ -295,8 +301,6 @@
         </button>
         <!-- 帮助按钮 -->
         <button class="home-button gray-btn" @click="showHelp = true">❓ 怎么玩</button>
-
-
       </div>
     </div>
 
@@ -361,11 +365,11 @@
         <!-- 新成就 -->
         <div v-if="newAchievements.length > 0" class="new-achievements">
           <div class="ach-title">🎉 新成就解锁！</div>
-            <div class="ach-list">
-              <div v-for="a in newAchievements" :key="a.id" class="ach-item">
-                {{ a.emoji }} {{ a.name }}
-              </div>
+          <div class="ach-list">
+            <div v-for="a in newAchievements" :key="a.id" class="ach-item">
+              {{ a.emoji }} {{ a.name }}
             </div>
+          </div>
         </div>
 
         <!-- 新宠物 -->
@@ -571,8 +575,9 @@ const focusedBlockId = ref<number | null>(null)
 let blockIdCounter = 0
 
 // 背景图列表（7张）
-const BACKGROUND_LIST = Array.from({ length: 17 }, (_, i) =>
-    `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game3/g-v3-${i + 1}.png`
+const BACKGROUND_LIST = Array.from(
+  { length: 17 },
+  (_, i) => `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game3/g-v3-${i + 1}.png`
 )
 const currentBackground = ref(BACKGROUND_LIST[0])
 
@@ -584,7 +589,7 @@ const MUSIC_LIST = [
   'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/2.mp3',
   'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/3.mp3',
   'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/4.mp3',
-  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/5.mp3',
+  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/5.mp3'
 ]
 let currentMusicIndex = 0
 let audioPlayer: HTMLAudioElement | null = null
@@ -606,7 +611,9 @@ const comboLabel = ref('')
 const comboLabelColor = ref('#ffd32a')
 let comboLabelTimer: ReturnType<typeof setTimeout> | null = null
 
-const eliminationEffects = ref<Map<string, { id: string; x: number; y: number; type: string; text: string }>>(new Map())
+const eliminationEffects = ref<
+  Map<string, { id: string; x: number; y: number; type: string; text: string }>
+>(new Map())
 
 function createEliminationEffect(x: number, y: number, points: number, isGolden: boolean) {
   const id = `eff_${Date.now()}_${Math.random()}`
@@ -707,9 +714,10 @@ function handleChar(ch: string) {
   const targetBlock = activeBlocks.value.find(b => !b.done && b.word[b.typedCount] === ch)
   if (!targetBlock) {
     // 没有匹配的方块，检查当前焦点方块是否错误
-    const currentBlk = focusedBlockId.value !== null
-      ? activeBlocks.value.find(b => b.id === focusedBlockId.value && !b.done)
-      : null
+    const currentBlk =
+      focusedBlockId.value !== null
+        ? activeBlocks.value.find(b => b.id === focusedBlockId.value && !b.done)
+        : null
     if (currentBlk && currentBlk.word[currentBlk.typedCount] !== ch) {
       // 输入错误
       currentBlk.error = true
@@ -1237,11 +1245,7 @@ onUnmounted(() => {
   padding: 14px 24px;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.15) 0%,
-    rgba(255, 255, 255, 0.05) 100%
-  );
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.2),
@@ -1348,12 +1352,24 @@ onUnmounted(() => {
       inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
 
-  &:nth-child(1) { --i: 0; }
-  &:nth-child(2) { --i: 1; }
-  &:nth-child(3) { --i: 2; }
-  &:nth-child(4) { --i: 3; }
-  &:nth-child(5) { --i: 4; }
-  &:nth-child(6) { --i: 5; }
+  &:nth-child(1) {
+    --i: 0;
+  }
+  &:nth-child(2) {
+    --i: 1;
+  }
+  &:nth-child(3) {
+    --i: 2;
+  }
+  &:nth-child(4) {
+    --i: 3;
+  }
+  &:nth-child(5) {
+    --i: 4;
+  }
+  &:nth-child(6) {
+    --i: 5;
+  }
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.08),
     inset 0 2px 0 rgba(255, 255, 255, 1),
@@ -1509,12 +1525,7 @@ onUnmounted(() => {
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.6),
-      transparent
-    );
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
     animation: shimmer 1.5s ease-in-out infinite;
   }
 }
@@ -1658,11 +1669,7 @@ onUnmounted(() => {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-      135deg,
-      rgba(0, 0, 0, 0.2) 0%,
-      rgba(0, 0, 0, 0.4) 100%
-    );
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.4) 100%);
     border-radius: 22px;
     z-index: 0;
   }
@@ -1687,39 +1694,31 @@ onUnmounted(() => {
     animation: activePulse 1.5s ease-in-out infinite;
 
     &::after {
-      background: linear-gradient(
-        135deg,
-        rgba(255, 211, 42, 0.25) 0%,
-        rgba(0, 0, 0, 0.35) 100%
-      );
+      background: linear-gradient(135deg, rgba(255, 211, 42, 0.25) 0%, rgba(0, 0, 0, 0.35) 100%);
     }
   }
 
   &.warning {
     background-color: rgba(180, 100, 20, 0.9);
     border-color: #ff9f43;
-    animation: shakeWarning 0.5s ease infinite, warningPulse 1s ease-in-out infinite;
+    animation:
+      shakeWarning 0.5s ease infinite,
+      warningPulse 1s ease-in-out infinite;
 
     &::after {
-      background: linear-gradient(
-        135deg,
-        rgba(255, 159, 67, 0.35) 0%,
-        rgba(0, 0, 0, 0.45) 100%
-      );
+      background: linear-gradient(135deg, rgba(255, 159, 67, 0.35) 0%, rgba(0, 0, 0, 0.45) 100%);
     }
   }
 
   &.danger {
     background-color: rgba(200, 40, 40, 0.95);
     border-color: #ff6b6b;
-    animation: shakeDanger 0.3s ease infinite, dangerPulse 0.6s ease-in-out infinite;
+    animation:
+      shakeDanger 0.3s ease infinite,
+      dangerPulse 0.6s ease-in-out infinite;
 
     &::after {
-      background: linear-gradient(
-        135deg,
-        rgba(255, 107, 107, 0.45) 0%,
-        rgba(0, 0, 0, 0.55) 100%
-      );
+      background: linear-gradient(135deg, rgba(255, 107, 107, 0.45) 0%, rgba(0, 0, 0, 0.55) 100%);
     }
   }
 
@@ -1733,11 +1732,7 @@ onUnmounted(() => {
     animation: successPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     &::after {
-      background: linear-gradient(
-        135deg,
-        rgba(11, 232, 129, 0.35) 0%,
-        rgba(0, 0, 0, 0.35) 100%
-      );
+      background: linear-gradient(135deg, rgba(11, 232, 129, 0.35) 0%, rgba(0, 0, 0, 0.35) 100%);
     }
   }
 
@@ -1818,7 +1813,9 @@ onUnmounted(() => {
       0 0 30px currentColor,
       0 0 60px currentColor,
       0 4px 8px rgba(0, 0, 0, 0.5);
-    animation: nextPulse 1s ease infinite, letterGlow 1.5s ease-in-out infinite;
+    animation:
+      nextPulse 1s ease infinite,
+      letterGlow 1.5s ease-in-out infinite;
     transform: perspective(500px) rotateX(0deg) translateZ(20px);
 
     &::after {
@@ -2672,7 +2669,9 @@ onUnmounted(() => {
       0 25px 60px rgba(168, 85, 247, 0.6),
       0 0 0 2px rgba(255, 255, 255, 0.4),
       inset 0 2px 4px rgba(255, 255, 255, 0.4);
-    animation: gradientShift 2s ease infinite, neonPulse 1.5s ease-in-out infinite;
+    animation:
+      gradientShift 2s ease infinite,
+      neonPulse 1.5s ease-in-out infinite;
 
     &::before {
       transform: rotate(45deg) translateX(100%);
