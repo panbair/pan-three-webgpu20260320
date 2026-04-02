@@ -94,7 +94,7 @@
         <div class="block-progress">
           <div
             class="block-progress-fill"
-            :style="{ width: (1 - blk.y / (fieldHeight - 60)) * 100 + '%' }"
+            :style="{ width: (blk.y / (fieldHeight - 60)) * 100 + '%' }"
             :class="{ warning: blk.warningLevel >= 1, danger: blk.warningLevel >= 2 }"
           ></div>
         </div>
@@ -573,13 +573,13 @@ const currentBackground = ref(BACKGROUND_LIST[0])
 
 // 音乐列表（7首）
 const MUSIC_LIST = [
+  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/6.mp3',
+  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/7.mp3',
   'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/1.mp3',
   'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/2.mp3',
   'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/3.mp3',
   'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/4.mp3',
   'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/5.mp3',
-  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/6.mp3',
-  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/7.mp3'
 ]
 let currentMusicIndex = 0
 let audioPlayer: HTMLAudioElement | null = null
@@ -780,7 +780,7 @@ function spawnBlock() {
     word: w.word,
     zh: w.zh,
     emoji: w.emoji,
-    x: 40 + Math.random() * (fieldWidth.value - 400),
+    x: 40 + Math.random() * Math.max(100, fieldWidth.value - 400),
     y: 0,
     typedCount: 0,
     done: false,
@@ -898,6 +898,7 @@ function startGame() {
   currentLevelConfig.value = cfg
   activeBlocks.value = []
   focusedBlockId.value = null
+  blockIdCounter = 0
   score.value = 0
   coins.value = 0
   combo.value = 0
@@ -1035,7 +1036,10 @@ function stopAll() {
     cancelAnimationFrame(pfxTimer)
     pfxTimer = 0
   }
-  if (comboLabelTimer) clearTimeout(comboLabelTimer)
+  if (comboLabelTimer) {
+    clearTimeout(comboLabelTimer)
+    comboLabelTimer = null
+  }
   stopMusic()
 }
 
@@ -1155,7 +1159,7 @@ onUnmounted(() => {
     content: '';
     position: absolute;
     inset: 0;
-    background: 
+    background:
       radial-gradient(ellipse at 50% 0%, rgba(0, 0, 0, 0.1) 0%, transparent 50%),
       radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.2) 0%, transparent 40%),
       rgba(0, 0, 0, 0.1);
@@ -3108,14 +3112,14 @@ onUnmounted(() => {
 @keyframes neonPulse {
   0%,
   100% {
-    box-shadow: 
+    box-shadow:
       0 0 5px currentColor,
       0 0 10px currentColor,
       0 0 20px currentColor,
       0 0 40px currentColor;
   }
   50% {
-    box-shadow: 
+    box-shadow:
       0 0 10px currentColor,
       0 0 20px currentColor,
       0 0 40px currentColor,
