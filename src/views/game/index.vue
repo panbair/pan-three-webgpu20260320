@@ -27,14 +27,16 @@
           <button class="play-btn">开始游戏</button>
         </div>
 
-        <div class="game-card disabled">
+        <div class="game-card" @click="startGame('game-text')">
           <div class="game-icon">🚀</div>
-          <h2 class="game-name">文字冲浪</h2>
-          <p class="game-desc">高速隧道中，输入字母获得速度</p>
+          <h2 class="game-name">赛博朋克黑客终端</h2>
+          <p class="game-desc">视觉冲击力最强</p>
           <div class="game-features">
-            <span>开发中</span>
+            <span>⭐ 推荐</span>
+            <span>有故事感</span>
+            <span>破关爽感</span>
           </div>
-          <button class="play-btn" disabled>敬请期待</button>
+          <button class="play-btn">开始游戏</button>
         </div>
       </div>
     </div>
@@ -52,6 +54,9 @@ function startGame(gameType: string) {
   }
   if (gameType === 'game-2d') {
     router.push('/game-2d')
+  }
+  if (gameType === 'game-text') {
+    router.push('/game-text')
   }
 }
 </script>

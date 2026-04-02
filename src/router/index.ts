@@ -54,6 +54,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '打字-2d' }
   },
   {
+    path: '/game-text',
+    name: 'game-text',
+    component: () => import('@/views/game-text/index.vue'),
+    meta: { title: '打字-text' }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/Error/404.vue'),
