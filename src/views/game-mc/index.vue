@@ -190,7 +190,7 @@
         @input="onInput"
         @compositionstart="composing = true"
         @compositionend="
-          composing = false
+          composing = false;
           onInput()
         "
       />
