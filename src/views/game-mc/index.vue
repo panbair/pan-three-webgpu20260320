@@ -1,233 +1,469 @@
 <template>
   <div ref="gameRoot" class="mc-game" :class="`scene-${currentScene}`">
-    <div class="game-background"></div>
-    <div class="pixel-clouds">
-      <div v-for="c in clouds" :key="c.id" class="pixel-cloud" :style="{ left: c.x + 'px', top: c.y + 'px', opacity: c.opacity }">☁️</div>
-    </div>
-    <div class="ground-row">
-      <span v-for="i in groundTiles" :key="i" class="ground-tile">{{ groundEmoji }}</span>
+    <!-- 游戏背景 -->
+    <div class="game-background" :style="{ backgroundImage: `url(${currentBackground})` }"></div>
+
+    <!-- 游戏UI层 -->
+    <div class="game-ui">
+      <!-- 返回按钮 -->
+      <button class="back-button" @click="goBack">
+        <span class="back-icon">←</span>
+        <span class="back-text">返回</span>
+      </button>
+
+      <!-- 顶部信息栏 -->
+      <div class="top-bar">
+        <div class="info-item">
+          <span class="label">分数</span>
+          <span class="value score">{{ score }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">金币</span>
+          <span class="value coins">{{ coins }}</span>
+        </div>
+        <div class="info-item center-info">
+          <span class="label level-lbl">{{ currentLevelConfig?.name }}</span>
+          <span class="value prog">{{ doneCount }} / {{ currentLevelConfig?.targetCount }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">用时</span>
+          <span class="value time">{{ elapsed }}s</span>
+        </div>
+        <div class="info-item" :class="{ 'combo-active': combo > 0 }">
+          <span class="label">连击</span>
+          <span class="value combo">{{ combo > 0 ? '🔥' + combo : combo }}</span>
+        </div>
+        <button class="pause-btn" @click="togglePause">{{ paused ? '▶' : '⏸' }}</button>
+      </div>
+
+      <!-- 进度条 -->
+      <div class="progress-bar">
+        <div
+          class="progress-fill"
+          :style="{ width: (doneCount / (currentLevelConfig?.targetCount ?? 1)) * 100 + '%' }"
+        ></div>
+      </div>
     </div>
 
-    <!-- ══ 开始界面 ══ -->
-    <transition name="page-fade">
-      <div v-if="phase === 'start'" class="start-screen">
-        <button class="back-button" @click="goBack"><span class="back-icon">←</span><span class="back-text">返回</span></button>
-        <div class="overlay-content start-content">
-          <div class="logo-section">
-            <div class="logo-icon">⛏️</div>
-            <h1 class="game-title">我的世界打字冒险</h1>
-            <p class="game-subtitle">6-10岁儿童专属像素冒险</p>
-          </div>
-          <div class="steve-wrap">
-            <div class="steve" :class="{ bounce: steveBounce }">{{ currentPet }}</div>
-            <div class="steve-bubble" v-if="steveSpeech">{{ steveSpeech }}</div>
-          </div>
-          <div class="level-select">
-            <h3 class="controls-title">🗺️ 选择关卡</h3>
-            <div class="level-grid">
-              <button v-for="lv in levelConfigs" :key="lv.id" class="level-card"
-                :class="{ locked: !progress.unlockedLevels.includes(lv.id), active: selectedLevel === lv.id, done: (progress.bestRecords[lv.id]?.stars ?? 0) >= 3 }"
-                @click="selectLevel(lv.id)">
-                <div class="lv-scene">{{ sceneConfigs[lv.scene].emoji }}</div>
-                <div class="lv-name">{{ lv.name }}</div>
-                <div class="lv-age">{{ lv.ageRange }}</div>
-                <div class="lv-stars">
-                  <span v-for="s in 3" :key="s" :class="s <= (progress.bestRecords[lv.id]?.stars ?? 0) ? 'star-on' : 'star-off'">★</span>
-                </div>
-                <div v-if="!progress.unlockedLevels.includes(lv.id)" class="lock-icon">🔒</div>
-              </button>
-            </div>
-          </div>
-          <div class="pet-row" v-if="progress.pets.length > 0">
-            <span class="pet-label">我的宠物：</span>
-            <span v-for="pid in progress.pets" :key="pid" class="pet-badge" @click="currentPet = pets.find(p => p.id === pid)?.emoji ?? '🧑'">
-              {{ pets.find(p => p.id === pid)?.emoji }}
+    <!-- 连击提示 -->
+    <div class="combo-display" :class="{ active: combo > 1 }">
+      <div class="combo-text">{{ combo }}连击!</div>
+      <div v-if="comboLabel" class="combo-label" :style="{ color: comboLabelColor }">
+        {{ comboLabel }}
+      </div>
+    </div>
+
+    <!-- 方块容器 -->
+    <div ref="blockField" class="letters-container">
+      <div
+        v-for="blk in activeBlocks"
+        :key="blk.id"
+        class="word-block"
+        :class="{
+          active: blk.id === focusedBlockId,
+          warning: blk.warningLevel === 1,
+          danger: blk.warningLevel === 2,
+          done: blk.done,
+          error: blk.error
+        }"
+        :style="{ left: blk.x + 'px', top: blk.y + 'px', backgroundImage: `url(${blk.imageUrl})` }"
+        @click="focusBlock(blk.id)"
+      >
+        <div class="block-content">
+          <div class="block-word">
+            <span
+              v-for="(ch, ci) in blk.word"
+              :key="ci"
+              class="block-char"
+              :class="{
+                typed: ci < blk.typedCount,
+                next: ci === blk.typedCount,
+                wrong: blk.error && ci === blk.typedCount
+              }"
+              :style="ci === blk.typedCount ? { color: nextCharColor(blk) } : {}"
+              :data-case="ch.toLowerCase()"
+            >
+              {{ ch.toUpperCase() }}
             </span>
           </div>
-          <div class="total-coins">🪙 总金币：{{ progress.totalCoins }}</div>
-          <div class="start-btns">
-            <button class="start-button" :disabled="!selectedLevel" @click="startGame">
-              <span class="button-icon">▶</span><span class="button-text">开始冒险</span>
+          <div class="block-zh">{{ blk.zh }}</div>
+          <div v-if="blk.done" class="block-stars">
+            <span v-for="s in blk.stars" :key="s">⭐</span>
+          </div>
+        </div>
+        <div class="block-progress">
+          <div
+            class="block-progress-fill"
+            :style="{ width: (1 - blk.y / (fieldHeight - 60)) * 100 + '%' }"
+            :class="{ warning: blk.warningLevel >= 1, danger: blk.warningLevel >= 2 }"
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 消除特效容器 -->
+    <div class="effects-container">
+      <div
+        v-for="ef in eliminationEffects"
+        :key="ef.id"
+        class="elimination-effect"
+        :class="ef.type"
+        :style="{ left: ef.x + 'px', top: ef.y + 'px' }"
+      >
+        <!-- 普通消除特效 -->
+        <template v-if="ef.type === 'normal'">
+          <div class="normal-effect">
+            <div class="star-burst">
+              <div v-for="i in 12" :key="i" class="star"></div>
+            </div>
+            <div class="sparkles">
+              <div v-for="i in 20" :key="i" class="sparkle"></div>
+            </div>
+            <div class="shockwave"></div>
+          </div>
+        </template>
+
+        <!-- 金币特效 -->
+        <template v-if="ef.type === 'golden'">
+          <div class="golden-effect">
+            <div class="crown-emit">
+              <div class="crown">👑</div>
+            </div>
+            <div class="gold-shower">
+              <div v-for="i in 15" :key="i" class="gold-coin"></div>
+            </div>
+            <div class="royal-rays">
+              <div v-for="i in 6" :key="i" class="ray"></div>
+            </div>
+            <div class="diamond-spark">
+              <div v-for="i in 4" :key="i" class="diamond"></div>
+            </div>
+          </div>
+        </template>
+
+        <div class="effect-text">{{ ef.text }}</div>
+      </div>
+    </div>
+
+    <!-- 底部面板 -->
+    <div class="bottom-panel">
+      <div class="finger-hint">
+        <template v-if="nextFingerInfo">
+          <span class="finger-dot" :style="{ background: nextFingerInfo.color }"></span>
+          <span class="finger-text">{{ nextFingerInfo.name }}</span>
+          <span class="finger-key">{{ nextChar?.toUpperCase() }}</span>
+        </template>
+        <template v-else>
+          <span class="finger-dot" style="background: rgba(255,255,255,0.3)"></span>
+          <span class="finger-text">点击方块开始打字</span>
+          <span class="finger-key" style="opacity: 0.5">?</span>
+        </template>
+      </div>
+      <div v-if="showVkb" class="vkb">
+        <div v-for="(row, ri) in keyboardRows" :key="ri" class="vkb-row">
+          <div
+            v-for="k in row"
+            :key="k"
+            class="vkb-key"
+            :class="{ highlight: k === nextChar, pressed: pressedKey === k }"
+            :style="{ '--fc': fingerColorHex[fingerMap[k] ?? 'space'] }"
+          >
+            {{ k.toUpperCase() }}
+          </div>
+        </div>
+      </div>
+      <input
+        ref="hiddenInput"
+        v-model="inputBuf"
+        class="hidden-input"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        @keydown="onKeyDown"
+        @input="onInput"
+        @compositionstart="composing = true"
+        @compositionend="composing = false; onInput()"
+      />
+      <div class="input-hint" @click="focusInput">
+        <span v-if="focusedBlockId !== null">
+          <span class="typed-chars">{{ typedSoFar }}</span>
+          <span class="caret blink">|</span>
+          <span class="remaining">{{ remainingChars }}</span>
+        </span>
+        <span v-else class="input-idle">点击方块或直接打字开始 👆</span>
+      </div>
+      <button class="vkb-toggle" @click="showVkb = !showVkb">
+        {{ showVkb ? '🙈 隐藏键盘' : '⌨️ 显示键盘' }}
+      </button>
+    </div>
+
+    <!-- 暂停界面 -->
+    <div v-if="paused && phase === 'playing'" class="game-overlay">
+      <div class="overlay-content pause-content">
+        <div class="logo-section">
+          <div class="logo-icon">⏸</div>
+          <h1 class="game-title" style="font-size: 32px">暂停</h1>
+        </div>
+        <button class="start-button" @click="togglePause">
+          <span class="button-icon">▶</span>
+          <span class="button-text">继续游戏</span>
+        </button>
+        <button class="home-button" @click="quitToMenu">
+          <span class="button-icon">🏠</span>
+          <span class="button-text">退出关卡</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 开始界面 -->
+    <div v-if="phase === 'start'" class="game-overlay">
+      <div class="overlay-content">
+        <!-- Logo和标题 -->
+        <div class="logo-section">
+          <div class="logo-icon">⛏️</div>
+          <h1 class="game-title">我的世界打字冒险</h1>
+          <p class="game-subtitle">6-10岁儿童专属像素冒险</p>
+        </div>
+
+        <!-- Steve角色 -->
+        <div class="steve-wrap">
+          <div class="steve" :class="{ bounce: steveBounce }">{{ currentPet }}</div>
+          <div v-if="steveSpeech" class="steve-bubble">{{ steveSpeech }}</div>
+        </div>
+
+        <!-- 关卡选择 -->
+        <div class="level-select">
+          <h3 class="selector-title">🗺️ 选择关卡</h3>
+          <div class="level-grid">
+            <button
+              v-for="lv in levelConfigs"
+              :key="lv.id"
+              class="level-card"
+              :class="{
+                locked: !progress.unlockedLevels.includes(lv.id),
+                active: selectedLevel === lv.id,
+                done: (progress.bestRecords[lv.id]?.stars ?? 0) >= 3
+              }"
+              @click="selectLevel(lv.id)"
+            >
+              <div class="lv-scene">{{ sceneConfigs[lv.scene].emoji }}</div>
+              <div class="lv-name">{{ lv.name }}</div>
+              <div class="lv-age">{{ lv.ageRange }}</div>
+              <div class="lv-stars">
+                <span
+                  v-for="s in 3"
+                  :key="s"
+                  :class="s <= (progress.bestRecords[lv.id]?.stars ?? 0) ? 'star-on' : 'star-off'"
+                >
+                  ★
+                </span>
+              </div>
+              <div v-if="!progress.unlockedLevels.includes(lv.id)" class="lock-icon">🔒</div>
             </button>
           </div>
-          <div class="sub-btns">
-            <button class="home-button gray-btn" @click="showHelp = true">❓ 怎么玩</button>
-          </div>
         </div>
-      </div>
-    </transition>
 
-    <!-- ══ 游戏界面 ══ -->
-    <transition name="page-fade">
-      <div v-if="phase === 'playing'" class="game-screen">
-        <button class="back-button" @click="quitToMenu"><span class="back-icon">←</span><span class="back-text">菜单</span></button>
-        <div class="top-bar">
-          <div class="info-item"><span class="label">分数</span><span class="value score-v">{{ score }}</span></div>
-          <div class="info-item"><span class="label">金币</span><span class="value coins-v">{{ coins }}</span></div>
-          <div class="info-item center-info">
-            <span class="label level-lbl">{{ currentLevelConfig?.name }}</span>
-            <span class="value prog-v">{{ doneCount }} / {{ currentLevelConfig?.targetCount }}</span>
-          </div>
-          <div class="info-item"><span class="label">用时</span><span class="value time-v">{{ elapsed }}s</span></div>
-          <div class="info-item" :class="{ 'combo-active': combo > 0 }">
-            <span class="label">连击</span><span class="value combo-v">{{ combo > 0 ? '🔥' + combo : combo }}</span>
-          </div>
-          <button class="pause-btn-top" @click="togglePause">{{ paused ? '▶' : '⏸' }}</button>
+        <!-- 宠物展示 -->
+        <div v-if="progress.pets.length > 0" class="pet-row">
+          <span class="pet-label">我的宠物：</span>
+          <span
+            v-for="pid in progress.pets"
+            :key="pid"
+            class="pet-badge"
+            @click="currentPet = pets.find(p => p.id === pid)?.emoji ?? '🧑'"
+          >
+            {{ pets.find(p => p.id === pid)?.emoji }}
+          </span>
         </div>
-        <div class="prog-bar-wrap">
-          <div class="prog-bar-fill" :style="{ width: (doneCount / (currentLevelConfig?.targetCount ?? 1) * 100) + '%' }"></div>
-        </div>
-        <transition name="combo-pop">
-          <div v-if="comboLabel" class="combo-label" :style="{ color: comboLabelColor }">{{ comboLabel }}</div>
-        </transition>
-        <div class="block-field" ref="blockField">
-          <transition-group name="block-anim">
-            <div v-for="blk in activeBlocks" :key="blk.id" class="word-block"
-              :class="{ active: blk.id === focusedBlockId, warning: blk.warningLevel === 1, danger: blk.warningLevel === 2, done: blk.done, error: blk.error }"
-              :style="{ left: blk.x + 'px', top: blk.y + 'px' }" @click="focusBlock(blk.id)">
-              <div class="block-texture"></div>
-              <div class="block-word">
-                <span v-for="(ch, ci) in blk.word" :key="ci" class="block-char"
-                  :class="{ typed: ci < blk.typedCount, next: ci === blk.typedCount, wrong: blk.error && ci === blk.typedCount }"
-                  :style="ci === blk.typedCount ? { color: nextCharColor(blk) } : {}">{{ ch }}</span>
-              </div>
-              <div class="block-zh">{{ blk.zh }}</div>
-              <div v-if="blk.done" class="block-score-stars"><span v-for="s in blk.stars" :key="s">⭐</span></div>
-              <div class="block-prog-bar">
-                <div class="block-prog-fill" :style="{ width: (1 - blk.y / (fieldHeight - 60)) * 100 + '%' }"
-                  :class="{ warning: blk.warningLevel >= 1, danger: blk.warningLevel >= 2 }"></div>
-              </div>
-            </div>
-          </transition-group>
-          <div v-for="fx in groundFx" :key="fx.id" class="ground-fx" :style="{ left: fx.x + 'px' }">💥</div>
-        </div>
-        <!-- 消除特效 -->
-        <div class="efx-layer">
-          <div v-for="ef in eliminationEffects" :key="ef.id" class="elim-effect" :class="ef.type"
-            :style="{ left: ef.x + 'px', top: ef.y + 'px' }">
-            <div v-if="ef.type === 'normal'" class="normal-burst">
-              <div class="sb"><div v-for="i in 12" :key="i" class="s-star"></div></div>
-              <div class="shockwave"></div>
-            </div>
-            <div v-if="ef.type === 'golden'" class="golden-burst">
-              <div class="gs"><div v-for="i in 10" :key="i" class="g-coin"></div></div>
-            </div>
-            <div class="ef-text">{{ ef.text }}</div>
-          </div>
-        </div>
-        <div class="bottom-panel">
-          <div class="finger-hint" v-if="nextFingerInfo">
-            <span class="finger-dot" :style="{ background: nextFingerInfo.color }"></span>
-            <span class="finger-text">{{ nextFingerInfo.name }}</span>
-            <span class="finger-key">{{ nextChar?.toUpperCase() }}</span>
-          </div>
-          <div class="vkb" v-if="showVkb">
-            <div class="vkb-row" v-for="(row, ri) in keyboardRows" :key="ri">
-              <div v-for="k in row" :key="k" class="vkb-key"
-                :class="{ highlight: k === nextChar, pressed: pressedKey === k }"
-                :style="{ '--fc': fingerColorHex[fingerMap[k] ?? 'space'] }">{{ k.toUpperCase() }}</div>
-            </div>
-          </div>
-          <input ref="hiddenInput" class="hidden-input" v-model="inputBuf"
-            @keydown="onKeyDown" @input="onInput"
-            @compositionstart="composing = true" @compositionend="composing = false; onInput()"
-            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-          <div class="input-hint" @click="focusInput">
-            <span v-if="focusedBlockId !== null">
-              <span class="typed-chars">{{ typedSoFar }}</span><span class="caret blink">|</span><span class="remaining">{{ remainingChars }}</span>
-            </span>
-            <span v-else class="input-idle">点击方块或直接打字开始 👆</span>
-          </div>
-          <button class="vkb-toggle" @click="showVkb = !showVkb">{{ showVkb ? '🙈 隐藏键盘' : '⌨️ 显示键盘' }}</button>
-        </div>
-        <transition name="overlay-fade">
-          <div v-if="paused" class="pause-overlay">
-            <div class="overlay-content pause-content">
-              <div class="logo-section"><div class="logo-icon">⏸</div><h1 class="game-title" style="font-size:32px">暂停</h1></div>
-              <button class="start-button" @click="togglePause"><span class="button-icon">▶</span><span class="button-text">继续游戏</span></button>
-              <button class="home-button" @click="quitToMenu"><span class="button-icon">🏠</span><span class="button-text">退出关卡</span></button>
-            </div>
-          </div>
-        </transition>
-      </div>
-    </transition>
 
-    <!-- ══ 结算界面 ══ -->
-    <transition name="page-fade">
-      <div v-if="phase === 'result'" class="full-overlay">
-        <div class="overlay-content result-content">
-          <div class="logo-section">
-            <div class="logo-icon">{{ resultStars === 3 ? '🏆' : resultStars === 2 ? '🌟' : '✔️' }}</div>
-            <h1 class="game-title game-over">{{ resultTitle }}</h1>
+        <!-- 总金币 -->
+        <div class="total-coins">🪙 总金币：{{ progress.totalCoins }}</div>
+
+        <!-- 开始按钮 -->
+        <button class="start-button" :disabled="!selectedLevel" @click="startGame">
+          <span class="button-icon">▶</span>
+          <span class="button-text">开始冒险</span>
+        </button>
+        <!-- 返回首页 -->
+        <button class="home-button" @click="goBack">
+          <span class="button-icon">🏠</span>
+          <span class="button-text">返回首页</span>
+        </button>
+        <!-- 帮助按钮 -->
+        <button class="home-button gray-btn" @click="showHelp = true">❓ 怎么玩</button>
+
+
+      </div>
+    </div>
+
+    <!-- 结算界面 -->
+    <div v-if="phase === 'result'" class="game-overlay">
+      <div class="overlay-content">
+        <!-- Logo和标题 -->
+        <div class="logo-section">
+          <div class="logo-icon">
+            {{ resultStars === 3 ? '🏆' : resultStars === 2 ? '🌟' : '✔️' }}
           </div>
-          <div class="result-stars-row">
-            <span v-for="s in 3" :key="s" class="result-star-big"
-              :class="{ on: s <= resultStars, bounce: s <= resultStars }" :style="{ animationDelay: s * 0.15 + 's' }">★</span>
-          </div>
-          <div class="game-stats">
-            <div class="stat-card main-stat">
-              <div class="stat-icon">🪙</div>
-              <div class="stat-info"><span class="stat-label">金币收获</span><span class="stat-value gold-text">+{{ coins }}</span></div>
+          <h1 class="game-title game-over">{{ resultTitle }}</h1>
+        </div>
+
+        <!-- 星级评分 -->
+        <div class="result-stars-row">
+          <span
+            v-for="s in 3"
+            :key="s"
+            class="result-star-big"
+            :class="{ on: s <= resultStars, bounce: s <= resultStars }"
+            :style="{ animationDelay: s * 0.15 + 's' }"
+          >
+            ★
+          </span>
+        </div>
+
+        <!-- 统计数据 -->
+        <div class="game-stats">
+          <div class="stat-card main-stat">
+            <div class="stat-icon">🪙</div>
+            <div class="stat-info">
+              <span class="stat-label">金币收获</span>
+              <span class="stat-value gold-text">+{{ coins }}</span>
             </div>
-            <div class="stats-grid">
-              <div class="stat-card"><div class="stat-icon">⏱️</div><div class="stat-info"><span class="stat-label">完成用时</span><span class="stat-value">{{ elapsed }}秒</span></div></div>
-              <div class="stat-card"><div class="stat-icon">🎯</div><div class="stat-info"><span class="stat-label">准确率</span><span class="stat-value">{{ accuracy }}%</span></div></div>
-              <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-info"><span class="stat-label">最高连击</span><span class="stat-value">{{ maxCombo }}</span></div></div>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon">⏱️</div>
+              <div class="stat-info">
+                <span class="stat-label">完成用时</span>
+                <span class="stat-value">{{ elapsed }}秒</span>
+              </div>
             </div>
-          </div>
-          <div v-if="newAchievements.length > 0" class="new-achievements">
-            <div class="ach-title">🎉 新成就解锁！</div>
-            <div v-for="a in newAchievements" :key="a.id" class="ach-item">{{ a.emoji }} {{ a.name }}</div>
-          </div>
-          <div v-if="newPets.length > 0" class="new-pets-wrap">
-            <div class="pet-title">🎁 新宠物！</div>
-            <div class="new-pets">
-              <div v-for="p in newPets" :key="p.id" class="pet-card">
-                <span class="pet-emoji-big">{{ p.emoji }}</span><span class="pet-name">{{ p.name }}</span>
+            <div class="stat-card">
+              <div class="stat-icon">🎯</div>
+              <div class="stat-info">
+                <span class="stat-label">准确率</span>
+                <span class="stat-value">{{ accuracy }}%</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">🔥</div>
+              <div class="stat-info">
+                <span class="stat-label">最高连击</span>
+                <span class="stat-value">{{ maxCombo }}</span>
               </div>
             </div>
           </div>
-          <button class="start-button" @click="restartLevel"><span class="button-icon">🔄</span><span class="button-text">再玩一次</span></button>
-          <div class="sub-btns">
-            <button class="home-button blue-btn" v-if="nextLevelId" @click="goNextLevel"><span class="button-icon">➡️</span><span class="button-text">下一关</span></button>
-            <button class="home-button" @click="goMenu"><span class="button-icon">🏠</span><span class="button-text">回菜单</span></button>
+        </div>
+
+        <!-- 新成就 -->
+        <div v-if="newAchievements.length > 0" class="new-achievements">
+          <div class="ach-title">🎉 新成就解锁！</div>
+          <div v-for="a in newAchievements" :key="a.id" class="ach-item">
+            {{ a.emoji }} {{ a.name }}
           </div>
         </div>
-      </div>
-    </transition>
 
-    <!-- ══ 帮助弹窗 ══ -->
-    <transition name="overlay-fade">
-      <div v-if="showHelp" class="full-overlay" @click.self="showHelp = false">
-        <div class="overlay-content help-content">
-          <div class="logo-section"><div class="logo-icon">❓</div><h1 class="game-title" style="font-size:28px">怎么玩</h1></div>
-          <div class="game-controls">
-            <h3 class="controls-title">🎮 游戏说明</h3>
-            <div class="controls-grid">
-              <div class="control-item c-key"><span class="control-icon">⌨️</span><span>看方块上的字母，敲对应键</span></div>
-              <div class="control-item c-coin"><span class="control-icon">🪙</span><span>打对了方块消失，收集金币</span></div>
-              <div class="control-item c-safe"><span class="control-icon">⚠️</span><span>打错了温柔提示，可以重试</span></div>
-              <div class="control-item c-combo"><span class="control-icon">🔥</span><span>连续打对获得连击奖励</span></div>
-              <div class="control-item c-finger"><span class="control-icon">🖐️</span><span>下方键盘亮起要按的键</span></div>
-              <div class="control-item c-win"><span class="control-icon">🏆</span><span>完成目标数量就过关！</span></div>
+        <!-- 新宠物 -->
+        <div v-if="newPets.length > 0" class="new-pets-wrap">
+          <div class="pet-title">🎁 新宠物！</div>
+          <div class="new-pets">
+            <div v-for="p in newPets" :key="p.id" class="pet-card">
+              <span class="pet-emoji-big">{{ p.emoji }}</span>
+              <span class="pet-name">{{ p.name }}</span>
             </div>
           </div>
-          <div class="help-fingers">
-            <h3 class="controls-title">🖐️ 手指颜色对照</h3>
-            <div class="hf-grid">
-              <div v-for="(hex, fc) in fingerColorHex" :key="fc" class="hf-item">
-                <span class="hf-dot" :style="{ background: hex }"></span><span class="hf-name">{{ fingerName[fc as string] }}</span>
-              </div>
-            </div>
-          </div>
-          <button class="start-button" @click="showHelp = false"><span class="button-icon">✔</span><span class="button-text">明白了！</span></button>
+        </div>
+
+        <!-- 按钮 -->
+        <button class="start-button" @click="restartLevel">
+          <span class="button-icon">🔄</span>
+          <span class="button-text">再玩一次</span>
+        </button>
+        <div class="sub-btns">
+          <button v-if="nextLevelId" class="home-button blue-btn" @click="goNextLevel">
+            <span class="button-icon">➡️</span>
+            <span class="button-text">下一关</span>
+          </button>
+          <button class="home-button" @click="goMenu">
+            <span class="button-icon">📋</span>
+            <span class="button-text">回菜单</span>
+          </button>
+          <button class="home-button" @click="goBack">
+            <span class="button-icon">🏠</span>
+            <span class="button-text">返回首页</span>
+          </button>
         </div>
       </div>
-    </transition>
+    </div>
 
+    <!-- 帮助弹窗 -->
+    <div v-if="showHelp" class="game-overlay" @click.self="showHelp = false">
+      <div class="overlay-content help-content">
+        <div class="logo-section">
+          <div class="logo-icon">❓</div>
+          <h1 class="game-title" style="font-size: 28px">怎么玩</h1>
+        </div>
+        <div class="game-controls">
+          <h3 class="controls-title">🎮 游戏说明</h3>
+          <div class="controls-grid">
+            <div class="control-item c-key">
+              <span class="control-icon">⌨️</span>
+              <span>看方块上的字母，敲对应键</span>
+            </div>
+            <div class="control-item c-coin">
+              <span class="control-icon">🪙</span>
+              <span>打对了方块消失，收集金币</span>
+            </div>
+            <div class="control-item c-safe">
+              <span class="control-icon">⚠️</span>
+              <span>打错了温柔提示，可以重试</span>
+            </div>
+            <div class="control-item c-combo">
+              <span class="control-icon">🔥</span>
+              <span>连续打对获得连击奖励</span>
+            </div>
+            <div class="control-item c-finger">
+              <span class="control-icon">🖐️</span>
+              <span>下方键盘亮起要按的键</span>
+            </div>
+            <div class="control-item c-win">
+              <span class="control-icon">🏆</span>
+              <span>完成目标数量就过关！</span>
+            </div>
+          </div>
+        </div>
+        <div class="help-fingers">
+          <h3 class="controls-title">🖐️ 手指颜色对照</h3>
+          <div class="hf-grid">
+            <div v-for="(hex, fc) in fingerColorHex" :key="fc" class="hf-item">
+              <span class="hf-dot" :style="{ background: hex }"></span>
+              <span class="hf-name">{{ fingerName[fc as string] }}</span>
+            </div>
+          </div>
+        </div>
+        <button class="start-button" @click="showHelp = false">
+          <span class="button-icon">✔</span>
+          <span class="button-text">明白了！</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 粒子特效层 -->
     <div class="fx-layer">
-      <div v-for="p in particles" :key="p.id" class="fx-particle"
-        :style="{ left: p.x + 'px', top: p.y + 'px', color: p.color, fontSize: p.size + 'px', opacity: p.alpha }">{{ p.char }}</div>
+      <div
+        v-for="p in particles"
+        :key="p.id"
+        class="fx-particle"
+        :style="{
+          left: p.x + 'px',
+          top: p.y + 'px',
+          color: p.color,
+          fontSize: p.size + 'px',
+          opacity: p.alpha
+        }"
+      >
+        {{ p.char }}
+      </div>
     </div>
   </div>
 </template>
@@ -236,16 +472,35 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  levelConfigs, sceneConfigs, fingerMap, fingerColorHex, fingerName, keyboardRows,
-  achievements, pets, pickWords, loadProgress, saveProgress, comboRewards, getScore,
-  type LevelConfig, type SceneId, type Achievement, type Pet, type GameProgress,
+  levelConfigs,
+  sceneConfigs,
+  fingerMap,
+  fingerColorHex,
+  fingerName,
+  keyboardRows,
+  achievements,
+  pets,
+  pickWords,
+  loadProgress,
+  saveProgress,
+  comboRewards,
+  getScore,
+  type LevelConfig,
+  type SceneId,
+  type Achievement,
+  type Pet,
+  type GameProgress
 } from './config'
 
 const router = useRouter()
-function goBack() { router.push('/game') }
+function goBack() {
+  router.push('/')
+}
 
 const progress = ref<GameProgress>(loadProgress())
-function persistProgress() { saveProgress(progress.value) }
+function persistProgress() {
+  saveProgress(progress.value)
+}
 
 type Phase = 'start' | 'playing' | 'result'
 const phase = ref<Phase>('start')
@@ -253,22 +508,9 @@ const showHelp = ref(false)
 const selectedLevel = ref<number>(1)
 const showVkb = ref(true)
 
-const currentScene = computed<SceneId>(() => levelConfigs.find(l => l.id === selectedLevel.value)?.scene ?? 'plains')
-const groundEmoji = computed(() => {
-  const map: Record<SceneId, string> = { plains: '🟩', cave: '🟫', cabin: '🟧', village: '🟩', adventure: '🟪' }
-  return map[currentScene.value]
-})
-const groundTiles = computed(() => Math.ceil(window.innerWidth / 40) + 2)
-
-const clouds = ref<{ id: number; x: number; y: number; opacity: number }[]>([])
-function initClouds() {
-  clouds.value = Array.from({ length: 5 }, (_, i) => ({ id: i, x: i * (window.innerWidth / 5) + Math.random() * 100, y: 20 + Math.random() * 60, opacity: 0.5 + Math.random() * 0.4 }))
-}
-let cloudTimer = 0
-function animateClouds() {
-  clouds.value = clouds.value.map(c => ({ ...c, x: c.x >= window.innerWidth + 60 ? -80 : c.x + 0.15 }))
-  cloudTimer = requestAnimationFrame(animateClouds)
-}
+const currentScene = computed<SceneId>(
+  () => levelConfigs.find(l => l.id === selectedLevel.value)?.scene ?? 'plains'
+)
 
 const currentPet = ref('🧑')
 const steveBounce = ref(false)
@@ -276,14 +518,24 @@ const steveSpeech = ref<string | null>('点击关卡开始冒险！')
 const steveSpeeches = ['加油！你能行！', '太棒啦！', '快打吧！', '你是最棒的！', '冲冲冲！']
 function randomSteveSpeech() {
   steveSpeech.value = steveSpeeches[Math.floor(Math.random() * steveSpeeches.length)]
-  steveBounce.value = true; setTimeout(() => { steveBounce.value = false }, 600)
+  steveBounce.value = true
+  setTimeout(() => {
+    steveBounce.value = false
+  }, 600)
 }
 
 function selectLevel(id: number) {
-  if (!progress.value.unlockedLevels.includes(id)) { randomSteveSpeech(); steveSpeech.value = '🔒 先通过前面的关卡吧！'; return }
+  if (!progress.value.unlockedLevels.includes(id)) {
+    randomSteveSpeech()
+    steveSpeech.value = '🔒 先通过前面的关卡吧！'
+    return
+  }
   selectedLevel.value = id
   steveSpeech.value = levelConfigs.find(l => l.id === id)?.description ?? ''
-  steveBounce.value = true; setTimeout(() => { steveBounce.value = false }, 600)
+  steveBounce.value = true
+  setTimeout(() => {
+    steveBounce.value = false
+  }, 600)
 }
 
 const currentLevelConfig = ref<LevelConfig | null>(null)
@@ -294,62 +546,139 @@ const hiddenInput = ref<HTMLInputElement | null>(null)
 const gameRoot = ref<HTMLElement | null>(null)
 
 interface WordBlock {
-  id: number; word: string; zh: string; emoji: string
-  x: number; y: number; typedCount: number; done: boolean; error: boolean
-  warningLevel: 0 | 1 | 2; stars: number; fallStartTime: number; landTime: number
+  id: number
+  word: string
+  zh: string
+  emoji: string
+  x: number
+  y: number
+  typedCount: number
+  done: boolean
+  error: boolean
+  warningLevel: 0 | 1 | 2
+  stars: number
+  fallStartTime: number
+  landTime: number
+  imageUrl: string
 }
 const activeBlocks = ref<WordBlock[]>([])
 const focusedBlockId = ref<number | null>(null)
 let blockIdCounter = 0
 
-const score = ref(0); const coins = ref(0); const combo = ref(0); const maxCombo = ref(0)
-const totalKeys = ref(0); const correctKeys = ref(0); const doneCount = ref(0)
-const elapsed = ref(0); const paused = ref(false)
-const accuracy = computed(() => totalKeys.value === 0 ? 100 : Math.round(correctKeys.value / totalKeys.value * 100))
+// 背景图列表（7张）
+const BACKGROUND_LIST = Array.from({ length: 17 }, (_, i) =>
+    `https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game3/g-v3-${i + 1}.png`
+)
+const currentBackground = ref(BACKGROUND_LIST[0])
 
-const comboLabel = ref(''); const comboLabelColor = ref('#ffd32a')
+// 音乐列表（7首）
+const MUSIC_LIST = [
+  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/1.mp3',
+  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/2.mp3',
+  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/3.mp3',
+  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/4.mp3',
+  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/5.mp3',
+  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/6.mp3',
+  'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/music/7.mp3'
+]
+let currentMusicIndex = 0
+let audioPlayer: HTMLAudioElement | null = null
+
+const score = ref(0)
+const coins = ref(0)
+const combo = ref(0)
+const maxCombo = ref(0)
+const totalKeys = ref(0)
+const correctKeys = ref(0)
+const doneCount = ref(0)
+const elapsed = ref(0)
+const paused = ref(false)
+const accuracy = computed(() =>
+  totalKeys.value === 0 ? 100 : Math.round((correctKeys.value / totalKeys.value) * 100)
+)
+
+const comboLabel = ref('')
+const comboLabelColor = ref('#ffd32a')
 let comboLabelTimer: ReturnType<typeof setTimeout> | null = null
 
-const eliminationEffects = ref<Array<{ id: string; x: number; y: number; type: string; text: string }>>([])
+const eliminationEffects = ref<
+  Array<{ id: string; x: number; y: number; type: string; text: string }>
+>([])
 function createEliminationEffect(x: number, y: number, points: number, isGolden: boolean) {
   const id = `eff_${Date.now()}_${Math.random()}`
-  eliminationEffects.value.push({ id, x, y, type: isGolden ? 'golden' : 'normal', text: `+${Math.floor(points)}` })
-  setTimeout(() => { eliminationEffects.value = eliminationEffects.value.filter(e => e.id !== id) }, 1000)
+  eliminationEffects.value.push({
+    id,
+    x,
+    y,
+    type: isGolden ? 'golden' : 'normal',
+    text: `+${Math.floor(points)}`
+  })
+  setTimeout(() => {
+    eliminationEffects.value = eliminationEffects.value.filter(e => e.id !== id)
+  }, 1000)
 }
 
 const nextChar = computed<string | null>(() => {
   if (focusedBlockId.value === null) return null
-  return activeBlocks.value.find(b => b.id === focusedBlockId.value)?.word[activeBlocks.value.find(b => b.id === focusedBlockId.value)!.typedCount] ?? null
+  return (
+    activeBlocks.value.find(b => b.id === focusedBlockId.value)?.word[
+      activeBlocks.value.find(b => b.id === focusedBlockId.value)!.typedCount
+    ] ?? null
+  )
 })
 const nextFingerInfo = computed(() => {
   if (!nextChar.value) return null
-  const fc = fingerMap[nextChar.value.toLowerCase()]; if (!fc) return null
+  const fc = fingerMap[nextChar.value.toLowerCase()]
+  if (!fc) return null
   return { color: fingerColorHex[fc], name: fingerName[fc] }
 })
 const typedSoFar = computed(() => {
   if (focusedBlockId.value === null) return ''
   const blk = activeBlocks.value.find(b => b.id === focusedBlockId.value)
-  return blk ? blk.word.slice(0, blk.typedCount) : ''
+  return blk ? blk.word.slice(0, blk.typedCount).toUpperCase() : ''
 })
 const remainingChars = computed(() => {
   if (focusedBlockId.value === null) return ''
   const blk = activeBlocks.value.find(b => b.id === focusedBlockId.value)
-  return blk ? blk.word.slice(blk.typedCount) : ''
+  return blk ? blk.word.slice(blk.typedCount).toUpperCase() : ''
 })
 function nextCharColor(blk: WordBlock): string {
-  const fc = fingerMap[blk.word[blk.typedCount]?.toLowerCase() ?? '']; return fc ? fingerColorHex[fc] : '#fff'
+  const fc = fingerMap[blk.word[blk.typedCount]?.toLowerCase() ?? '']
+  return fc ? fingerColorHex[fc] : '#fff'
 }
 
-const inputBuf = ref(''); const composing = ref(false); const pressedKey = ref<string | null>(null)
+const inputBuf = ref('')
+const composing = ref(false)
+const pressedKey = ref<string | null>(null)
 function onKeyDown(e: KeyboardEvent) {
-  if (e.key === 'Escape') { if (phase.value === 'playing') togglePause(); return }
-  if (e.key === 'Tab') { e.preventDefault(); cycleFocusBlock(); return }
+  if (e.key === 'Escape') {
+    if (phase.value === 'playing') togglePause()
+    return
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    cycleFocusBlock()
+    return
+  }
   if (composing.value || paused.value) return
-  const key = e.key; pressedKey.value = key.toLowerCase(); setTimeout(() => { pressedKey.value = null }, 120)
-  if (key.length === 1) { e.preventDefault(); handleChar(key.toLowerCase()) }
-  if (key === ' ') { e.preventDefault(); handleChar(' ') }
+  const key = e.key
+  pressedKey.value = key.toLowerCase()
+  setTimeout(() => {
+    pressedKey.value = null
+  }, 120)
+  if (key.length === 1) {
+    e.preventDefault()
+    handleChar(key.toLowerCase())
+  }
+  if (key === ' ') {
+    e.preventDefault()
+    handleChar(' ')
+  }
 }
-function onInput() { if (composing.value) return; inputBuf.value = '' }
+function onInput() {
+  if (composing.value) return
+  inputBuf.value = ''
+}
 
 function handleChar(ch: string) {
   totalKeys.value++
@@ -357,19 +686,30 @@ function handleChar(ch: string) {
     const match = activeBlocks.value.find(b => !b.done && b.word[b.typedCount] === ch)
     focusedBlockId.value = match?.id ?? activeBlocks.value.find(b => !b.done)?.id ?? null
   }
-  const blk = focusedBlockId.value !== null ? activeBlocks.value.find(b => b.id === focusedBlockId.value && !b.done) : null
+  const blk =
+    focusedBlockId.value !== null
+      ? activeBlocks.value.find(b => b.id === focusedBlockId.value && !b.done)
+      : null
   if (!blk) return
   if (blk.word[blk.typedCount] === ch) {
-    correctKeys.value++; blk.typedCount++; blk.error = false
+    correctKeys.value++
+    blk.typedCount++
+    blk.error = false
     if (blk.typedCount >= blk.word.length) finishBlock(blk)
   } else {
-    blk.error = true; combo.value = 0; spawnErrorFx(blk.x + 50, blk.y)
-    setTimeout(() => { blk.error = false }, 500)
+    blk.error = true
+    combo.value = 0
+    spawnErrorFx(blk.x + 50, blk.y)
+    setTimeout(() => {
+      blk.error = false
+    }, 500)
   }
 }
 
 function finishBlock(blk: WordBlock) {
-  blk.done = true; doneCount.value++; combo.value++
+  blk.done = true
+  doneCount.value++
+  combo.value++
   if (combo.value > maxCombo.value) maxCombo.value = combo.value
   const p01 = blk.y / (fieldHeight.value - 80)
   const scoreInfo = getScore(p01 >= 0.85 ? 2 : p01 >= 0.6 ? 1 : 0)
@@ -377,34 +717,56 @@ function finishBlock(blk: WordBlock) {
   coins.value += scoreInfo.stars + Math.floor(combo.value / 5)
   score.value += scoreInfo.stars * 10
   showComboLabel(combo.value)
-  spawnSuccessFx(blk.x + 50, blk.y + 30, blk.emoji)
-  createEliminationEffect(blk.x + 50, blk.y + 30, scoreInfo.stars * 10, false)
+  spawnSuccessFx(blk.x + 90, blk.y + 60, blk.emoji)
+  createEliminationEffect(blk.x + 90, blk.y + 60, scoreInfo.stars * 10, false)
   setTimeout(() => {
     activeBlocks.value = activeBlocks.value.filter(b => b.id !== blk.id)
-    if (focusedBlockId.value === blk.id) focusedBlockId.value = activeBlocks.value.find(b => !b.done)?.id ?? null
+    if (focusedBlockId.value === blk.id)
+      focusedBlockId.value = activeBlocks.value.find(b => !b.done)?.id ?? null
   }, 400)
   checkLevelComplete()
 }
 
 function showComboLabel(c: number) {
-  const reward = [...comboRewards].reverse().find(r => c >= r.combo); if (!reward) return
-  comboLabel.value = `${reward.emoji} ${reward.label} ×${c}`; comboLabelColor.value = reward.color
+  const reward = [...comboRewards].reverse().find(r => c >= r.combo)
+  if (!reward) return
+  comboLabel.value = `${reward.emoji} ${reward.label} ×${c}`
+  comboLabelColor.value = reward.color
   if (comboLabelTimer) clearTimeout(comboLabelTimer)
-  comboLabelTimer = setTimeout(() => { comboLabel.value = '' }, 1500)
+  comboLabelTimer = setTimeout(() => {
+    comboLabel.value = ''
+  }, 1500)
 }
 function cycleFocusBlock() {
-  const undone = activeBlocks.value.filter(b => !b.done); if (!undone.length) return
+  const undone = activeBlocks.value.filter(b => !b.done)
+  if (!undone.length) return
   const idx = undone.findIndex(b => b.id === focusedBlockId.value)
   focusedBlockId.value = undone[(idx + 1) % undone.length].id
 }
-function focusBlock(id: number) { focusedBlockId.value = id; focusInput() }
-function focusInput() { nextTick(() => hiddenInput.value?.focus()) }
+function focusBlock(id: number) {
+  focusedBlockId.value = id
+  focusInput()
+}
+function focusInput() {
+  nextTick(() => hiddenInput.value?.focus())
+}
 
 let spawnTimer: ReturnType<typeof setInterval> | null = null
 let fallTimer: ReturnType<typeof setInterval> | null = null
 let timerInterval: ReturnType<typeof setInterval> | null = null
 let startTime = 0
-const groundFx = ref<{ id: number; x: number }[]>([])
+
+// 纹理图片配置（复刻 game-2d）
+const TEXTURE_BASE_URL = 'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com/game1'
+const TEXTURE_MIN_INDEX = 1
+const TEXTURE_MAX_INDEX = 90
+
+function getRandomTextureUrl(): string {
+  const randomIndex = Math.floor(
+    Math.random() * (TEXTURE_MAX_INDEX - TEXTURE_MIN_INDEX + 1)
+  ) + TEXTURE_MIN_INDEX
+  return `${TEXTURE_BASE_URL}/g-v2-${randomIndex}.png`
+}
 
 function spawnBlock() {
   if (!currentLevelConfig.value) return
@@ -414,19 +776,30 @@ function spawnBlock() {
   const w = pickWords(cfg.wordPool, 1)[0]
   const fallDuration = (fieldHeight.value / cfg.fallSpeed) * 1000
   activeBlocks.value.push({
-    id: ++blockIdCounter, word: w.word, zh: w.zh, emoji: w.emoji,
-    x: 40 + Math.random() * (fieldWidth.value - 160), y: 0,
-    typedCount: 0, done: false, error: false, warningLevel: 0, stars: 0,
-    fallStartTime: Date.now(), landTime: Date.now() + fallDuration,
+    id: ++blockIdCounter,
+    word: w.word,
+    zh: w.zh,
+    emoji: w.emoji,
+    x: 40 + Math.random() * (fieldWidth.value - 400),
+    y: 0,
+    typedCount: 0,
+    done: false,
+    error: false,
+    warningLevel: 0,
+    stars: 0,
+    fallStartTime: Date.now(),
+    landTime: Date.now() + fallDuration,
+    imageUrl: getRandomTextureUrl()
   })
 }
 
 function updateFall() {
   if (paused.value) return
-  const now = Date.now(); const h = fieldHeight.value - 80
+  const now = Date.now()
+  const h = fieldHeight.value - 80
   activeBlocks.value = activeBlocks.value.map(blk => {
     if (blk.done) return blk
-    const newY = (now - blk.fallStartTime) / (blk.landTime - blk.fallStartTime) * h
+    const newY = ((now - blk.fallStartTime) / (blk.landTime - blk.fallStartTime)) * h
     const ratio = newY / h
     const warningLevel: 0 | 1 | 2 = ratio >= 0.85 ? 2 : ratio >= 0.6 ? 1 : 0
     if (newY >= h) return { ...blk, y: h, warningLevel: 2 as const }
@@ -436,40 +809,119 @@ function updateFall() {
 
 function startTimer() {
   startTime = Date.now()
-  timerInterval = setInterval(() => { if (!paused.value) elapsed.value = Math.floor((Date.now() - startTime) / 1000) }, 200)
+  timerInterval = setInterval(() => {
+    if (!paused.value) elapsed.value = Math.floor((Date.now() - startTime) / 1000)
+  }, 200)
 }
-function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null } }
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
+}
 
-interface FxParticle { id: number; x: number; y: number; vx: number; vy: number; char: string; color: string; size: number; alpha: number; life: number; maxLife: number }
-const particles = ref<FxParticle[]>([]); let pfxId = 0; let pfxTimer = 0
+interface FxParticle {
+  id: number
+  x: number
+  y: number
+  vx: number
+  vy: number
+  char: string
+  color: string
+  size: number
+  alpha: number
+  life: number
+  maxLife: number
+}
+const particles = ref<FxParticle[]>([])
+let pfxId = 0
+let pfxTimer = 0
 
 function spawnSuccessFx(x: number, y: number, emoji: string) {
   for (let i = 0; i < 8; i++) {
-    particles.value.push({ id: ++pfxId, x, y, vx: (Math.random()-0.5)*4, vy: -(Math.random()*3+1), char: ['⭐','✨','💫',emoji,'🌟'][Math.floor(Math.random()*5)], color: Object.values(fingerColorHex)[Math.floor(Math.random()*8)], size: 16+Math.random()*12, alpha: 1, life: 0, maxLife: 60 })
+    particles.value.push({
+      id: ++pfxId,
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 4,
+      vy: -(Math.random() * 3 + 1),
+      char: ['⭐', '✨', '💫', emoji, '🌟'][Math.floor(Math.random() * 5)],
+      color: Object.values(fingerColorHex)[Math.floor(Math.random() * 8)],
+      size: 16 + Math.random() * 12,
+      alpha: 1,
+      life: 0,
+      maxLife: 60
+    })
   }
 }
 function spawnErrorFx(x: number, y: number) {
-  particles.value.push({ id: ++pfxId, x, y, vx: (Math.random()-0.5)*2, vy: -1, char: '❌', color: '#ff6b6b', size: 20, alpha: 1, life: 0, maxLife: 30 })
+  particles.value.push({
+    id: ++pfxId,
+    x,
+    y,
+    vx: (Math.random() - 0.5) * 2,
+    vy: -1,
+    char: '❌',
+    color: '#ff6b6b',
+    size: 20,
+    alpha: 1,
+    life: 0,
+    maxLife: 30
+  })
 }
 function updateParticles() {
-  particles.value = particles.value.map(p => ({ ...p, x: p.x+p.vx, y: p.y+p.vy, vy: p.vy+0.1, alpha: 1-p.life/p.maxLife, life: p.life+1 })).filter(p => p.life < p.maxLife)
+  particles.value = particles.value
+    .map(p => ({
+      ...p,
+      x: p.x + p.vx,
+      y: p.y + p.vy,
+      vy: p.vy + 0.1,
+      alpha: 1 - p.life / p.maxLife,
+      life: p.life + 1
+    }))
+    .filter(p => p.life < p.maxLife)
 }
-function startPfxLoop() { const loop = () => { updateParticles(); pfxTimer = requestAnimationFrame(loop) }; pfxTimer = requestAnimationFrame(loop) }
+function startPfxLoop() {
+  const loop = () => {
+    updateParticles()
+    pfxTimer = requestAnimationFrame(loop)
+  }
+  pfxTimer = requestAnimationFrame(loop)
+}
 
 function startGame() {
   if (!selectedLevel.value) return
-  const cfg = levelConfigs.find(l => l.id === selectedLevel.value); if (!cfg) return
+  const cfg = levelConfigs.find(l => l.id === selectedLevel.value)
+  if (!cfg) return
+  // 随机切换背景图
+  currentBackground.value = BACKGROUND_LIST[Math.floor(Math.random() * BACKGROUND_LIST.length)]
   currentLevelConfig.value = cfg
-  activeBlocks.value = []; focusedBlockId.value = null; score.value = 0; coins.value = 0
-  combo.value = 0; maxCombo.value = 0; totalKeys.value = 0; correctKeys.value = 0
-  doneCount.value = 0; elapsed.value = 0; comboLabel.value = ''; paused.value = false
-  groundFx.value = []; particles.value = []; eliminationEffects.value = []
+  activeBlocks.value = []
+  focusedBlockId.value = null
+  score.value = 0
+  coins.value = 0
+  combo.value = 0
+  maxCombo.value = 0
+  totalKeys.value = 0
+  correctKeys.value = 0
+  doneCount.value = 0
+  elapsed.value = 0
+  comboLabel.value = ''
+  paused.value = false
+  particles.value = []
+  eliminationEffects.value = []
   phase.value = 'playing'
+  // 开始播放音乐
+  playMusic()
   nextTick(() => {
     fieldHeight.value = blockField.value?.clientHeight ?? window.innerHeight - 220
-    fieldWidth.value = window.innerWidth; focusInput(); spawnBlock()
+    fieldWidth.value = window.innerWidth
+    focusInput()
+    spawnBlock()
     spawnTimer = setInterval(spawnBlock, cfg.spawnInterval)
-    fallTimer = setInterval(updateFall, 30); startTimer(); startPfxLoop()
+    fallTimer = setInterval(updateFall, 30)
+    startTimer()
+    startPfxLoop()
   })
 }
 
@@ -480,55 +932,147 @@ function togglePause() {
     activeBlocks.value = activeBlocks.value.map(blk => {
       if (blk.done) return blk
       const rem = blk.landTime - blk.fallStartTime
-      return { ...blk, fallStartTime: offset, landTime: offset + rem * (1 - blk.y / (fieldHeight.value - 80)) }
-    }); focusInput()
+      return {
+        ...blk,
+        fallStartTime: offset,
+        landTime: offset + rem * (1 - blk.y / (fieldHeight.value - 80))
+      }
+    })
+    focusInput()
   }
 }
-function quitToMenu() { stopAll(); phase.value = 'start' }
+function quitToMenu() {
+  stopAll()
+  phase.value = 'start'
+}
 
-const resultTitle = ref(''); const resultStars = ref(0)
-const newAchievements = ref<Achievement[]>([]); const newPets = ref<Pet[]>([])
+const resultTitle = ref('')
+const resultStars = ref(0)
+const newAchievements = ref<Achievement[]>([])
+const newPets = ref<Pet[]>([])
 const nextLevelId = ref<number | null>(null)
 
 function checkLevelComplete() {
   if (!currentLevelConfig.value || doneCount.value < currentLevelConfig.value.targetCount) return
   stopAll()
   const stars = accuracy.value >= 95 ? 3 : accuracy.value >= 80 ? 2 : 1
-  resultStars.value = stars; resultTitle.value = stars === 3 ? '完美通关！' : stars === 2 ? '通关成功！' : '完成关卡！'
-  const lvId = currentLevelConfig.value.id; const prev = progress.value.bestRecords[lvId]
-  if (!prev || stars > prev.stars) progress.value.bestRecords[lvId] = { stars, coins: coins.value, time: elapsed.value }
+  resultStars.value = stars
+  resultTitle.value = stars === 3 ? '完美通关！' : stars === 2 ? '通关成功！' : '完成关卡！'
+  const lvId = currentLevelConfig.value.id
+  const prev = progress.value.bestRecords[lvId]
+  if (!prev || stars > prev.stars)
+    progress.value.bestRecords[lvId] = { stars, coins: coins.value, time: elapsed.value }
   progress.value.totalCoins += coins.value
   const nextId = lvId + 1
-  if (nextId <= levelConfigs.length && !progress.value.unlockedLevels.includes(nextId)) progress.value.unlockedLevels.push(nextId)
+  if (nextId <= levelConfigs.length && !progress.value.unlockedLevels.includes(nextId))
+    progress.value.unlockedLevels.push(nextId)
   nextLevelId.value = nextId <= levelConfigs.length ? nextId : null
-  newAchievements.value = checkAchievements(lvId, stars); newPets.value = checkPets(lvId)
-  persistProgress(); setTimeout(() => { phase.value = 'result' }, 800)
+  newAchievements.value = checkAchievements(lvId, stars)
+  newPets.value = checkPets(lvId)
+  persistProgress()
+  setTimeout(() => {
+    phase.value = 'result'
+  }, 800)
 }
 
 function checkAchievements(lvId: number, stars: number): Achievement[] {
-  const earned: Achievement[] = []; const already = progress.value.achievements
-  const chk = (id: string) => { if (!already.includes(id)) { const a = achievements.find(x => x.id === id); if (a) { earned.push(a); already.push(id) } } }
+  const earned: Achievement[] = []
+  const already = progress.value.achievements
+  const chk = (id: string) => {
+    if (!already.includes(id)) {
+      const a = achievements.find(x => x.id === id)
+      if (a) {
+        earned.push(a)
+        already.push(id)
+      }
+    }
+  }
   chk(`level${lvId}_done`)
-  if (doneCount.value >= 1) chk('first_word'); if (maxCombo.value >= 5) chk('combo_5')
-  if (maxCombo.value >= 10) chk('combo_10'); if (stars === 3) chk('all_gold')
+  if (doneCount.value >= 1) chk('first_word')
+  if (maxCombo.value >= 5) chk('combo_5')
+  if (maxCombo.value >= 10) chk('combo_10')
+  if (stars === 3) chk('all_gold')
   if (totalKeys.value > 0 && correctKeys.value === totalKeys.value) chk('no_error')
   return earned
 }
 function checkPets(lvId: number): Pet[] {
-  const earned: Pet[] = []; const already = progress.value.pets; const ach = progress.value.achievements
-  pets.forEach(p => { if (!already.includes(p.id) && ach.includes(p.unlockAt)) { earned.push(p); already.push(p.id) } })
+  const earned: Pet[] = []
+  const already = progress.value.pets
+  const ach = progress.value.achievements
+  pets.forEach(p => {
+    if (!already.includes(p.id) && ach.includes(p.unlockAt)) {
+      earned.push(p)
+      already.push(p.id)
+    }
+  })
   return earned
 }
 
-function restartLevel() { phase.value = 'start'; nextTick(startGame) }
-function goNextLevel() { if (!nextLevelId.value) return; selectedLevel.value = nextLevelId.value; phase.value = 'start'; nextTick(startGame) }
-function goMenu() { phase.value = 'start' }
+function restartLevel() {
+  phase.value = 'start'
+  nextTick(startGame)
+}
+function goNextLevel() {
+  if (!nextLevelId.value) return
+  selectedLevel.value = nextLevelId.value
+  phase.value = 'start'
+  nextTick(startGame)
+}
+function goMenu() {
+  phase.value = 'start'
+}
 function stopAll() {
-  if (spawnTimer) { clearInterval(spawnTimer); spawnTimer = null }
-  if (fallTimer)  { clearInterval(fallTimer);  fallTimer  = null }
+  if (spawnTimer) {
+    clearInterval(spawnTimer)
+    spawnTimer = null
+  }
+  if (fallTimer) {
+    clearInterval(fallTimer)
+    fallTimer = null
+  }
   stopTimer()
-  if (pfxTimer) { cancelAnimationFrame(pfxTimer); pfxTimer = 0 }
+  if (pfxTimer) {
+    cancelAnimationFrame(pfxTimer)
+    pfxTimer = 0
+  }
   if (comboLabelTimer) clearTimeout(comboLabelTimer)
+  stopMusic()
+}
+
+// 音乐播放控制
+function playMusic() {
+  // 如果已有播放器，先停止
+  if (audioPlayer) {
+    audioPlayer.pause()
+    audioPlayer.currentTime = 0
+  }
+
+  // 创建新的音频播放器
+  audioPlayer = new Audio(MUSIC_LIST[currentMusicIndex])
+  audioPlayer.volume = 0.4
+  audioPlayer.loop = false
+
+  // 当前歌曲播放完毕，播放下一首
+  audioPlayer.addEventListener('ended', playNextMusic)
+
+  // 尝试播放
+  audioPlayer.play().catch(err => {
+    console.log('音乐播放失败:', err)
+  })
+}
+
+function playNextMusic() {
+  currentMusicIndex = (currentMusicIndex + 1) % MUSIC_LIST.length
+  playMusic()
+}
+
+function stopMusic() {
+  if (audioPlayer) {
+    audioPlayer.pause()
+    audioPlayer.currentTime = 0
+    audioPlayer.removeEventListener('ended', playNextMusic)
+    audioPlayer = null
+  }
 }
 
 function onGlobalKeyDown(e: KeyboardEvent) {
@@ -540,317 +1084,2560 @@ function onResize() {
   fieldHeight.value = blockField.value?.clientHeight ?? window.innerHeight - 220
 }
 
-onMounted(() => { initClouds(); cloudTimer = requestAnimationFrame(animateClouds); window.addEventListener('keydown', onGlobalKeyDown); window.addEventListener('resize', onResize) })
-onUnmounted(() => { stopAll(); cancelAnimationFrame(cloudTimer); window.removeEventListener('keydown', onGlobalKeyDown); window.removeEventListener('resize', onResize) })
+onMounted(() => {
+  window.addEventListener('keydown', onGlobalKeyDown)
+  window.addEventListener('resize', onResize)
+})
+onUnmounted(() => {
+  stopAll()
+  window.removeEventListener('keydown', onGlobalKeyDown)
+  window.removeEventListener('resize', onResize)
+})
 </script>
 
 <style scoped lang="scss">
-.mc-game { position: fixed; inset: 0; overflow: hidden; font-family: 'Segoe UI','PingFang SC',sans-serif; user-select: none; transition: background 0.8s; }
-.scene-plains    { background: linear-gradient(180deg, #87ceeb 0%, #c8e6c9 100%); }
-.scene-cave      { background: linear-gradient(180deg, #1a1a2e 0%, #2d3561 100%); }
-.scene-cabin     { background: linear-gradient(180deg, #f39c12 0%, #e67e22 100%); }
-.scene-village   { background: linear-gradient(180deg, #2980b9 0%, #27ae60 100%); }
-.scene-adventure { background: linear-gradient(180deg, #6c3483 0%, #1a5276 100%); }
-
-.game-background { position: absolute; inset: 0; pointer-events: none; &::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle at 20% 30%, rgba(255,255,255,0.7) 0%, transparent 3%), radial-gradient(circle at 60% 20%, rgba(255,255,255,0.6) 0%, transparent 2.5%), radial-gradient(circle at 80% 60%, rgba(255,255,255,0.5) 0%, transparent 2%); animation: twinkle 3s ease-in-out infinite; } }
-.pixel-clouds { position: absolute; top: 0; left: 0; right: 0; height: 120px; pointer-events: none; }
-.pixel-cloud  { position: absolute; font-size: 36px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
-.ground-row   { position: absolute; bottom: 0; left: 0; right: 0; height: 44px; display: flex; align-items: flex-end; overflow: hidden; }
-.ground-tile  { display: inline-block; width: 40px; text-align: center; font-size: 38px; line-height: 1; filter: drop-shadow(0 -2px 0 rgba(0,0,0,0.2)); }
-
-.back-button {
-  position: fixed; left: 20px; top: 20px; display: flex; align-items: center; z-index: 9999; pointer-events: auto; gap: 6px; padding: 10px 18px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%); border: none; border-radius: 22px; cursor: pointer; font-size: 14px; font-weight: 600; color: #374151;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: all 0.3s ease;
-  &:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
-  &:active { transform: scale(0.95); }
-  .back-icon { font-size: 18px; font-weight: bold; }
+.mc-game {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 30%, #fce7f3 60%, #dbeafe 100%);
+  background-image: url('/assets/images/bg-stars.png');
 }
 
-.full-overlay {
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(255,251,235,0.2) 0%, rgba(254,243,199,0.2) 30%, rgba(252,231,243,0.2) 60%, rgba(219,234,254,0.2) 100%);
-  display: flex; align-items: center; justify-content: center; z-index: 300; backdrop-filter: blur(20px);
-  animation: fadeIn 0.5s ease-out; overflow-y: auto; padding: 20px;
+.scene-plains {
+  background: linear-gradient(135deg, #87ceeb 0%, #c8e6c9 100%);
+}
+.scene-cave {
+  background: linear-gradient(135deg, #1a1a2e 0%, #2d3561 100%);
+}
+.scene-cabin {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+}
+.scene-village {
+  background: linear-gradient(135deg, #2980b9 0%, #27ae60 100%);
+}
+.scene-adventure {
+  background: linear-gradient(135deg, #6c3483 0%, #1a5276 100%);
+}
+
+.game-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: background-image 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+
+  /* 动态粒子效果层 */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.9) 0%, transparent 4%),
+      radial-gradient(circle at 40% 70%, rgba(255, 200, 100, 0.7) 0%, transparent 3%),
+      radial-gradient(circle at 60% 20%, rgba(100, 200, 255, 0.8) 0%, transparent 3.5%),
+      radial-gradient(circle at 80% 60%, rgba(255, 150, 200, 0.6) 0%, transparent 2.5%),
+      radial-gradient(circle at 10% 80%, rgba(150, 255, 150, 0.7) 0%, transparent 3%),
+      radial-gradient(circle at 90% 10%, rgba(255, 255, 100, 0.6) 0%, transparent 2%);
+    animation: particleFloat 8s ease-in-out infinite;
+    z-index: 1;
+  }
+
+  /* 渐变遮罩，增强可读性 */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 50% 0%, rgba(0, 0, 0, 0.1) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.2) 0%, transparent 40%),
+      rgba(0, 0, 0, 0.1);
+    z-index: 0;
+  }
+}
+
+.game-ui {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 24px;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border-radius: 0 0 20px 20px;
+  position: relative;
+  margin: 0 20px;
+  animation: slideInGlow 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 3px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      #fbbf24 10%,
+      #f472b6 30%,
+      #a855f7 50%,
+      #3b82f6 70%,
+      #34d399 90%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    border-radius: 0 0 3px 3px;
+    animation: borderGlow 3s ease infinite;
+    filter: drop-shadow(0 2px 4px rgba(251, 191, 36, 0.5));
+  }
+}
+
+.back-button {
+  position: fixed;
+  left: 20px;
+  top: 20px;
+  display: flex;
+  align-items: center;
+  z-index: 9999;
+  pointer-events: auto;
+  gap: 6px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+  border: none;
+  border-radius: 22px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow:
+      0 8px 20px rgba(0, 0, 0, 0.12),
+      0 4px 8px rgba(0, 0, 0, 0.06);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.9) 100%);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  .back-icon {
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  .back-text {
+    font-weight: 600;
+  }
+}
+
+.info-item {
+  text-align: center;
+  position: relative;
+  padding: 12px 20px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(255, 255, 255, 0.75) 100%
+  );
+  border-radius: 16px;
+  transform-style: preserve-3d;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 4px 15px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  animation: floatUp 3s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 0.2s);
+
+  &:hover {
+    transform: translateY(-4px) scale(1.05) rotateX(5deg);
+    box-shadow:
+      0 12px 30px rgba(0, 0, 0, 0.15),
+      0 4px 8px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  &:nth-child(1) { --i: 0; }
+  &:nth-child(2) { --i: 1; }
+  &:nth-child(3) { --i: 2; }
+  &:nth-child(4) { --i: 3; }
+  &:nth-child(5) { --i: 4; }
+  &:nth-child(6) { --i: 5; }
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.08),
+    inset 0 2px 0 rgba(255, 255, 255, 1),
+    0 0 0 2px rgba(255, 255, 255, 0.7);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 75px;
+
+  &:hover {
+    transform: translateY(-2px) scale(1.04);
+  }
+
+  .label {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #64748b;
+  }
+
+  .value {
+    display: block;
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1;
+    color: #1e293b;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 3px;
+    background: currentColor;
+    border-radius: 2px;
+    opacity: 0.5;
+  }
+
+  &.combo-active {
+    background: linear-gradient(135deg, rgba(253, 186, 116, 0.3) 0%, rgba(249, 115, 22, 0.2) 100%);
+  }
+
+  &.score .value {
+    color: #f59e0b;
+  }
+  &.coins .value {
+    color: #fbbf24;
+  }
+  &.time .value {
+    color: #34d399;
+  }
+  &.combo .value {
+    color: #f472b6;
+  }
+}
+
+.center-info {
+  min-width: 120px;
+  .label.level-lbl {
+    font-size: 12px;
+    font-weight: 800;
+    color: #7c3aed;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .value.prog {
+    font-size: 16px;
+    color: #475569;
+  }
+}
+
+.pause-btn {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.75) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  color: #374151;
+  font-size: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  pointer-events: auto;
+
+  &:hover {
+    background: white;
+    transform: scale(1.1);
+  }
+}
+
+.progress-bar {
+  height: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0.4) 100%
+  );
+  margin: 10px 30px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.1),
+    0 4px 15px rgba(0, 0, 0, 0.15),
+    0 0 0 2px rgba(255, 255, 255, 0.5);
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.4) 50%,
+      transparent 100%
+    );
+    animation: shimmer 2s linear infinite;
+    pointer-events: none;
+  }
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    #f472b6 0%,
+    #a855f7 20%,
+    #6366f1 40%,
+    #3b82f6 60%,
+    #0ea5e9 80%,
+    #34d399 100%
+  );
+  background-size: 300% 100%;
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: progressGradient 4s ease infinite;
+  box-shadow:
+    0 0 20px rgba(244, 114, 182, 0.8),
+    0 0 40px rgba(168, 85, 247, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.6),
+      transparent
+    );
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+}
+
+.combo-display {
+  position: fixed;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  z-index: 200;
+  filter: blur(10px);
+  scale: 0.5;
+
+  &.active {
+    opacity: 1;
+    filter: blur(0);
+    scale: 1;
+    animation: comboExplosion 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+.combo-text {
+  font-size: clamp(60px, 10vw, 100px);
+  font-weight: 900;
+  background: linear-gradient(
+    135deg,
+    #fbbf24 0%,
+    #f472b6 25%,
+    #a855f7 50%,
+    #3b82f6 75%,
+    #34d399 100%
+  );
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  animation: gradientShift 2s ease infinite;
+  position: relative;
+
+  &::before {
+    content: attr(data-text);
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(251, 191, 36, 0.5) 0%,
+      rgba(244, 114, 182, 0.5) 50%,
+      rgba(52, 211, 153, 0.5) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: blur(20px);
+    opacity: 0.5;
+    z-index: -1;
+  }
+}
+
+.combo-label {
+  font-size: 24px;
+  font-weight: 900;
+  margin-top: 12px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+  padding: 10px 28px;
+  border-radius: 30px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  backdrop-filter: blur(10px);
+  transform: translateY(0);
+  animation: floatUp 2s ease-in-out infinite;
+}
+
+.letters-container {
+  position: absolute;
+  top: 100px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 200px);
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.word-block {
+  position: absolute;
+  min-width: 180px;
+  max-width: 360px;
+  cursor: pointer;
+  background-color: rgba(101, 67, 33, 0.85);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-radius: 24px;
+  padding: 48px 28px 16px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.3),
+    0 8px 24px rgba(0, 0, 0, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.2),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(8px) saturate(120%);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 5;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  animation: blockFloat 4s ease-in-out infinite;
+
+  /* 玻璃反光效果 */
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      135deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 60%
+    );
+    transform: rotate(45deg) translateY(-100%);
+    transition: transform 0.6s;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  &:hover::before {
+    transform: rotate(45deg) translateY(100%);
+  }
+
+  /* 背景遮罩 */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.2) 0%,
+      rgba(0, 0, 0, 0.4) 100%
+    );
+    border-radius: 22px;
+    z-index: 0;
+  }
+
+  &:hover {
+    transform: scale(1.08) translateY(-8px) rotateX(5deg);
+    box-shadow:
+      0 30px 80px rgba(0, 0, 0, 0.35),
+      0 12px 32px rgba(0, 0, 0, 0.25),
+      inset 0 2px 4px rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.6);
+  }
+
+  &.active {
+    border-color: #ffd32a;
+    box-shadow:
+      0 0 30px rgba(255, 211, 42, 0.6),
+      0 0 60px rgba(255, 211, 42, 0.3),
+      0 20px 60px rgba(0, 0, 0, 0.3);
+    z-index: 15;
+    transform: scale(1.1) translateY(-10px);
+    animation: activePulse 1.5s ease-in-out infinite;
+
+    &::after {
+      background: linear-gradient(
+        135deg,
+        rgba(255, 211, 42, 0.25) 0%,
+        rgba(0, 0, 0, 0.35) 100%
+      );
+    }
+  }
+
+  &.warning {
+    background-color: rgba(180, 100, 20, 0.9);
+    border-color: #ff9f43;
+    animation: shakeWarning 0.5s ease infinite, warningPulse 1s ease-in-out infinite;
+
+    &::after {
+      background: linear-gradient(
+        135deg,
+        rgba(255, 159, 67, 0.35) 0%,
+        rgba(0, 0, 0, 0.45) 100%
+      );
+    }
+  }
+
+  &.danger {
+    background-color: rgba(200, 40, 40, 0.95);
+    border-color: #ff6b6b;
+    animation: shakeDanger 0.3s ease infinite, dangerPulse 0.6s ease-in-out infinite;
+
+    &::after {
+      background: linear-gradient(
+        135deg,
+        rgba(255, 107, 107, 0.45) 0%,
+        rgba(0, 0, 0, 0.55) 100%
+      );
+    }
+  }
+
+  &.done {
+    background-color: rgba(39, 174, 96, 0.9);
+    border-color: #0be881;
+    box-shadow:
+      0 0 30px rgba(11, 232, 129, 0.6),
+      0 0 60px rgba(11, 232, 129, 0.3),
+      0 20px 60px rgba(0, 0, 0, 0.25);
+    animation: successPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    &::after {
+      background: linear-gradient(
+        135deg,
+        rgba(11, 232, 129, 0.35) 0%,
+        rgba(0, 0, 0, 0.35) 100%
+      );
+    }
+  }
+
+  &.error {
+    animation: errorShake 0.3s ease;
+    border-color: #ff6b6b;
+  }
+
+  /* 确保内容在遮罩层之上 */
+  .block-content {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.block-word {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.block-char {
+  font-size: clamp(48px, 8vw, 64px);
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.15s ease;
+  letter-spacing: 3px;
+  font-family: 'Arial Black', 'Helvetica Black', sans-serif;
+  position: relative;
+  display: inline-block;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4),
+    0 2px 0 rgba(255, 255, 255, 0.3),
+    0 3px 0 rgba(200, 200, 200, 0.2),
+    0 4px 0 rgba(150, 150, 150, 0.15),
+    0 5px 0 rgba(100, 100, 100, 0.1),
+    0 6px 10px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(255, 255, 255, 0.2);
+  transform-style: preserve-3d;
+  transform: perspective(500px) rotateX(10deg);
+
+  /* 右下角小写字母 */
+  &::after {
+    content: attr(data-case);
+    position: absolute;
+    bottom: 2px;
+    right: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+  }
+
+  &.typed {
+    color: #0be881;
+    text-shadow:
+      0 1px 0 rgba(11, 232, 129, 0.5),
+      0 2px 0 rgba(11, 232, 129, 0.4),
+      0 3px 0 rgba(11, 200, 100, 0.3),
+      0 4px 0 rgba(11, 180, 80, 0.2),
+      0 5px 0 rgba(11, 150, 60, 0.15),
+      0 6px 15px rgba(11, 232, 129, 0.6),
+      0 0 40px rgba(11, 232, 129, 0.5);
+    transform: perspective(500px) rotateX(0deg) scale(1.1);
+
+    &::after {
+      color: rgba(11, 232, 129, 0.7);
+    }
+  }
+
+  &.next {
+    font-size: clamp(52px, 9vw, 72px);
+    color: #fff;
+    text-shadow:
+      0 0 10px currentColor,
+      0 0 30px currentColor,
+      0 0 60px currentColor,
+      0 4px 8px rgba(0, 0, 0, 0.5);
+    animation: nextPulse 1s ease infinite, letterGlow 1.5s ease-in-out infinite;
+    transform: perspective(500px) rotateX(0deg) translateZ(20px);
+
+    &::after {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 16px;
+    }
+  }
+
+  &.wrong {
+    color: #ff6b6b !important;
+    text-shadow:
+      0 0 10px #ff6b6b,
+      0 0 30px #ff6b6b,
+      0 4px 8px rgba(0, 0, 0, 0.5);
+    animation: letterShake 0.4s ease;
+    transform: perspective(500px) rotateX(0deg);
+
+    &::after {
+      color: rgba(255, 107, 107, 0.8);
+    }
+  }
+}
+
+.block-zh {
+  text-align: center;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 8px;
+}
+
+.block-stars {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 28px;
+  animation: starPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 10;
+}
+
+.block-progress {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.block-progress-fill {
+  height: 100%;
+  background: #0be881;
+  border-radius: 4px;
+  transition: width 0.08s;
+
+  &.warning {
+    background: #ff9f43;
+  }
+  &.danger {
+    background: #ff6b6b;
+  }
+}
+
+.effects-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.elimination-effect {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.normal-effect {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.star-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+
+  .star {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 20px;
+    background: linear-gradient(180deg, #a855f7, #6366f1);
+    transform-origin: center;
+    border-radius: 2px;
+    box-shadow:
+      0 0 10px #a855f7,
+      0 0 20px #6366f1;
+    animation: starShoot 0.8s ease-out forwards;
+  }
+
+  @for $i from 1 through 12 {
+    .star:nth-child(#{$i}) {
+      --rotation: #{$i * 30deg};
+      animation-delay: #{$i * 0.05s};
+    }
+  }
+}
+
+.sparkles {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+
+  .sparkle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    background: white;
+    border-radius: 50%;
+    box-shadow:
+      0 0 8px #60a5fa,
+      0 0 16px #3b82f6;
+    animation: sparkleFloat 1s ease-out forwards;
+  }
+
+  @for $i from 1 through 20 {
+    .sparkle:nth-child(#{$i}) {
+      animation-delay: $i * 0.03s;
+    }
+  }
+}
+
+.shockwave {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border: 4px solid #60a5fa;
+  border-radius: 50%;
+  animation: shockwaveExpand 1.2s ease-out forwards;
+}
+
+.golden-effect {
+  position: relative;
+  width: 250px;
+  height: 250px;
+}
+
+.crown-emit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+
+  .crown {
+    font-size: 40px;
+    animation: crownFloat 1s ease-out forwards;
+  }
+}
+
+.gold-shower {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+
+  .gold-coin {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    background: radial-gradient(circle, #fcd34d, #f59e0b);
+    border-radius: 50%;
+    box-shadow:
+      0 0 10px #fcd34d,
+      0 0 20px #f59e0b;
+    animation: coinFall 1.5s ease-in forwards;
+  }
+
+  @for $i from 1 through 15 {
+    .gold-coin:nth-child(#{$i}) {
+      animation-delay: #{$i * 0.08s};
+    }
+  }
+}
+
+.royal-rays {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+
+  .ray {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 100px;
+    background: linear-gradient(180deg, #fcd34d, transparent);
+    transform-origin: center bottom;
+    animation: royalRayPulse 2s ease-in-out forwards;
+  }
+
+  @for $i from 1 through 6 {
+    .ray:nth-child(#{$i}) {
+      --rotation: #{$i * 60deg};
+      animation-delay: #{$i * 0.2s};
+    }
+  }
+}
+
+.diamond-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+
+  .diamond {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(135deg, #fcd34d, #fbbf24, #f59e0b);
+    transform: rotate(45deg);
+    box-shadow:
+      0 0 20px #fcd34d,
+      0 0 40px #fbbf24;
+    animation: diamondSpin 1s ease-out forwards;
+  }
+
+  @for $i from 1 through 4 {
+    .diamond:nth-child(#{$i}) {
+      animation-delay: #{$i * 0.15s};
+    }
+  }
+}
+
+.effect-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 36px;
+  font-weight: 900;
+  white-space: nowrap;
+  z-index: 100;
+  animation: effectTextFloat 1s ease-out forwards;
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 50%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.8));
+}
+
+.elimination-effect.golden .effect-text {
+  background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.8));
+}
+
+.bottom-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px);
+  border-top: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 10px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.finger-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 20px;
+  padding: 6px 16px;
+  width: fit-content;
+  margin: 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  opacity: 1;
+  transform: scale(1);
+}
+
+.finger-hint.v-enter-active,
+.finger-hint.v-leave-active {
+  transition: all 0.3s ease;
+}
+
+.finger-hint.v-enter-from,
+.finger-hint.v-leave-to {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.finger-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.finger-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.finger-key {
+  background: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.vkb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.vkb-row {
+  display: flex;
+  gap: 4px;
+}
+
+.vkb-key {
+  width: clamp(24px, 4vw, 34px);
+  height: clamp(24px, 4vw, 34px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: color-mix(in srgb, var(--fc) 18%, rgba(255, 255, 255, 0.15));
+  border: 1px solid color-mix(in srgb, var(--fc) 40%, rgba(255, 255, 255, 0.2));
+  border-radius: 6px;
+  font-size: clamp(8px, 1.5vw, 12px);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  transition: all 0.1s;
+  font-family: monospace;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+
+  &.highlight {
+    background-color: color-mix(in srgb, var(--fc) 70%, rgba(255, 255, 255, 0.2));
+    color: #fff;
+    border-color: var(--fc);
+    box-shadow: 0 0 12px var(--fc);
+    transform: scale(1.15);
+    animation: keyPulse 0.6s ease infinite;
+  }
+
+  &.pressed {
+    transform: scale(0.9);
+    filter: brightness(1.5);
+  }
+}
+
+.input-hint {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 10px 18px;
+  text-align: center;
+  cursor: pointer;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.input-idle {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+.typed-chars {
+  color: #0be881;
+  font-size: 18px;
+  font-family: monospace;
+  font-weight: 700;
+}
+
+.caret {
+  color: #ffd32a;
+  font-size: 20px;
+
+  &.blink {
+    animation: blink 1s step-end infinite;
+  }
+}
+
+.remaining {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 18px;
+  font-family: monospace;
+}
+
+.hidden-input {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.vkb-toggle {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  cursor: pointer;
+  align-self: center;
+  padding: 4px 12px;
+  border-radius: 10px;
+  transition: color 0.2s;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.95);
+  }
+}
+
+.game-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    rgba(20, 20, 40, 0.6) 0%,
+    rgba(40, 30, 60, 0.5) 50%,
+    rgba(20, 30, 50, 0.6) 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  padding: 20px;
+
+  /* 动态背景光效 */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(120, 80, 200, 0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(80, 150, 200, 0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(200, 100, 150, 0.2) 0%, transparent 60%);
+    animation: glowPulse 8s ease-in-out infinite;
+    pointer-events: none;
+  }
 }
 
 .overlay-content {
-  text-align: center; color: #1e293b; width: 620px; max-width: 94vw;
-  background: rgba(255,255,255,0.96); padding: 36px 40px; border-radius: 35px; box-sizing: border-box;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.15), 0 0 80px rgba(99,102,241,0.3), inset 0 2px 0 rgba(255,255,255,1), 0 0 0 8px rgba(255,255,255,0.8);
-  animation: slideUp 0.6s cubic-bezier(0.34,1.56,0.64,1); display: flex; flex-direction: column; align-items: center; gap: 18px;
+  text-align: center;
+  color: #1e293b;
+  width: 750px;
+  max-width: 94vw;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(250, 250, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.98) 100%
+  );
+  padding: 45px 50px;
+  border-radius: 40px;
+  box-sizing: border-box;
+  box-shadow:
+    0 40px 80px rgba(0, 0, 0, 0.2),
+    0 0 100px rgba(99, 102, 241, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.8),
+    inset 0 2px 4px rgba(255, 255, 255, 1);
+  animation: bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-height: 92vh;
+  overflow-y: auto;
+  position: relative;
+  transform-style: preserve-3d;
+
+  /* 顶部彩虹光条 */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 4px;
+    background: linear-gradient(
+      90deg,
+      #fbbf24 0%,
+      #f472b6 20%,
+      #a855f7 40%,
+      #3b82f6 60%,
+      #0ea5e9 80%,
+      #34d399 100%
+    );
+    background-size: 200% 100%;
+    border-radius: 0 0 4px 4px;
+    animation: borderGlow 3s ease infinite;
+    filter: drop-shadow(0 2px 8px rgba(168, 85, 247, 0.5));
+  }
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-.start-screen {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  backdrop-filter: blur(20px); background: linear-gradient(135deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.1) 100%);
-  padding: 20px; overflow-y: auto;
-}
-.start-content { max-height: 92vh; overflow-y: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; } }
+.logo-section {
+  margin-bottom: 10px;
 
-.logo-section { .logo-icon { font-size: 60px; margin-bottom: 6px; animation: logoBounce 1.5s ease-in-out infinite; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.1)); } }
+  .logo-icon {
+    font-size: 64px;
+    margin-bottom: 10px;
+    animation: logoBounce 1.5s ease-in-out infinite;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.1));
+  }
+}
+
 .game-title {
-  font-size: 34px; font-weight: 900; margin: 0 0 6px;
-  background: linear-gradient(135deg, #f472b6 0%, #a855f7 25%, #6366f1 50%, #3b82f6 75%, #0ea5e9 100%);
-  background-size: 200% 100%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-  animation: titleGradient 4s ease infinite; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
-  &.game-over { background: linear-gradient(135deg, #f87171 0%, #fb923c 25%, #fbbf24 50%, #34d399 75%, #22d3d1 100%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; }
+  font-size: 42px;
+  font-weight: 900;
+  margin: 0 0 10px 0;
+  background: linear-gradient(
+    135deg,
+    #f472b6 0%,
+    #a855f7 25%,
+    #6366f1 50%,
+    #3b82f6 75%,
+    #0ea5e9 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: titleGradient 4s ease infinite;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+
+  &.game-over {
+    background: linear-gradient(
+      135deg,
+      #f87171 0%,
+      #fb923c 25%,
+      #fbbf24 50%,
+      #34d399 75%,
+      #22d3d1 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
 }
-.game-subtitle { font-size: 13px; color: #64748b; margin: 0; }
 
-.steve-wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
-.steve { font-size: 52px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); transition: transform 0.1s; }
-.steve.bounce { animation: steveBounce 0.5s ease; }
-@keyframes steveBounce { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-16px); } 70% { transform: translateY(-6px); } }
-.steve-bubble { background: rgba(255,255,255,0.95); color: #333; font-size: 13px; padding: 6px 16px; border-radius: 16px; margin-top: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 240px; text-align: center; border: 2px solid rgba(168,85,247,0.2); }
+.game-subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
 
-.level-select { width: 100%; }
-.controls-title {
-  font-size: 16px; font-weight: 800; margin: 0 0 14px;
+.steve-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.steve {
+  font-size: 56px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  transition: transform 0.1s;
+
+  &.bounce {
+    animation: steveBounce 0.5s ease;
+  }
+}
+
+.steve-bubble {
+  background: rgba(255, 255, 255, 0.95);
+  color: #333;
+  font-size: 14px;
+  padding: 8px 18px;
+  border-radius: 18px;
+  margin-top: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-width: 260px;
+  text-align: center;
+  border: 2px solid rgba(168, 85, 247, 0.2);
+}
+
+.level-select {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.selector-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0 0 16px 0;
   background: linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6366f1 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-  animation: titleGradient 4s ease infinite; background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: titleGradient 4s ease infinite;
+  background-size: 200% 100%;
 }
-.level-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px,1fr)); gap: 12px; }
-.level-card {
-  position: relative; background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.75) 100%);
-  border: 3px solid rgba(168,85,247,0.2); border-radius: 18px; padding: 14px 8px; color: #1e293b; cursor: pointer; text-align: center;
-  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); box-shadow: 0 4px 12px rgba(0,0,0,0.06), inset 0 2px 0 rgba(255,255,255,0.8);
-  &:hover:not(.locked) { transform: translateY(-4px) scale(1.04); border-color: #a855f7; box-shadow: 0 12px 25px rgba(168,85,247,0.25); }
-  &.active { border-color: #a855f7; background: linear-gradient(135deg, rgba(168,85,247,0.1) 0%, rgba(99,102,241,0.1) 100%); box-shadow: 0 8px 20px rgba(168,85,247,0.3); }
-  &.done   { border-color: #34d399; background: linear-gradient(135deg, rgba(52,211,153,0.1) 0%, rgba(16,185,129,0.1) 100%); }
-  &.locked { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.6); }
-}
-.lv-scene { font-size: 28px; }
-.lv-name  { font-size: 11px; font-weight: 700; color: #7c3aed; margin-top: 4px; }
-.lv-age   { font-size: 10px; color: #64748b; margin-top: 2px; }
-.lv-stars { font-size: 13px; margin-top: 4px; }
-.star-on  { color: #fbbf24; }
-.star-off { color: #d1d5db; }
-.lock-icon { position: absolute; top: 6px; right: 6px; font-size: 14px; }
 
-.pet-row { display: flex; align-items: center; gap: 8px; background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.75) 100%); padding: 10px 20px; border-radius: 20px; border: 2px solid rgba(168,85,247,0.2); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-.pet-label { color: #64748b; font-size: 13px; font-weight: 600; }
-.pet-badge { font-size: 22px; cursor: pointer; transition: transform 0.15s; &:hover { transform: scale(1.3); } }
-.total-coins { color: #92400e; font-size: 15px; font-weight: 700; background: linear-gradient(135deg, #fef9c3 0%, #fef08a 50%, #fde047 100%); padding: 8px 24px; border-radius: 20px; border: 2px solid rgba(251,191,36,0.4); box-shadow: 0 4px 12px rgba(251,191,36,0.2); }
-.start-btns { width: 100%; display: flex; justify-content: center; }
-.sub-btns   { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+  gap: 14px;
+}
+
+.level-card {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
+  border: 3px solid rgba(168, 85, 247, 0.25);
+  border-radius: 18px;
+  padding: 16px 10px;
+  color: #1e293b;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    inset 0 2px 0 rgba(255, 255, 255, 0.8);
+
+  &:hover:not(.locked) {
+    transform: translateY(-4px) scale(1.04);
+    border-color: #a855f7;
+    box-shadow: 0 12px 25px rgba(168, 85, 247, 0.25);
+  }
+
+  &.active {
+    border-color: #a855f7;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%);
+    box-shadow: 0 8px 20px rgba(168, 85, 247, 0.3);
+  }
+
+  &.done {
+    border-color: #34d399;
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.12) 0%, rgba(16, 185, 129, 0.12) 100%);
+  }
+
+  &.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(0.6);
+  }
+}
+
+.lv-scene {
+  font-size: 32px;
+}
+
+.lv-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #7c3aed;
+  margin-top: 6px;
+}
+
+.lv-age {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 3px;
+}
+
+.lv-stars {
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.star-on {
+  color: #fbbf24;
+}
+
+.star-off {
+  color: #d1d5db;
+}
+
+.lock-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 16px;
+}
+
+.pet-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
+  padding: 12px 24px;
+  border-radius: 22px;
+  border: 2px solid rgba(168, 85, 247, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.pet-label {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pet-badge {
+  font-size: 26px;
+  cursor: pointer;
+  transition: transform 0.15s;
+
+  &:hover {
+    transform: scale(1.3);
+  }
+}
+
+.total-coins {
+  color: #92400e;
+  font-size: 16px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #fef9c3 0%, #fef08a 50%, #fde047 100%);
+  padding: 10px 28px;
+  border-radius: 22px;
+  border: 2px solid rgba(251, 191, 36, 0.4);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
+}
 
 .start-button {
-  display: flex; align-items: center; justify-content: center; gap: 12px; padding: 18px 60px; font-size: 20px; font-weight: 900; color: white;
-  background: linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6366f1 100%); border: 4px solid rgba(255,255,255,0.8); border-radius: 60px; cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); box-shadow: 0 12px 30px rgba(168,85,247,0.4), inset 0 4px 0 rgba(255,255,255,0.3);
-  width: 100%; max-width: 300px; position: relative; overflow: hidden;
-  &::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: buttonShine 2s ease-in-out infinite; }
-  &:hover:not(:disabled) { transform: translateY(-4px) scale(1.04); box-shadow: 0 20px 45px rgba(168,85,247,0.5), inset 0 4px 0 rgba(255,255,255,0.3); }
-  &:active:not(:disabled) { transform: translateY(-2px) scale(1.02); }
-  &:disabled { opacity: 0.4; cursor: not-allowed; }
-  .button-icon { font-size: 22px; }
-  .button-text { font-size: 18px; font-weight: 900; }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 22px 75px;
+  font-size: 24px;
+  font-weight: 900;
+  color: white;
+  background: linear-gradient(
+    135deg,
+    #f472b6 0%,
+    #e879f9 25%,
+    #a855f7 50%,
+    #6366f1 75%,
+    #3b82f6 100%
+  );
+  background-size: 200% 200%;
+  border: 3px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 15px 40px rgba(168, 85, 247, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  width: 100%;
+  max-width: 340px;
+  position: relative;
+  overflow: hidden;
+  pointer-events: auto;
+  animation: gradientShift 4s ease infinite;
+  transform-style: preserve-3d;
+
+  /* 光泽流动效果 */
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 70%
+    );
+    transform: rotate(45deg) translateX(-100%);
+    transition: transform 0.6s;
+    pointer-events: none;
+  }
+
+  /* 底部发光 */
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 10%;
+    right: 10%;
+    height: 20px;
+    background: radial-gradient(ellipse, rgba(168, 85, 247, 0.6) 0%, transparent 70%);
+    filter: blur(10px);
+    z-index: -1;
+    transition: all 0.4s;
+  }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-6px) scale(1.05) rotateX(5deg);
+    box-shadow:
+      0 25px 60px rgba(168, 85, 247, 0.6),
+      0 0 0 2px rgba(255, 255, 255, 0.4),
+      inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    animation: gradientShift 2s ease infinite, neonPulse 1.5s ease-in-out infinite;
+
+    &::before {
+      transform: rotate(45deg) translateX(100%);
+    }
+
+    &::after {
+      bottom: -15px;
+      left: 5%;
+      right: 5%;
+      height: 30px;
+      background: radial-gradient(ellipse, rgba(168, 85, 247, 0.8) 0%, transparent 70%);
+    }
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(-2px) scale(1.02);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    filter: grayscale(0.8);
+  }
+
+  .button-icon {
+    font-size: 26px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    animation: floatUp 2s ease-in-out infinite;
+  }
+
+  .button-text {
+    font-size: 20px;
+    font-weight: 900;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
 }
+
 .home-button {
-  display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 28px; font-size: 16px; font-weight: 800; color: white;
-  background: linear-gradient(135deg, #374151 0%, #1f2937 50%, #111827 100%); border: 3px solid rgba(255,255,255,0.4); border-radius: 40px; cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); box-shadow: 0 8px 20px rgba(0,0,0,0.3), inset 0 3px 0 rgba(255,255,255,0.2); pointer-events: auto; position: relative; overflow: hidden;
-  &::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); animation: buttonShine 2.5s ease-in-out infinite; }
-  &:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 14px 32px rgba(0,0,0,0.35); }
-  &:active { transform: translateY(-1px); }
-  .button-icon { font-size: 18px; }
-  .button-text { font-size: 15px; font-weight: 700; }
-  &.gray-btn { background: linear-gradient(135deg, #636e72 0%, #4a4a4a 100%); }
-  &.blue-btn { background: linear-gradient(135deg, #2980b9 0%, #1a5276 100%); border-color: rgba(255,255,255,0.5); box-shadow: 0 8px 20px rgba(41,128,185,0.4); }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 36px;
+  font-size: 18px;
+  font-weight: 800;
+  color: white;
+  background: linear-gradient(135deg, #4b5563 0%, #374151 50%, #1f2937 100%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 40px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 2px rgba(255, 255, 255, 0.15);
+  pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d;
+
+  /* 光泽效果 */
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.15) 50%,
+      transparent 60%
+    );
+    transform: rotate(45deg) translateX(-100%);
+    transition: transform 0.5s;
+    pointer-events: none;
+  }
+
+  /* 底部阴影 */
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 15%;
+    right: 15%;
+    height: 15px;
+    background: radial-gradient(ellipse, rgba(0, 0, 0, 0.3) 0%, transparent 70%);
+    filter: blur(8px);
+    z-index: -1;
+    transition: all 0.3s;
+  }
+
+  &:hover {
+    transform: translateY(-4px) scale(1.04) rotateX(3deg);
+    box-shadow:
+      0 15px 35px rgba(0, 0, 0, 0.35),
+      0 0 0 2px rgba(255, 255, 255, 0.2),
+      inset 0 1px 2px rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 50%, #374151 100%);
+
+    &::before {
+      transform: rotate(45deg) translateX(100%);
+    }
+
+    &::after {
+      bottom: -12px;
+      left: 10%;
+      right: 10%;
+      height: 20px;
+    }
+  }
+
+  &:active {
+    transform: translateY(-1px) scale(1.01);
+  }
+
+  .button-icon {
+    font-size: 20px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  }
+
+  .button-text {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  &.gray-btn {
+    background: linear-gradient(135deg, #636e72 0%, #4a4a4a 100%);
+  }
+
+  &.blue-btn {
+    background: linear-gradient(135deg, #2980b9 0%, #1a5276 100%);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 20px rgba(41, 128, 185, 0.4);
+  }
 }
 
-.game-screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
-.top-bar {
-  display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 120px;
-  backdrop-filter: blur(15px); background: rgba(255,255,255,0.12); border-bottom: 3px solid rgba(255,255,255,0.4);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.1); flex-shrink: 0; z-index: 10; position: relative;
-  &::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 60%; height: 3px; background: linear-gradient(90deg, #fbbf24 0%, #f472b6 25%, #a855f7 50%, #3b82f6 75%, #34d399 100%); border-radius: 0 0 4px 4px; }
-}
-.info-item {
-  text-align: center; position: relative; padding: 7px 14px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.72) 100%);
-  border-radius: 18px; box-shadow: 0 4px 16px rgba(0,0,0,0.08), inset 0 2px 0 rgba(255,255,255,1), 0 0 0 2px rgba(255,255,255,0.7);
-  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); min-width: 72px;
-  &:hover { transform: translateY(-2px) scale(1.04); }
-  .label { display: block; font-size: 10px; font-weight: 800; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; }
-  .value { display: block; font-size: 20px; font-weight: 900; line-height: 1; color: #1e293b; }
-  &::after { content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 14px; height: 3px; background: currentColor; border-radius: 2px; opacity: 0.5; }
-  &.combo-active { background: linear-gradient(135deg, rgba(253,186,116,0.3) 0%, rgba(249,115,22,0.2) 100%); }
-}
-.value.score-v  { color: #f59e0b; }
-.value.coins-v  { color: #fbbf24; }
-.value.time-v   { color: #34d399; }
-.value.combo-v  { color: #f472b6; }
-.center-info { min-width: 110px; .label.level-lbl { font-size: 11px; font-weight: 800; color: #7c3aed; letter-spacing: 0; text-transform: none; } .value.prog-v { font-size: 15px; color: #475569; } }
-.pause-btn-top {
-  background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.75) 100%); border: 2px solid rgba(255,255,255,0.8); color: #374151; font-size: 16px; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  &:hover { background: white; transform: scale(1.1); }
+.sub-btns {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
-.prog-bar-wrap { height: 10px; background: rgba(255,255,255,0.5); margin: 4px 20px; border-radius: 8px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); border: 2px solid rgba(255,255,255,0.8); flex-shrink: 0; }
-.prog-bar-fill { height: 100%; background: linear-gradient(90deg, #f472b6 0%, #a855f7 25%, #6366f1 50%, #3b82f6 75%, #0ea5e9 100%); background-size: 200% 100%; transition: width 0.4s cubic-bezier(0.34,1.56,0.64,1); animation: progressGradient 3s ease infinite; box-shadow: 0 0 16px rgba(244,114,182,0.6); border-radius: 6px; }
-
-.combo-label { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); font-size: 20px; font-weight: 900; pointer-events: none; z-index: 20; white-space: nowrap; background: rgba(255,255,255,0.92); padding: 6px 20px; border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-.combo-pop-enter-active { animation: comboPop 0.3s cubic-bezier(0.34,1.56,0.64,1); }
-.combo-pop-leave-active { transition: opacity 0.4s; }
-.combo-pop-leave-to     { opacity: 0; }
-@keyframes comboPop { from { transform: translateX(-50%) scale(0.5); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
-
-.block-field { flex: 1; position: relative; overflow: hidden; }
-.word-block {
-  position: absolute; min-width: 80px; max-width: 160px; cursor: pointer;
-  background: linear-gradient(135deg, rgba(101,67,33,0.9) 0%, rgba(80,50,20,0.85) 100%);
-  border: 3px solid rgba(255,255,255,0.3); border-radius: 10px; padding: 8px 10px 4px;
-  box-shadow: 3px 3px 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 16px rgba(0,0,0,0.15);
-  backdrop-filter: blur(4px); transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.1s; z-index: 5;
-  &:hover  { transform: scale(1.05); }
-  &.active { border-color: #ffd32a; box-shadow: 3px 3px 0 rgba(0,0,0,0.4), 0 0 16px #ffd32a88; z-index: 10; }
-  &.warning{ background: linear-gradient(135deg, rgba(180,100,20,0.9) 0%, rgba(160,80,10,0.9) 100%); border-color: #ff9f43; }
-  &.danger { background: linear-gradient(135deg, rgba(200,40,40,0.95) 0%, rgba(180,20,20,0.95) 100%); border-color: #ff6b6b; animation: shakeDanger 0.3s ease infinite; }
-  &.done   { background: linear-gradient(135deg, rgba(39,174,96,0.9) 0%, rgba(22,160,133,0.85) 100%); border-color: #0be881; box-shadow: 3px 3px 0 rgba(0,0,0,0.3), 0 0 20px rgba(11,232,129,0.4); }
-  &.error  { animation: errorShake 0.3s ease; border-color: #ff6b6b; }
-}
-.block-texture { position: absolute; inset: 0; background: repeating-linear-gradient(0deg,rgba(255,255,255,0.04) 0px,rgba(255,255,255,0.04) 1px,transparent 1px,transparent 4px), repeating-linear-gradient(90deg,rgba(255,255,255,0.04) 0px,rgba(255,255,255,0.04) 1px,transparent 1px,transparent 4px); border-radius: 8px; pointer-events: none; }
-.block-word { display: flex; gap: 1px; justify-content: center; flex-wrap: wrap; }
-.block-char { font-size: clamp(14px,3vw,20px); font-weight: 900; color: rgba(255,255,255,0.5); transition: color 0.1s; letter-spacing: 1px; font-family: 'Courier New', monospace; }
-.block-char.typed { color: rgba(11,232,129,0.85); }
-.block-char.next  { font-size: clamp(16px,3.5vw,22px); text-shadow: 0 0 10px currentColor; animation: nextPulse 1s ease infinite; }
-.block-char.wrong { color: #ff6b6b !important; animation: none; }
-@keyframes nextPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
-.block-zh { text-align: center; font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 3px; }
-.block-score-stars { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 14px; animation: starPop 0.5s cubic-bezier(0.34,1.56,0.64,1); }
-@keyframes starPop { from { transform: translateX(-50%) scale(0) translateY(10px); opacity: 0; } to { transform: translateX(-50%) scale(1) translateY(0); opacity: 1; } }
-.block-prog-bar { height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; margin-top: 4px; overflow: hidden; }
-.block-prog-fill { height: 100%; background: #0be881; border-radius: 2px; transition: width 0.08s; &.warning { background: #ff9f43; } &.danger { background: #ff6b6b; } }
-.block-anim-enter-active { animation: blockDrop 0.4s cubic-bezier(0.34,1.56,0.64,1); }
-.block-anim-leave-active { animation: blockPop 0.4s ease forwards; }
-@keyframes blockDrop { from { transform: scale(0.3) translateY(-40px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
-@keyframes blockPop  { from { transform: scale(1); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
-@keyframes shakeDanger { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
-@keyframes errorShake  { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 60% { transform: translateX(5px); } }
-.ground-fx { position: absolute; bottom: 10px; font-size: 24px; pointer-events: none; animation: fxPop 0.6s ease forwards; }
-@keyframes fxPop { from { transform: scale(0.5) translateY(10px); opacity: 1; } to { transform: scale(2) translateY(-20px); opacity: 0; } }
-
-.efx-layer  { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
-.elim-effect { position: absolute; transform: translate(-50%,-50%); pointer-events: none; }
-
-.normal-burst { position: relative; width: 140px; height: 140px; }
-.sb { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 100%; height: 100%;
-  .s-star { position: absolute; top: 50%; left: 50%; width: 3px; height: 14px; background: linear-gradient(180deg, #a855f7, #6366f1); transform-origin: center; border-radius: 2px; box-shadow: 0 0 6px #a855f7; animation: starShoot 0.8s ease-out forwards; }
-  @for $i from 1 through 12 { .s-star:nth-child(#{$i}) { --rotation: #{$i * 30deg}; animation-delay: #{$i * 0.03s}; } }
-}
-.shockwave { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 16px; height: 16px; border: 3px solid #a855f7; border-radius: 50%; animation: shockwaveExpand 1s ease-out forwards; }
-
-.golden-burst { position: relative; width: 180px; height: 180px; }
-.gs { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 100%; height: 100%;
-  .g-coin { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; background: radial-gradient(circle, #fcd34d, #f59e0b); border-radius: 50%; box-shadow: 0 0 8px #fcd34d; animation: coinFall 1.2s ease-in forwards; }
-  @for $i from 1 through 10 { .g-coin:nth-child(#{$i}) { animation-delay: #{$i * 0.08s}; } }
+.result-stars-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin: 10px 0;
 }
 
-.ef-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 28px; font-weight: 900; white-space: nowrap; z-index: 100; animation: effectTextFloat 1s ease-out forwards; }
-.elim-effect.normal .ef-text { background: linear-gradient(135deg, #a855f7 0%, #6366f1 50%, #3b82f6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 10px rgba(168,85,247,0.8)); }
-.elim-effect.golden .ef-text { background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 50%, #f59e0b 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 10px rgba(251,191,36,0.8)); }
+.result-star-big {
+  font-size: 52px;
+  color: #d1d5db;
+  transition: color 0.3s;
 
-.bottom-panel { flex-shrink: 0; background: rgba(255,255,255,0.12); backdrop-filter: blur(12px); border-top: 2px solid rgba(255,255,255,0.3); padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 6px; z-index: 10; box-shadow: 0 -8px 24px rgba(0,0,0,0.1); }
-.finger-hint { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.2); border-radius: 20px; padding: 5px 16px; width: fit-content; margin: 0 auto; border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-.finger-dot  { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-.finger-text { color: rgba(255,255,255,0.9); font-size: 11px; font-weight: 600; }
-.finger-key  { background: rgba(255,255,255,0.3); color: #fff; font-size: 13px; font-weight: 900; width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: monospace; box-shadow: 0 2px 4px rgba(0,0,0,0.15); }
-.vkb { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.vkb-row { display: flex; gap: 3px; }
-.vkb-key {
-  width: clamp(22px,4vw,32px); height: clamp(22px,4vw,32px); display: flex; align-items: center; justify-content: center;
-  background-color: color-mix(in srgb, var(--fc) 18%, rgba(255,255,255,0.15)); border: 1px solid color-mix(in srgb, var(--fc) 40%, rgba(255,255,255,0.2));
-  border-radius: 5px; font-size: clamp(7px,1.5vw,11px); font-weight: 700; color: rgba(255,255,255,0.85); transition: all 0.1s; font-family: monospace;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
-  &.highlight { background-color: color-mix(in srgb, var(--fc) 70%, rgba(255,255,255,0.2)); color: #fff; border-color: var(--fc); box-shadow: 0 0 10px var(--fc); transform: scale(1.18); animation: keyPulse 0.6s ease infinite; }
-  &.pressed   { transform: scale(0.9); filter: brightness(1.5); }
+  &.on {
+    color: #fbbf24;
+    text-shadow: 0 0 25px #fbbf24;
+  }
+
+  &.bounce {
+    animation: starBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
 }
-@keyframes keyPulse { 0%,100% { box-shadow: 0 0 8px var(--fc); } 50% { box-shadow: 0 0 18px var(--fc); } }
-.input-hint { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); border-radius: 10px; padding: 8px 16px; text-align: center; cursor: pointer; min-height: 36px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.2); }
-.input-idle   { color: rgba(255,255,255,0.5); font-size: 12px; }
-.typed-chars  { color: #0be881; font-size: 16px; font-family: monospace; font-weight: 700; }
-.caret        { color: #ffd32a; font-size: 18px; }
-.caret.blink  { animation: blink 1s step-end infinite; }
-@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
-.remaining    { color: rgba(255,255,255,0.5); font-size: 16px; font-family: monospace; }
-.hidden-input { position: absolute; left: -9999px; top: -9999px; opacity: 0; width: 1px; height: 1px; }
-.vkb-toggle   { background: transparent; border: none; color: rgba(255,255,255,0.5); font-size: 10px; cursor: pointer; align-self: center; padding: 2px 8px; border-radius: 10px; transition: color 0.2s; &:hover { color: rgba(255,255,255,0.9); } }
 
-.pause-overlay { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,251,235,0.25) 0%, rgba(252,231,243,0.25) 60%, rgba(219,234,254,0.25) 100%); display: flex; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(20px); }
-.pause-content { gap: 16px; }
+.game-stats {
+  width: 100%;
+  margin: 10px 0;
+}
 
-.result-content { gap: 14px; }
-.result-stars-row { display: flex; gap: 10px; justify-content: center; }
-.result-star-big { font-size: 44px; color: #d1d5db; transition: color 0.3s; &.on { color: #fbbf24; text-shadow: 0 0 20px #fbbf24; } &.bounce { animation: starBounce 0.6s cubic-bezier(0.34,1.56,0.64,1) both; } }
-@keyframes starBounce { from { transform: scale(0) rotate(-30deg); opacity: 0; } to { transform: scale(1) rotate(0deg); opacity: 1; } }
-.game-stats { width: 100%; }
 .main-stat {
-  background: linear-gradient(135deg, #fef9c3 0%, #fcd34d 50%, #f59e0b 100%); border: 3px solid rgba(255,255,255,0.8); margin-bottom: 14px; padding: 18px 22px; display: flex; align-items: center; gap: 18px; border-radius: 20px; box-shadow: 0 10px 24px rgba(251,191,36,0.25), inset 0 3px 0 rgba(255,255,255,0.4);
-  .stat-icon  { font-size: 40px; animation: trophyWiggle 1.2s ease-in-out infinite; }
-  .stat-info  { flex: 1; text-align: left; }
-  .stat-label { display: block; font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 2px; }
-  .stat-value { display: block; font-size: 48px; font-weight: 900; color: #78350f; }
-  .gold-text  { color: #78350f; font-size: 48px; font-weight: 900; display: block; }
+  background: linear-gradient(135deg, #fef9c3 0%, #fcd34d 50%, #f59e0b 100%);
+  border: 4px solid rgba(255, 255, 255, 0.8);
+  margin-bottom: 18px;
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  border-radius: 22px;
+  box-shadow:
+    0 12px 30px rgba(251, 191, 36, 0.28),
+    inset 0 4px 0 rgba(255, 255, 255, 0.4);
+
+  .stat-icon {
+    font-size: 48px;
+    animation: trophyWiggle 1.2s ease-in-out infinite;
+  }
+
+  .stat-info {
+    flex: 1;
+    text-align: left;
+
+    .stat-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #92400e;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .stat-value {
+      display: block;
+      font-size: 56px;
+      font-weight: 900;
+      color: #78350f;
+    }
+
+    .gold-text {
+      color: #78350f;
+      font-size: 56px;
+      font-weight: 900;
+      display: block;
+    }
+  }
 }
-.stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
 .stat-card {
-  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%); padding: 18px 14px; border-radius: 18px; backdrop-filter: blur(10px);
-  border: 3px solid rgba(255,255,255,0.8); box-shadow: 0 6px 16px rgba(0,0,0,0.07), inset 0 2px 0 rgba(255,255,255,1); transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
-  &:hover { transform: translateY(-4px) scale(1.04); }
-  .stat-icon  { font-size: 32px; margin-bottom: 8px; display: block; }
-  .stat-info  { display: block; }
-  .stat-label { display: block; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
-  .stat-value { display: block; font-size: 26px; font-weight: 900; color: #1e293b; }
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.88) 100%);
+  padding: 22px 16px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  border: 3px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.07),
+    inset 0 2px 0 rgba(255, 255, 255, 1);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  &:hover {
+    transform: translateY(-4px) scale(1.04);
+  }
+
+  .stat-icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .stat-info {
+    display: block;
+
+    .stat-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      display: block;
+      font-size: 30px;
+      font-weight: 900;
+      color: #1e293b;
+    }
+  }
 }
-.new-achievements { width: 100%; background: rgba(255,211,42,0.1); border: 1px solid rgba(255,211,42,0.3); border-radius: 12px; padding: 10px 14px; }
-.ach-title { color: #d97706; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
-.ach-item  { color: #374151; font-size: 14px; margin: 2px 0; }
-.new-pets-wrap { width: 100%; text-align: center; }
-.pet-title { color: #7c3aed; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
-.new-pets  { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.pet-card  { background: linear-gradient(135deg, rgba(168,85,247,0.1) 0%, rgba(99,102,241,0.1) 100%); border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; animation: petPop 0.5s cubic-bezier(0.34,1.56,0.64,1); border: 2px solid rgba(168,85,247,0.2); }
-@keyframes petPop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-.pet-emoji-big { font-size: 32px; }
-.pet-name      { color: #374151; font-size: 12px; font-weight: 600; }
 
-.help-content  { gap: 14px; }
-.game-controls { width: 100%; }
-.controls-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
-.control-item { background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%); padding: 14px; border-radius: 14px; display: flex; align-items: center; gap: 10px; border: 2px solid rgba(255,255,255,0.8); box-shadow: 0 4px 12px rgba(0,0,0,0.05); font-size: 13px; font-weight: 600; color: #475569; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); &:hover { transform: translateY(-3px); } .control-icon { font-size: 22px; flex-shrink: 0; }
-  &.c-key    { border-color: rgba(91,205,231,0.5); background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%); }
-  &.c-coin   { border-color: rgba(251,191,36,0.5); background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%); }
-  &.c-safe   { border-color: rgba(52,211,153,0.5); background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); }
-  &.c-combo  { border-color: rgba(244,114,182,0.5); background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); }
-  &.c-finger { border-color: rgba(168,85,247,0.5); background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); }
-  &.c-win    { border-color: rgba(251,191,36,0.5); background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+.new-achievements {
+  width: 100%;
+  background: rgba(255, 211, 42, 0.12);
+  border: 1px solid rgba(255, 211, 42, 0.35);
+  border-radius: 14px;
+  padding: 12px 18px;
 }
-.help-fingers { width: 100%; }
-.hf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px,1fr)); gap: 6px; }
-.hf-item { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.7); padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.05); }
-.hf-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.hf-name { color: #374151; font-size: 11px; font-weight: 600; }
 
-.fx-layer    { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
-.fx-particle { position: absolute; pointer-events: none; will-change: transform; }
+.ach-title {
+  color: #d97706;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
 
-.page-fade-enter-active, .page-fade-leave-active { transition: opacity 0.35s ease; }
-.page-fade-enter-from, .page-fade-leave-to { opacity: 0; }
-.overlay-fade-enter-active, .overlay-fade-leave-active { transition: opacity 0.25s; }
-.overlay-fade-enter-from, .overlay-fade-leave-to { opacity: 0; }
+.ach-item {
+  color: #374151;
+  font-size: 15px;
+  margin: 3px 0;
+}
 
-@keyframes twinkle         { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
-@keyframes logoBounce      { 0%,100% { transform: translateY(0) rotate(0deg); } 25% { transform: translateY(-15px) rotate(-5deg); } 75% { transform: translateY(-5px) rotate(5deg); } }
-@keyframes titleGradient   { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-@keyframes fadeIn          { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp         { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes progressGradient{ 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-@keyframes buttonShine     { 0% { left: -100%; } 100% { left: 200%; } }
-@keyframes trophyWiggle    { 0%,100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
-@keyframes starShoot       { 0% { transform: rotate(var(--rotation,0deg)) translateY(0) scale(1); opacity: 1; } 100% { transform: rotate(var(--rotation,0deg)) translateY(-90px) scale(0.5); opacity: 0; } }
-@keyframes shockwaveExpand { 0% { width: 16px; height: 16px; opacity: 1; } 100% { width: 160px; height: 160px; opacity: 0; } }
-@keyframes coinFall        { 0% { transform: translate(-50%,-50%) translateY(-40px) rotate(0deg); opacity: 1; } 100% { transform: translate(var(--x,20px),80px) rotate(360deg); opacity: 0; } }
-@keyframes effectTextFloat { 0% { transform: translate(-50%,-50%) scale(0.6); opacity: 1; } 100% { transform: translate(-50%,-150%) scale(1.1); opacity: 0; } }
+.new-pets-wrap {
+  width: 100%;
+  text-align: center;
+}
+
+.pet-title {
+  color: #7c3aed;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.new-pets {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pet-card {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%);
+  border-radius: 14px;
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  animation: petPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 2px solid rgba(168, 85, 247, 0.25);
+}
+
+.pet-emoji-big {
+  font-size: 36px;
+}
+
+.pet-name {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.help-content {
+  gap: 16px;
+}
+
+.game-controls {
+  width: 100%;
+}
+
+.controls-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0 0 18px 0;
+  background: linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6366f1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: titleGradient 4s ease infinite;
+  background-size: 200% 100%;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.control-item {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.88) 100%);
+  padding: 16px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  &:hover {
+    transform: translateY(-3px);
+  }
+
+  .control-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+
+  &.c-key {
+    border-color: rgba(91, 205, 231, 0.5);
+    background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+  }
+
+  &.c-coin {
+    border-color: rgba(251, 191, 36, 0.5);
+    background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
+  }
+
+  &.c-safe {
+    border-color: rgba(52, 211, 153, 0.5);
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  }
+
+  &.c-combo {
+    border-color: rgba(244, 114, 182, 0.5);
+    background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+  }
+
+  &.c-finger {
+    border-color: rgba(168, 85, 247, 0.5);
+    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+  }
+
+  &.c-win {
+    border-color: rgba(251, 191, 36, 0.5);
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  }
+}
+
+.help-fingers {
+  width: 100%;
+}
+
+.hf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.hf-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.hf-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hf-name {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fx-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.fx-particle {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform;
+}
+
+// ==================== 动画 ====================
+@keyframes particleFloat {
+  0%,
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  25% {
+    opacity: 0.8;
+    transform: translateY(-10px) scale(1.1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translateY(-5px) scale(0.95);
+  }
+  75% {
+    opacity: 0.9;
+    transform: translateY(-15px) scale(1.05);
+  }
+}
+
+@keyframes borderGlow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+    filter: brightness(1);
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes neonPulse {
+  0%,
+  100% {
+    box-shadow: 
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      0 0 20px currentColor,
+      0 0 40px currentColor;
+  }
+  50% {
+    box-shadow: 
+      0 0 10px currentColor,
+      0 0 20px currentColor,
+      0 0 40px currentColor,
+      0 0 80px currentColor;
+  }
+}
+
+@keyframes floatUp {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes rotate3d {
+  0% {
+    transform: perspective(1000px) rotateY(0deg);
+  }
+  100% {
+    transform: perspective(1000px) rotateY(360deg);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(-50px);
+  }
+  50% {
+    transform: scale(1.05) translateY(5px);
+  }
+  70% {
+    transform: scale(0.9) translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes slideInGlow {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px);
+    filter: blur(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes progressGradient {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes keyPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 8px var(--fc);
+  }
+  50% {
+    box-shadow: 0 0 18px var(--fc);
+  }
+}
+
+@keyframes nextPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: perspective(500px) rotateX(0deg) translateZ(20px) scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: perspective(500px) rotateX(0deg) translateZ(30px) scale(1.08);
+  }
+}
+
+@keyframes letterGlow {
+  0%,
+  100% {
+    text-shadow:
+      0 0 10px currentColor,
+      0 0 30px currentColor,
+      0 0 60px currentColor,
+      0 4px 8px rgba(0, 0, 0, 0.5);
+    filter: brightness(1);
+  }
+  50% {
+    text-shadow:
+      0 0 20px currentColor,
+      0 0 50px currentColor,
+      0 0 100px currentColor,
+      0 6px 12px rgba(0, 0, 0, 0.6);
+    filter: brightness(1.3);
+  }
+}
+
+@keyframes letterShake {
+  0%,
+  100% {
+    transform: perspective(500px) rotateX(0deg) translateX(0);
+  }
+  20% {
+    transform: perspective(500px) rotateX(0deg) translateX(-8px);
+  }
+  40% {
+    transform: perspective(500px) rotateX(0deg) translateX(8px);
+  }
+  60% {
+    transform: perspective(500px) rotateX(0deg) translateX(-4px);
+  }
+  80% {
+    transform: perspective(500px) rotateX(0deg) translateX(4px);
+  }
+}
+
+@keyframes shakeWarning {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes shakeDanger {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes errorShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  60% {
+    transform: translateX(6px);
+  }
+}
+
+@keyframes errorFlash {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.5) saturate(1.5);
+  }
+}
+
+@keyframes blockFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(1deg);
+  }
+}
+
+@keyframes activePulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 30px rgba(255, 211, 42, 0.6),
+      0 0 60px rgba(255, 211, 42, 0.3),
+      0 20px 60px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1) translateY(-10px);
+  }
+  50% {
+    box-shadow:
+      0 0 40px rgba(255, 211, 42, 0.8),
+      0 0 80px rgba(255, 211, 42, 0.4),
+      0 25px 70px rgba(0, 0, 0, 0.35);
+    transform: scale(1.12) translateY(-12px);
+  }
+}
+
+@keyframes warningPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(255, 159, 67, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 159, 67, 0.7);
+  }
+}
+
+@keyframes dangerPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 25px rgba(255, 107, 107, 0.5);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 50px rgba(255, 107, 107, 0.8);
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes successPop {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.15);
+    filter: brightness(1.3);
+  }
+  100% {
+    transform: scale(1.1);
+    filter: brightness(1.1);
+  }
+}
+
+@keyframes comboExplosion {
+  0% {
+    opacity: 0;
+    filter: blur(20px);
+    scale: 0.3;
+  }
+  30% {
+    opacity: 1;
+    filter: blur(0);
+    scale: 1.2;
+  }
+  60% {
+    scale: 0.95;
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    scale: 1;
+  }
+}
+
+@keyframes gradientShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes starPop {
+  from {
+    transform: translateX(-50%) scale(0) translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes starShoot {
+  0% {
+    transform: rotate(var(--rotation, 0deg)) translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--rotation, 0deg)) translateY(-100px) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes sparkleFloat {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(var(--x, 0), var(--y, 0)) scale(1.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(calc(var(--x, 0) * 1.5), calc(var(--y, 0) * 1.5)) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes shockwaveExpand {
+  0% {
+    width: 20px;
+    height: 20px;
+    opacity: 1;
+  }
+  100% {
+    width: 200px;
+    height: 200px;
+    opacity: 0;
+  }
+}
+
+@keyframes crownFloat {
+  0% {
+    transform: translateY(0) scale(0);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(-20px) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-80px) scale(0.8);
+    opacity: 0;
+  }
+}
+
+@keyframes coinFall {
+  0% {
+    transform: translate(-50%, -50%) translateY(-50px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--x, 0), 100px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes royalRayPulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: rotate(var(--rotation, 0deg)) translateY(-50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(var(--rotation, 0deg)) translateY(-50%) scale(1.2);
+  }
+}
+
+@keyframes diamondSpin {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg) scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--x, 0)), calc(-50% + var(--y, 0))) rotate(360deg) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes effectTextFloat {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -150%) scale(1.1);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes logoBounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-15px) rotate(-5deg);
+  }
+  75% {
+    transform: translateY(-5px) rotate(5deg);
+  }
+}
+
+@keyframes titleGradient {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes buttonShine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+@keyframes steveBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-16px);
+  }
+  70% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes starBounce {
+  from {
+    transform: scale(0) rotate(-30deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes trophyWiggle {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes petPop {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes comboAppear {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
 </style>

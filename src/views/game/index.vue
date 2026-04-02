@@ -63,7 +63,7 @@
           <div class="game-icon">⛏️</div>
           <div class="card-body">
             <h2 class="game-name">我的世界打字冒险</h2>
-            <p class="game-desc">6-10岁儿童专属！像素风冒险，挖矿建造，零压力学打字</p>
+            <p class="game-desc">儿童专属！像素风冒险，挖矿建造，零压力学打字</p>
             <div class="game-features">
               <span>👧 儿童专属</span>
               <span>手指引导</span>

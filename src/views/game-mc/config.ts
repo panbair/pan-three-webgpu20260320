@@ -4,7 +4,16 @@
  */
 
 /* ─── 手指颜色映射（帮助儿童用颜色记手指位置）──────────────────── */
-export type FingerColor = 'red' | 'orange' | 'yellow' | 'green' | 'cyan' | 'blue' | 'purple' | 'pink' | 'space'
+export type FingerColor =
+  | 'red'
+  | 'orange'
+  | 'yellow'
+  | 'green'
+  | 'cyan'
+  | 'blue'
+  | 'purple'
+  | 'pink'
+  | 'space'
 
 export interface FingerKey {
   key: string
@@ -14,23 +23,41 @@ export interface FingerKey {
 
 export const fingerMap: Record<string, FingerColor> = {
   // 左手小指
-  q: 'red', a: 'red', z: 'red',
+  q: 'red',
+  a: 'red',
+  z: 'red',
   // 左手无名指
-  w: 'orange', s: 'orange', x: 'orange',
+  w: 'orange',
+  s: 'orange',
+  x: 'orange',
   // 左手中指
-  e: 'yellow', d: 'yellow', c: 'yellow',
+  e: 'yellow',
+  d: 'yellow',
+  c: 'yellow',
   // 左手食指（负责两列）
-  r: 'green', t: 'green', f: 'green', g: 'green', v: 'green', b: 'green',
+  r: 'green',
+  t: 'green',
+  f: 'green',
+  g: 'green',
+  v: 'green',
+  b: 'green',
   // 右手食指（负责两列）
-  y: 'cyan', u: 'cyan', h: 'cyan', j: 'cyan', n: 'cyan', m: 'cyan',
+  y: 'cyan',
+  u: 'cyan',
+  h: 'cyan',
+  j: 'cyan',
+  n: 'cyan',
+  m: 'cyan',
   // 右手中指
-  i: 'blue', k: 'blue',
+  i: 'blue',
+  k: 'blue',
   // 右手无名指
-  o: 'purple', l: 'purple',
+  o: 'purple',
+  l: 'purple',
   // 右手小指
   p: 'pink',
   // 空格
-  ' ': 'space',
+  ' ': 'space'
 }
 
 export const fingerColorHex: Record<FingerColor, string> = {
@@ -42,7 +69,7 @@ export const fingerColorHex: Record<FingerColor, string> = {
   blue: '#48dbfb',
   purple: '#a29bfe',
   pink: '#fd79a8',
-  space: '#dfe6e9',
+  space: '#dfe6e9'
 }
 
 export const fingerName: Record<FingerColor, string> = {
@@ -54,14 +81,14 @@ export const fingerName: Record<FingerColor, string> = {
   blue: '右中指',
   purple: '右无名指',
   pink: '右小指',
-  space: '拇指',
+  space: '拇指'
 }
 
 /* ─── 键盘布局（用于显示虚拟键盘）──────────────────────────────── */
 export const keyboardRows = [
-  ['q','w','e','r','t','y','u','i','o','p'],
-  ['a','s','d','f','g','h','j','k','l'],
-  ['z','x','c','v','b','n','m'],
+  ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+  ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+  ['z', 'x', 'c', 'v', 'b', 'n', 'm']
 ]
 
 /* ─── 关卡配置 ────────────────────────────────────────────────── */
@@ -73,11 +100,11 @@ export interface LevelConfig {
   ageRange: string
   description: string
   wordPool: McWord[]
-  targetCount: number      // 本关需完成数量
-  fallSpeed: number        // 方块下落速度 px/s（基础值）
-  spawnInterval: number    // 每隔多少ms生成一个新方块
-  maxBlocks: number        // 屏幕上最多同时存在方块数
-  reward: string           // 通关奖励描述
+  targetCount: number // 本关需完成数量
+  fallSpeed: number // 方块下落速度 px/s（基础值）
+  spawnInterval: number // 每隔多少ms生成一个新方块
+  maxBlocks: number // 屏幕上最多同时存在方块数
+  reward: string // 通关奖励描述
   bgm: string
 }
 
@@ -86,9 +113,9 @@ export type SceneId = 'plains' | 'cave' | 'cabin' | 'village' | 'adventure'
 export interface SceneConfig {
   id: SceneId
   name: string
-  bgGradient: [string, string]  // 天空渐变
+  bgGradient: [string, string] // 天空渐变
   groundColor: string
-  blockSkin: string             // 方块主色
+  blockSkin: string // 方块主色
   emoji: string
   description: string
 }
@@ -101,7 +128,7 @@ export const sceneConfigs: Record<SceneId, SceneConfig> = {
     groundColor: '#5d8a3c',
     blockSkin: '#5d8a3c',
     emoji: '🌿',
-    description: '蓝天白云，绿草如茵',
+    description: '蓝天白云，绿草如茵'
   },
   cave: {
     id: 'cave',
@@ -110,7 +137,7 @@ export const sceneConfigs: Record<SceneId, SceneConfig> = {
     groundColor: '#3d2b1f',
     blockSkin: '#7f8c8d',
     emoji: '⛏️',
-    description: '幽深矿洞，宝石闪光',
+    description: '幽深矿洞，宝石闪光'
   },
   cabin: {
     id: 'cabin',
@@ -119,7 +146,7 @@ export const sceneConfigs: Record<SceneId, SceneConfig> = {
     groundColor: '#8B6914',
     blockSkin: '#a0522d',
     emoji: '🏠',
-    description: '亲手盖房，成就满满',
+    description: '亲手盖房，成就满满'
   },
   village: {
     id: 'village',
@@ -128,7 +155,7 @@ export const sceneConfigs: Record<SceneId, SceneConfig> = {
     groundColor: '#2c7a1f',
     blockSkin: '#27ae60',
     emoji: '🌻',
-    description: '热闹村庄，欢声笑语',
+    description: '热闹村庄，欢声笑语'
   },
   adventure: {
     id: 'adventure',
@@ -137,8 +164,8 @@ export const sceneConfigs: Record<SceneId, SceneConfig> = {
     groundColor: '#4a235a',
     blockSkin: '#8e44ad',
     emoji: '🗺️',
-    description: '勇闯天涯，无所不能',
-  },
+    description: '勇闯天涯，无所不能'
+  }
 }
 
 /* ─── 我的世界主题词库 ────────────────────────────────────────── */
@@ -178,7 +205,7 @@ export const level1Words: McWord[] = [
   { word: 'v', zh: 'V键', emoji: '🌿', scene: 'plains' },
   { word: 'b', zh: 'B键', emoji: '🌿', scene: 'plains' },
   { word: 'x', zh: 'X键', emoji: '🌿', scene: 'plains' },
-  { word: 'z', zh: 'Z键', emoji: '🌿', scene: 'plains' },
+  { word: 'z', zh: 'Z键', emoji: '🌿', scene: 'plains' }
 ]
 
 // L2: 矿洞 - 3字母简单词（避开大跨度组合）
@@ -202,7 +229,7 @@ export const level2Words: McWord[] = [
   { word: 'pick', zh: '镐', emoji: '⛏️', scene: 'cave' },
   { word: 'deep', zh: '深处', emoji: '🕳️', scene: 'cave' },
   { word: 'gem', zh: '宝石', emoji: '💎', scene: 'cave' },
-  { word: 'red', zh: '红色', emoji: '🔴', scene: 'cave' },
+  { word: 'red', zh: '红色', emoji: '🔴', scene: 'cave' }
 ]
 
 // L3: 小屋建造 - 4-5字母建造主题词
@@ -226,7 +253,7 @@ export const level3Words: McWord[] = [
   { word: 'farm', zh: '农场', emoji: '🌾', scene: 'cabin' },
   { word: 'seed', zh: '种子', emoji: '🌱', scene: 'cabin' },
   { word: 'tree', zh: '大树', emoji: '🌲', scene: 'cabin' },
-  { word: 'home', zh: '家', emoji: '🏡', scene: 'cabin' },
+  { word: 'home', zh: '家', emoji: '🏡', scene: 'cabin' }
 ]
 
 // L4: 村庄 - 6-8字母词
@@ -250,7 +277,7 @@ export const level4Words: McWord[] = [
   { word: 'saddle', zh: '马鞍', emoji: '🐴', scene: 'village' },
   { word: 'arrow', zh: '箭矢', emoji: '🏹', scene: 'village' },
   { word: 'shield', zh: '盾牌', emoji: '🛡️', scene: 'village' },
-  { word: 'beacon', zh: '信标', emoji: '🔵', scene: 'village' },
+  { word: 'beacon', zh: '信标', emoji: '🔵', scene: 'village' }
 ]
 
 // L5: 探险 - 短句（含空格），高难度挑战
@@ -269,7 +296,7 @@ export const level5Words: McWord[] = [
   { word: 'sleep bed', zh: '睡觉', emoji: '😴', scene: 'adventure' },
   { word: 'ride horse', zh: '骑马', emoji: '🐎', scene: 'adventure' },
   { word: 'tame wolf', zh: '驯服狼', emoji: '🐺', scene: 'adventure' },
-  { word: 'brew tea', zh: '酿药水', emoji: '🧪', scene: 'adventure' },
+  { word: 'brew tea', zh: '酿药水', emoji: '🧪', scene: 'adventure' }
 ]
 
 export const allLevelWords = [level1Words, level2Words, level3Words, level4Words, level5Words]
@@ -281,7 +308,7 @@ export const levelConfigs: LevelConfig[] = [
     name: '草地启蒙',
     subtitle: '认识键盘 · 种下希望',
     scene: 'plains',
-    ageRange: '6-7岁',
+    ageRange: '练气',
     description: '按下对应字母键，把种子种进土地里！',
     wordPool: level1Words,
     targetCount: 20,
@@ -289,14 +316,14 @@ export const levelConfigs: LevelConfig[] = [
     spawnInterval: 3000,
     maxBlocks: 3,
     reward: '🌸 解锁矿洞场景 + 小鸡宠物',
-    bgm: 'plains',
+    bgm: 'plains'
   },
   {
     id: 2,
     name: '矿洞探宝',
     subtitle: '挖矿冒险 · 收集宝石',
     scene: 'cave',
-    ageRange: '7-8岁',
+    ageRange: '筑基期',
     description: '打出单词，挖出矿石，收集宝藏！',
     wordPool: level2Words,
     targetCount: 25,
@@ -304,14 +331,14 @@ export const levelConfigs: LevelConfig[] = [
     spawnInterval: 2600,
     maxBlocks: 4,
     reward: '💎 解锁小屋场景 + 钻石套装',
-    bgm: 'cave',
+    bgm: 'cave'
   },
   {
     id: 3,
     name: '小屋建造',
     subtitle: '搭建家园 · 亲手造屋',
     scene: 'cabin',
-    ageRange: '8-9岁',
+    ageRange: '结丹期',
     description: '打出单词，方块自动拼上小屋，造出你的家！',
     wordPool: level3Words,
     targetCount: 30,
@@ -319,14 +346,14 @@ export const levelConfigs: LevelConfig[] = [
     spawnInterval: 2200,
     maxBlocks: 4,
     reward: '🏠 解锁村庄场景 + 农夫皮肤',
-    bgm: 'cabin',
+    bgm: 'cabin'
   },
   {
     id: 4,
     name: '村庄扩建',
     subtitle: '建设村庄 · 结交好友',
     scene: 'village',
-    ageRange: '9-10岁',
+    ageRange: '元婴期',
     description: '打出更长的单词，美化你的村庄！',
     wordPool: level4Words,
     targetCount: 35,
@@ -334,14 +361,14 @@ export const levelConfigs: LevelConfig[] = [
     spawnInterval: 2000,
     maxBlocks: 5,
     reward: '🌻 解锁探险场景 + 英雄披风',
-    bgm: 'village',
+    bgm: 'village'
   },
   {
     id: 5,
     name: '世界探险',
     subtitle: '挑战极限 · 勇者征程',
     scene: 'adventure',
-    ageRange: '10岁+',
+    ageRange: '化神期',
     description: '挑战短句打字，成为打字勇士！',
     wordPool: level5Words,
     targetCount: 25,
@@ -349,8 +376,8 @@ export const levelConfigs: LevelConfig[] = [
     spawnInterval: 1800,
     maxBlocks: 5,
     reward: '🏆 获得 "我的世界打字小勇士" 勋章！',
-    bgm: 'adventure',
-  },
+    bgm: 'adventure'
+  }
 ]
 
 /* ─── 连击奖励配置 ────────────────────────────────────────────── */
@@ -362,11 +389,11 @@ export interface ComboReward {
 }
 
 export const comboRewards: ComboReward[] = [
-  { combo: 3,  label: '小熟练！',  emoji: '⭐',  color: '#ffd32a' },
-  { combo: 6,  label: '超厉害！',  emoji: '🌟', color: '#ff9f43' },
-  { combo: 10, label: '太棒了！',  emoji: '🌈', color: '#0be881' },
-  { combo: 15, label: '打字达人！',emoji: '🏆', color: '#48dbfb' },
-  { combo: 20, label: '传说勇士！',emoji: '👑', color: '#a29bfe' },
+  { combo: 3, label: '小熟练！', emoji: '⭐', color: '#ffd32a' },
+  { combo: 6, label: '超厉害！', emoji: '🌟', color: '#ff9f43' },
+  { combo: 10, label: '太棒了！', emoji: '🌈', color: '#0be881' },
+  { combo: 15, label: '打字达人！', emoji: '🏆', color: '#48dbfb' },
+  { combo: 20, label: '传说勇士！', emoji: '👑', color: '#a29bfe' }
 ]
 
 /* ─── 方块分数系统 ────────────────────────────────────────────── */
@@ -379,9 +406,9 @@ export interface ScoreInfo {
 
 export function getScore(progress: number): ScoreInfo {
   // progress: 0=落底前完成 / 1=警告区完成 / 2=落底后完成
-  if (progress === 0) return { stars: 3, coin: 'gold',   label: '完美！', color: '#ffd32a' }
+  if (progress === 0) return { stars: 3, coin: 'gold', label: '完美！', color: '#ffd32a' }
   if (progress === 1) return { stars: 2, coin: 'silver', label: '不错！', color: '#b2bec3' }
-  return              { stars: 1, coin: 'iron',  label: '加油！', color: '#a0522d' }
+  return { stars: 1, coin: 'iron', label: '加油！', color: '#a0522d' }
 }
 
 /* ─── 成就/勋章系统 ──────────────────────────────────────────── */
@@ -393,16 +420,16 @@ export interface Achievement {
 }
 
 export const achievements: Achievement[] = [
-  { id: 'first_word',   name: '第一个词',   emoji: '🌱', condition: '打出第一个词' },
-  { id: 'combo_5',      name: '五连击',     emoji: '⭐', condition: '连续打对5个' },
-  { id: 'combo_10',     name: '十连击',     emoji: '🌟', condition: '连续打对10个' },
-  { id: 'level1_done',  name: '草地冒险家', emoji: '🌿', condition: '完成草地关卡' },
-  { id: 'level2_done',  name: '矿洞探险家', emoji: '⛏️', condition: '完成矿洞关卡' },
-  { id: 'level3_done',  name: '建筑大师',   emoji: '🏠', condition: '完成小屋关卡' },
-  { id: 'level4_done',  name: '村庄英雄',   emoji: '🌻', condition: '完成村庄关卡' },
-  { id: 'level5_done',  name: '打字勇士',   emoji: '🏆', condition: '完成探险关卡' },
-  { id: 'all_gold',     name: '完美通关',   emoji: '👑', condition: '全程金币通关一关' },
-  { id: 'no_error',     name: '零失误',     emoji: '💎', condition: '一关内无错误' },
+  { id: 'first_word', name: '第一个词', emoji: '🌱', condition: '打出第一个词' },
+  { id: 'combo_5', name: '五连击', emoji: '⭐', condition: '连续打对5个' },
+  { id: 'combo_10', name: '十连击', emoji: '🌟', condition: '连续打对10个' },
+  { id: 'level1_done', name: '草地冒险家', emoji: '🌿', condition: '完成草地关卡' },
+  { id: 'level2_done', name: '矿洞探险家', emoji: '⛏️', condition: '完成矿洞关卡' },
+  { id: 'level3_done', name: '建筑大师', emoji: '🏠', condition: '完成小屋关卡' },
+  { id: 'level4_done', name: '村庄英雄', emoji: '🌻', condition: '完成村庄关卡' },
+  { id: 'level5_done', name: '打字勇士', emoji: '🏆', condition: '完成探险关卡' },
+  { id: 'all_gold', name: '完美通关', emoji: '👑', condition: '全程金币通关一关' },
+  { id: 'no_error', name: '零失误', emoji: '💎', condition: '一关内无错误' }
 ]
 
 /* ─── 宠物/收集品 ────────────────────────────────────────────── */
@@ -415,11 +442,11 @@ export interface Pet {
 
 export const pets: Pet[] = [
   { id: 'chicken', name: '小鸡', emoji: '🐔', unlockAt: 'level1_done' },
-  { id: 'sheep',   name: '小羊', emoji: '🐑', unlockAt: 'combo_5' },
-  { id: 'cat',     name: '小猫', emoji: '🐱', unlockAt: 'level2_done' },
-  { id: 'wolf',    name: '小狼', emoji: '🐺', unlockAt: 'level3_done' },
-  { id: 'panda',   name: '熊猫', emoji: '🐼', unlockAt: 'combo_10' },
-  { id: 'dragon',  name: '龙', emoji: '🐉', unlockAt: 'level5_done' },
+  { id: 'sheep', name: '小羊', emoji: '🐑', unlockAt: 'combo_5' },
+  { id: 'cat', name: '小猫', emoji: '🐱', unlockAt: 'level2_done' },
+  { id: 'wolf', name: '小狼', emoji: '🐺', unlockAt: 'level3_done' },
+  { id: 'panda', name: '熊猫', emoji: '🐼', unlockAt: 'combo_10' },
+  { id: 'dragon', name: '龙', emoji: '🐉', unlockAt: 'level5_done' }
 ]
 
 /* ─── 进度存储键 ─────────────────────────────────────────────── */
@@ -443,12 +470,14 @@ export function loadProgress(): GameProgress {
     achievements: [],
     pets: [],
     bestRecords: {},
-    totalCoins: 0,
+    totalCoins: 0
   }
 }
 
 export function saveProgress(p: GameProgress) {
-  try { localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(p)) } catch {}
+  try {
+    localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(p))
+  } catch {}
 }
 
 /* ─── 工具函数 ───────────────────────────────────────────────── */
