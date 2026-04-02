@@ -104,7 +104,7 @@
     <!-- 消除特效容器 -->
     <div class="effects-container">
       <div
-        v-for="ef in eliminationEffects"
+        v-for="ef in Array.from(eliminationEffects.values())"
         :key="ef.id"
         class="elimination-effect"
         :class="ef.type"
@@ -166,7 +166,7 @@
             :key="k"
             class="vkb-key"
             :class="{
-              highlight: activeNextChars.includes(k.toLowerCase()) || k === nextChar,
+              highlight: highlightedKeys.has(k.toLowerCase()) || k === nextChar,
               pressed: pressedKey === k
             }"
             :style="{ '--fc': fingerColorHex[fingerMap[k] ?? 'space'] }"
@@ -604,12 +604,11 @@ const comboLabel = ref('')
 const comboLabelColor = ref('#ffd32a')
 let comboLabelTimer: ReturnType<typeof setTimeout> | null = null
 
-const eliminationEffects = ref<
-  Array<{ id: string; x: number; y: number; type: string; text: string }>
->([])
+const eliminationEffects = ref<Map<string, { id: string; x: number; y: number; type: string; text: string }>>(new Map())
+
 function createEliminationEffect(x: number, y: number, points: number, isGolden: boolean) {
   const id = `eff_${Date.now()}_${Math.random()}`
-  eliminationEffects.value.push({
+  eliminationEffects.value.set(id, {
     id,
     x,
     y,
@@ -617,31 +616,40 @@ function createEliminationEffect(x: number, y: number, points: number, isGolden:
     text: `+${Math.floor(points)}`
   })
   setTimeout(() => {
-    eliminationEffects.value = eliminationEffects.value.filter(e => e.id !== id)
+    eliminationEffects.value.delete(id)
   }, 1000)
 }
 
 // 获取屏幕上所有未完成方块的下一个字母（去重）
 const activeNextChars = computed(() => {
-  const chars = activeBlocks.value
-    .filter(b => !b.done)
-    .map(b => b.word[b.typedCount].toLowerCase())
-  return [...new Set(chars)]
+  if (activeBlocks.value.length === 0) return []
+  const chars = new Set<string>()
+  for (const blk of activeBlocks.value) {
+    if (!blk.done) {
+      chars.add(blk.word[blk.typedCount].toLowerCase())
+    }
+  }
+  return Array.from(chars)
 })
 
 const nextChar = computed<string | null>(() => {
   if (focusedBlockId.value === null) return null
-  return (
-    activeBlocks.value.find(b => b.id === focusedBlockId.value)?.word[
-      activeBlocks.value.find(b => b.id === focusedBlockId.value)!.typedCount
-    ] ?? null
-  )
+  const blk = activeBlocks.value.find(b => b.id === focusedBlockId.value)
+  if (!blk) return null
+  return blk.word[blk.typedCount] ?? null
 })
 const nextFingerInfo = computed(() => {
   if (!nextChar.value) return null
   const fc = fingerMap[nextChar.value.toLowerCase()]
   if (!fc) return null
   return { color: fingerColorHex[fc], name: fingerName[fc] }
+})
+
+// 预计算高亮的键盘按键，避免模板中频繁includes
+const highlightedKeys = computed(() => {
+  const set = new Set(activeNextChars.value)
+  if (nextChar.value) set.add(nextChar.value)
+  return set
 })
 const typedSoFar = computed(() => {
   if (focusedBlockId.value === null) return ''
@@ -785,11 +793,14 @@ const TEXTURE_BASE_URL = 'https://zooow-1258443890.cos.ap-guangzhou.myqcloud.com
 const TEXTURE_MIN_INDEX = 1
 const TEXTURE_MAX_INDEX = 90
 
+// 预缓存所有纹理URL，避免每次拼接字符串
+const TEXTURE_URLS = Array.from(
+  { length: TEXTURE_MAX_INDEX - TEXTURE_MIN_INDEX + 1 },
+  (_, i) => `${TEXTURE_BASE_URL}/g-v2-${i + TEXTURE_MIN_INDEX}.png`
+)
+
 function getRandomTextureUrl(): string {
-  const randomIndex = Math.floor(
-    Math.random() * (TEXTURE_MAX_INDEX - TEXTURE_MIN_INDEX + 1)
-  ) + TEXTURE_MIN_INDEX
-  return `${TEXTURE_BASE_URL}/g-v2-${randomIndex}.png`
+  return TEXTURE_URLS[Math.floor(Math.random() * TEXTURE_URLS.length)]
 }
 
 function spawnBlock() {
@@ -821,30 +832,35 @@ function updateFall() {
   if (paused.value) return
   const now = Date.now()
   const h = fieldHeight.value - 80
-  activeBlocks.value = activeBlocks.value.filter(blk => {
-    // 如果方块已完成或掉出屏幕，过滤掉
-    if (blk.done) return false
+  const arr = activeBlocks.value
+
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const blk = arr[i]
+
+    if (blk.done) {
+      arr.splice(i, 1)
+      continue
+    }
+
     const newY = ((now - blk.fallStartTime) / (blk.landTime - blk.fallStartTime)) * h
     const ratio = newY / h
-    const warningLevel: 0 | 1 | 2 = ratio >= 0.85 ? 2 : ratio >= 0.6 ? 1 : 0
-    // 如果方块掉出屏幕，不保留
+    blk.warningLevel = ratio >= 0.85 ? 2 : ratio >= 0.6 ? 1 : 0
+
     if (newY > h + 100) {
-      // 方块掉出屏幕，触发失败或扣分
       handleBlockMiss(blk)
-      return false
+      arr.splice(i, 1)
+      continue
     }
-    // 更新方块位置
+
     blk.y = newY
-    blk.warningLevel = warningLevel
-    return true
-  })
+  }
 }
 
 function startTimer() {
   startTime = Date.now()
   timerInterval = setInterval(() => {
     if (!paused.value) elapsed.value = Math.floor((Date.now() - startTime) / 1000)
-  }, 200)
+  }, 1000)
 }
 function stopTimer() {
   if (timerInterval) {
@@ -903,16 +919,19 @@ function spawnErrorFx(x: number, y: number) {
   })
 }
 function updateParticles() {
-  particles.value = particles.value
-    .map(p => ({
-      ...p,
-      x: p.x + p.vx,
-      y: p.y + p.vy,
-      vy: p.vy + 0.1,
-      alpha: 1 - p.life / p.maxLife,
-      life: p.life + 1
-    }))
-    .filter(p => p.life < p.maxLife)
+  const arr = particles.value
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const p = arr[i]
+    p.x += p.vx
+    p.y += p.vy
+    p.vy += 0.1
+    p.alpha = 1 - p.life / p.maxLife
+    p.life++
+
+    if (p.life >= p.maxLife) {
+      arr.splice(i, 1)
+    }
+  }
 }
 function startPfxLoop() {
   const loop = () => {
@@ -943,7 +962,7 @@ function startGame() {
   comboLabel.value = ''
   paused.value = false
   particles.value = []
-  eliminationEffects.value = []
+  eliminationEffects.value.clear()
   phase.value = 'playing'
   // 开始播放音乐
   playMusic()
@@ -963,15 +982,14 @@ function togglePause() {
   paused.value = !paused.value
   if (!paused.value) {
     const offset = Date.now()
-    activeBlocks.value = activeBlocks.value.map(blk => {
-      if (blk.done) return blk
+    const arr = activeBlocks.value
+    for (let i = 0; i < arr.length; i++) {
+      const blk = arr[i]
+      if (blk.done) continue
       const rem = blk.landTime - blk.fallStartTime
-      return {
-        ...blk,
-        fallStartTime: offset,
-        landTime: offset + rem * (1 - blk.y / (fieldHeight.value - 80))
-      }
-    })
+      blk.fallStartTime = offset
+      blk.landTime = offset + rem * (1 - blk.y / (fieldHeight.value - 80))
+    }
     focusInput()
   }
 }
