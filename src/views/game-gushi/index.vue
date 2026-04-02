@@ -186,12 +186,12 @@
           <div class="done-lines">
             <transition-group name="line-done">
               <div
-                v-for="(line, i) in doneLinesDisplay"
-                :key="'done-' + i"
+                v-for="item in doneLinesDisplay"
+                :key="'done-' + item.idx"
                 class="done-line"
-                :style="{ color: currentPoem.theme.accent, opacity: 0.3 + i * 0.2 }"
+                :style="{ color: currentPoem.theme.accent, opacity: 0.3 + (doneLinesDisplay.indexOf(item)) * 0.2 }"
               >
-                {{ line }}
+                {{ item.text }}
               </div>
             </transition-group>
           </div>
@@ -248,7 +248,7 @@
             <div class="input-box-right">
               <span v-if="!inputFocused" class="input-placeholder">点击开始输入…</span>
               <span v-else class="input-active-text">
-                <span v-if="hasError" class="err-hint">✗ 输入有误，请重试</span>
+                <span v-if="hasError" class="err-hint">✗ 输入有误，请重新输入正确字符</span>
                 <span v-else>输入中 <span class="i-cursor blink">|</span></span>
               </span>
             </div>
@@ -269,7 +269,16 @@
               enterkeyhint="send"
             />
           </div>
-        </div>
+
+          <!-- 完成 Overlay -->
+          <transition name="finish-overlay">
+            <div v-if="showFinishOverlay" class="finish-overlay" :style="{ '--ac': currentPoem.theme.accent }">
+              <div class="finish-icon">✦</div>
+              <div class="finish-text">完成！</div>
+            </div>
+          </transition>
+
+        </div><!-- end game-area -->
 
       </div>
     </transition>
@@ -357,6 +366,7 @@ const correctKeys = ref(0)
 const comboLabel = ref('')
 const comboLabelTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const gameFinished = ref(false)
+const showFinishOverlay = ref(false)
 
 // 输入
 const hiddenInput = ref<HTMLInputElement | null>(null)
@@ -374,7 +384,17 @@ const showPinyin = ref(true)
 
 // 历史记录
 interface BestRecord { wpm: number; accuracy: number; time: number }
-const bestRecords = ref<Record<string, BestRecord>>({})
+const STORAGE_KEY = 'poem-game-best-records'
+function loadBestRecords(): Record<string, BestRecord> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch { return {} }
+}
+function saveBestRecords(records: Record<string, BestRecord>) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)) } catch {}
+}
+const bestRecords = ref<Record<string, BestRecord>>(loadBestRecords())
 
 // Canvas
 const bgCanvas = ref<HTMLCanvasElement | null>(null)
@@ -453,7 +473,7 @@ function createParticle(random = false): Particle {
   const w = window.innerWidth
   const h = window.innerHeight
   return {
-    x: random ? Math.random() * w : Math.random() * w,
+    x: Math.random() * w,
     y: random ? Math.random() * h : h + 10,
     vx: (Math.random() - 0.5) * 0.4,
     vy: -(Math.random() * 0.6 + 0.2),
@@ -485,16 +505,17 @@ function renderLoop() {
     if (p.life > p.maxLife || p.y < -20) {
       particles[i] = createParticle()
     }
-    ctx.save()
-    ctx.globalAlpha = Math.max(0, p.alpha)
+    const alpha = Math.max(0, p.alpha)
+    ctx.globalAlpha = alpha
     ctx.fillStyle = p.color
     ctx.shadowBlur = 8
     ctx.shadowColor = p.color
     ctx.beginPath()
     ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
     ctx.fill()
-    ctx.restore()
   }
+  ctx.globalAlpha = 1
+  ctx.shadowBlur = 0
 }
 
 function burstParticles(count = 20) {
@@ -541,8 +562,12 @@ const accuracy = computed(() => {
 
 const wpm = computed(() => {
   const sec = Math.max(1, elapsed.value)
-  const totalChars = currentPoem.value?.lines.reduce((s, l) => s + l.text.length, 0) ?? 0
-  return Math.round((totalChars / sec) * 60)
+  // 已完成行的字数 + 当前行已输入字数
+  const doneChars = currentPoem.value?.lines
+    .slice(0, currentLineIdx.value)
+    .reduce((s, l) => s + l.text.length, 0) ?? 0
+  const inputChars = doneChars + charIdx.value
+  return Math.round((inputChars / sec) * 60)
 })
 
 const comboClass = computed(() => {
@@ -554,8 +579,13 @@ const comboClass = computed(() => {
 
 const doneLinesDisplay = computed(() => {
   if (!currentPoem.value) return []
-  const done = currentPoem.value.lines.slice(0, currentLineIdx.value).map(l => l.text)
-  return done.slice(-3)
+  const lines = currentPoem.value.lines
+  const count = currentLineIdx.value
+  // 返回带绝对索引，作为 transition-group key 使用
+  return lines
+    .slice(0, count)
+    .map((l, i) => ({ text: l.text, idx: i }))
+    .slice(-3)
 })
 
 const grade = computed(() => {
@@ -637,7 +667,7 @@ function startTimer() {
   startTime.value = Date.now()
   timerInterval.value = setInterval(() => {
     elapsed.value = Math.floor((Date.now() - startTime.value) / 1000)
-  }, 500)
+  }, 100)
 }
 
 function stopTimer() {
@@ -754,8 +784,9 @@ function finishGame() {
   stopTimer()
   elapsed.value = Math.floor((Date.now() - startTime.value) / 1000)
   burstParticles(60)
+  showFinishOverlay.value = true
 
-  // 保存最佳记录
+  // 保存最佳记录（持久化到 localStorage）
   if (currentPoem.value) {
     const id = currentPoem.value.id
     const cur = bestRecords.value[id]
@@ -765,10 +796,14 @@ function finishGame() {
         accuracy: accuracy.value,
         time: elapsed.value,
       }
+      saveBestRecords(bestRecords.value)
     }
   }
 
-  setTimeout(() => { phase.value = 'result' }, 1000)
+  setTimeout(() => {
+    showFinishOverlay.value = false
+    phase.value = 'result'
+  }, 800)
 }
 
 function goBack() {
@@ -776,10 +811,20 @@ function goBack() {
   router.push('/')
 }
 
+// ─── 全局兜底聚焦（防止输入框失焦卡死）──────────────────
+function onGlobalKeyDown(e: KeyboardEvent) {
+  if (phase.value !== 'playing') return
+  // 不是功能键时自动重新聚焦输入框
+  if (hiddenInput.value && document.activeElement !== hiddenInput.value) {
+    hiddenInput.value.focus()
+  }
+}
+
 // ─── 生命周期 ──────────────────────────────────────────
 onMounted(() => {
   initCanvas()
   window.addEventListener('resize', onResize)
+  window.addEventListener('keydown', onGlobalKeyDown)
   // 先尝试直接播放，失败则等待用户第一次交互
   setTimeout(() => {
     const audio = bgAudio.value
@@ -799,6 +844,7 @@ onUnmounted(() => {
   stopTimer()
   if (comboLabelTimer.value) clearTimeout(comboLabelTimer.value)
   window.removeEventListener('resize', onResize)
+  window.removeEventListener('keydown', onGlobalKeyDown)
   removeAutoplayListeners()
   // 停止音乐
   if (bgAudio.value) {
@@ -1690,6 +1736,14 @@ watch(phase, (val) => {
   font-size: 14px;
   min-width: 0;
 }
+
+/* 分割线 */
+.input-box-divider {
+  width: 1px;
+  height: 36px;
+  background: rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
 .input-placeholder { color: rgba(255,255,255,0.25); letter-spacing: 1px; }
 .input-active-text { letter-spacing: 1px; }
 .err-hint { color: #ff7777; font-size: 13px; }
@@ -1793,6 +1847,41 @@ watch(phase, (val) => {
   0%, 100% { transform: scaleY(0.5); opacity: 0.6; }
   50% { transform: scaleY(1); opacity: 1; }
 }
+
+/* 游戏完成 Overlay */
+.finish-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--ac) 18%, transparent) 0%, rgba(4,4,16,0.7) 70%);
+  z-index: 50;
+  pointer-events: none;
+}
+.finish-icon {
+  font-size: 72px;
+  color: var(--ac);
+  text-shadow: 0 0 40px var(--ac), 0 0 80px color-mix(in srgb, var(--ac) 50%, transparent);
+  animation: finishPop 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+.finish-text {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 8px;
+  margin-top: 16px;
+  text-shadow: 0 0 20px rgba(255,255,255,0.5);
+  animation: finishPop 0.5s 0.1s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes finishPop {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.finish-overlay-enter-active { transition: opacity 0.3s; }
+.finish-overlay-leave-active { transition: opacity 0.4s; }
+.finish-overlay-enter-from, .finish-overlay-leave-to { opacity: 0; }
 
 /* ═══ 结算界面 ═══ */
 .result-screen {
