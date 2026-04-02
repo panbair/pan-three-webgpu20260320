@@ -58,6 +58,21 @@
             <button class="play-btn">开始游戏</button>
           </div>
         </div>
+
+        <div class="game-card mc-card-entry" @click="startGame('game-mc')">
+          <div class="game-icon">⛏️</div>
+          <div class="card-body">
+            <h2 class="game-name">我的世界打字冒险</h2>
+            <p class="game-desc">6-10岁儿童专属！像素风冒险，挖矿建造，零压力学打字</p>
+            <div class="game-features">
+              <span>👧 儿童专属</span>
+              <span>手指引导</span>
+              <span>零惩罚</span>
+              <span>5大关卡</span>
+            </div>
+            <button class="play-btn">开始冒险</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -80,6 +95,9 @@ function startGame(gameType: string) {
   }
   if (gameType === 'game-gushi') {
     router.push('/game-gushi')
+  }
+  if (gameType === 'game-mc') {
+    router.push('/game-mc')
   }
 }
 </script>
@@ -238,6 +256,27 @@ function startGame(gameType: string) {
 .poem-card-entry .play-btn:hover {
   background: linear-gradient(135deg, #ffe0a0, #ffcc66) !important;
   box-shadow: 0 10px 30px rgba(255, 204, 102, 0.4) !important;
+}
+
+/* ─── MC儿童卡片专属 ─── */
+.mc-card-entry {
+  border-color: #a8e063;
+}
+.mc-card-entry:hover:not(.disabled) {
+  border-color: #c8f582 !important;
+  box-shadow: 0 20px 40px rgba(168, 224, 99, 0.3) !important;
+}
+.mc-card-entry .game-features span {
+  background: rgba(168, 224, 99, 0.15);
+  color: #a8e063;
+  border-color: #a8e063;
+}
+.mc-card-entry .play-btn {
+  background: linear-gradient(135deg, #a8e063, #27ae60);
+}
+.mc-card-entry .play-btn:hover {
+  background: linear-gradient(135deg, #c8f582, #a8e063) !important;
+  box-shadow: 0 10px 30px rgba(168, 224, 99, 0.4) !important;
 }
 
 /* ═══ 移动端断点 ═══ */
