@@ -176,7 +176,7 @@ export interface McWord {
   scene: SceneId
 }
 
-// L1: 主行键字母（asdfjkl + 高频字母组合）
+// L1: 主行键字母（单字母，每个方块1个字母）
 export const level1Words: McWord[] = [
   // 单字母 - 主行键优先
   { word: 'a', zh: 'A键', emoji: '🌱', scene: 'plains' },
@@ -208,76 +208,74 @@ export const level1Words: McWord[] = [
   { word: 'z', zh: 'Z键', emoji: '🌿', scene: 'plains' }
 ]
 
-// L2: 矿洞 - 3字母简单词（避开大跨度组合）
+// L2: 矿洞 - 2字母组合（每个方块显示2个字母）
 export const level2Words: McWord[] = [
-  { word: 'dig', zh: '挖掘', emoji: '⛏️', scene: 'cave' },
-  { word: 'ore', zh: '矿石', emoji: '💎', scene: 'cave' },
-  { word: 'gem', zh: '宝石', emoji: '💎', scene: 'cave' },
-  { word: 'coal', zh: '煤炭', emoji: '⚫', scene: 'cave' },
-  { word: 'iron', zh: '铁矿', emoji: '🔩', scene: 'cave' },
-  { word: 'gold', zh: '金矿', emoji: '🟡', scene: 'cave' },
-  { word: 'rock', zh: '石头', emoji: '🪨', scene: 'cave' },
-  { word: 'cave', zh: '洞穴', emoji: '🕳️', scene: 'cave' },
-  { word: 'dark', zh: '黑暗', emoji: '🌑', scene: 'cave' },
-  { word: 'lamp', zh: '灯', emoji: '🪔', scene: 'cave' },
-  { word: 'bag', zh: '背包', emoji: '🎒', scene: 'cave' },
-  { word: 'map', zh: '地图', emoji: '🗺️', scene: 'cave' },
-  { word: 'bat', zh: '蝙蝠', emoji: '🦇', scene: 'cave' },
-  { word: 'gem', zh: '宝石', emoji: '💎', scene: 'cave' },
-  { word: 'sand', zh: '沙子', emoji: '🏜️', scene: 'cave' },
-  { word: 'lava', zh: '岩浆', emoji: '🌋', scene: 'cave' },
-  { word: 'pick', zh: '镐', emoji: '⛏️', scene: 'cave' },
-  { word: 'deep', zh: '深处', emoji: '🕳️', scene: 'cave' },
-  { word: 'gem', zh: '宝石', emoji: '💎', scene: 'cave' },
-  { word: 'red', zh: '红色', emoji: '🔴', scene: 'cave' }
+  { word: 'di', zh: '挖', emoji: '⛏️', scene: 'cave' },
+  { word: 'or', zh: '矿', emoji: '💎', scene: 'cave' },
+  { word: 'ge', zh: '宝', emoji: '💎', scene: 'cave' },
+  { word: 'co', zh: '煤', emoji: '⚫', scene: 'cave' },
+  { word: 'ir', zh: '铁', emoji: '🔩', scene: 'cave' },
+  { word: 'go', zh: '金', emoji: '🟡', scene: 'cave' },
+  { word: 'ro', zh: '石', emoji: '🪨', scene: 'cave' },
+  { word: 'ca', zh: '洞', emoji: '🕳️', scene: 'cave' },
+  { word: 'da', zh: '暗', emoji: '🌑', scene: 'cave' },
+  { word: 'la', zh: '灯', emoji: '🪔', scene: 'cave' },
+  { word: 'ba', zh: '包', emoji: '🎒', scene: 'cave' },
+  { word: 'ma', zh: '图', emoji: '🗺️', scene: 'cave' },
+  { word: 'at', zh: '蝠', emoji: '🦇', scene: 'cave' },
+  { word: 'sa', zh: '沙', emoji: '🏜️', scene: 'cave' },
+  { word: 'pi', zh: '镐', emoji: '⛏️', scene: 'cave' },
+  { word: 'de', zh: '深', emoji: '🕳️', scene: 'cave' },
+  { word: 're', zh: '红', emoji: '🔴', scene: 'cave' },
+  { word: 'lu', zh: '岩', emoji: '🌋', scene: 'cave' }
 ]
 
-// L3: 小屋建造 - 4-5字母建造主题词
+// L3: 小屋建造 - 3字母建造主题词
 export const level3Words: McWord[] = [
-  { word: 'wood', zh: '木头', emoji: '🪵', scene: 'cabin' },
-  { word: 'stone', zh: '石块', emoji: '🪨', scene: 'cabin' },
-  { word: 'brick', zh: '砖块', emoji: '🧱', scene: 'cabin' },
-  { word: 'glass', zh: '玻璃', emoji: '🪟', scene: 'cabin' },
-  { word: 'door', zh: '门', emoji: '🚪', scene: 'cabin' },
-  { word: 'roof', zh: '屋顶', emoji: '🏠', scene: 'cabin' },
-  { word: 'wall', zh: '墙壁', emoji: '🧱', scene: 'cabin' },
-  { word: 'floor', zh: '地板', emoji: '⬛', scene: 'cabin' },
-  { word: 'plank', zh: '木板', emoji: '🪵', scene: 'cabin' },
-  { word: 'craft', zh: '制作', emoji: '🔨', scene: 'cabin' },
-  { word: 'build', zh: '建造', emoji: '🏗️', scene: 'cabin' },
-  { word: 'chest', zh: '箱子', emoji: '📦', scene: 'cabin' },
-  { word: 'table', zh: '桌子', emoji: '🪚', scene: 'cabin' },
-  { word: 'torch', zh: '火把', emoji: '🔥', scene: 'cabin' },
-  { word: 'fence', zh: '栅栏', emoji: '🌿', scene: 'cabin' },
-  { word: 'stair', zh: '楼梯', emoji: '🪜', scene: 'cabin' },
-  { word: 'farm', zh: '农场', emoji: '🌾', scene: 'cabin' },
-  { word: 'seed', zh: '种子', emoji: '🌱', scene: 'cabin' },
-  { word: 'tree', zh: '大树', emoji: '🌲', scene: 'cabin' },
-  { word: 'home', zh: '家', emoji: '🏡', scene: 'cabin' }
+  { word: 'woo', zh: '木', emoji: '🪵', scene: 'cabin' },
+  { word: 'sto', zh: '石', emoji: '🪨', scene: 'cabin' },
+  { word: 'bri', zh: '砖', emoji: '🧱', scene: 'cabin' },
+  { word: 'gla', zh: '玻', emoji: '🪟', scene: 'cabin' },
+  { word: 'doo', zh: '门', emoji: '🚪', scene: 'cabin' },
+  { word: 'roo', zh: '顶', emoji: '🏠', scene: 'cabin' },
+  { word: 'wal', zh: '墙', emoji: '🧱', scene: 'cabin' },
+  { word: 'flo', zh: '地', emoji: '⬛', scene: 'cabin' },
+  { word: 'pla', zh: '板', emoji: '🪵', scene: 'cabin' },
+  { word: 'cra', zh: '制', emoji: '🔨', scene: 'cabin' },
+  { word: 'bui', zh: '建', emoji: '🏗️', scene: 'cabin' },
+  { word: 'che', zh: '箱', emoji: '📦', scene: 'cabin' },
+  { word: 'tab', zh: '桌', emoji: '🪚', scene: 'cabin' },
+  { word: 'tor', zh: '火', emoji: '🔥', scene: 'cabin' },
+  { word: 'fen', zh: '栏', emoji: '🌿', scene: 'cabin' },
+  { word: 'sta', zh: '梯', emoji: '🪜', scene: 'cabin' },
+  { word: 'far', zh: '农', emoji: '🌾', scene: 'cabin' },
+  { word: 'see', zh: '种', emoji: '🌱', scene: 'cabin' },
+  { word: 'tre', zh: '树', emoji: '🌲', scene: 'cabin' },
+  { word: 'hom', zh: '家', emoji: '🏡', scene: 'cabin' }
 ]
 
-// L4: 村庄 - 6-8字母词
+// L4: 村庄 - 4字母词
 export const level4Words: McWord[] = [
-  { word: 'village', zh: '村庄', emoji: '🏘️', scene: 'village' },
-  { word: 'garden', zh: '花园', emoji: '🌸', scene: 'village' },
-  { word: 'farmer', zh: '农民', emoji: '👨‍🌾', scene: 'village' },
-  { word: 'trading', zh: '交易', emoji: '🪙', scene: 'village' },
-  { word: 'chicken', zh: '小鸡', emoji: '🐔', scene: 'village' },
-  { word: 'diamond', zh: '钻石', emoji: '💎', scene: 'village' },
-  { word: 'emerald', zh: '绿宝石', emoji: '💚', scene: 'village' },
-  { word: 'harvest', zh: '收获', emoji: '🌾', scene: 'village' },
-  { word: 'lantern', zh: '灯笼', emoji: '🏮', scene: 'village' },
-  { word: 'shelter', zh: '避难所', emoji: '⛺', scene: 'village' },
-  { word: 'sunflow', zh: '向日葵', emoji: '🌻', scene: 'village' },
-  { word: 'redston', zh: '红石', emoji: '🔴', scene: 'village' },
-  { word: 'pumpkin', zh: '南瓜', emoji: '🎃', scene: 'village' },
-  { word: 'monster', zh: '怪物', emoji: '👾', scene: 'village' },
-  { word: 'potion', zh: '药水', emoji: '🧪', scene: 'village' },
-  { word: 'village', zh: '村庄', emoji: '🏘️', scene: 'village' },
-  { word: 'saddle', zh: '马鞍', emoji: '🐴', scene: 'village' },
-  { word: 'arrow', zh: '箭矢', emoji: '🏹', scene: 'village' },
-  { word: 'shield', zh: '盾牌', emoji: '🛡️', scene: 'village' },
-  { word: 'beacon', zh: '信标', emoji: '🔵', scene: 'village' }
+  { word: 'vill', zh: '村', emoji: '🏘️', scene: 'village' },
+  { word: 'gard', zh: '花', emoji: '🌸', scene: 'village' },
+  { word: 'farm', zh: '农', emoji: '👨‍🌾', scene: 'village' },
+  { word: 'trad', zh: '交', emoji: '🪙', scene: 'village' },
+  { word: 'chic', zh: '鸡', emoji: '🐔', scene: 'village' },
+  { word: 'diam', zh: '钻', emoji: '💎', scene: 'village' },
+  { word: 'emer', zh: '绿', emoji: '💚', scene: 'village' },
+  { word: 'hars', zh: '收', emoji: '🌾', scene: 'village' },
+  { word: 'lant', zh: '灯', emoji: '🏮', scene: 'village' },
+  { word: 'shel', zh: '避', emoji: '⛺', scene: 'village' },
+  { word: 'sunf', zh: '葵', emoji: '🌻', scene: 'village' },
+  { word: 'reds', zh: '红', emoji: '🔴', scene: 'village' },
+  { word: 'pump', zh: '南', emoji: '🎃', scene: 'village' },
+  { word: 'mons', zh: '怪', emoji: '👾', scene: 'village' },
+  { word: 'poti', zh: '药', emoji: '🧪', scene: 'village' },
+  { word: 'sadd', zh: '鞍', emoji: '🐴', scene: 'village' },
+  { word: 'arro', zh: '箭', emoji: '🏹', scene: 'village' },
+  { word: 'shie', zh: '盾', emoji: '🛡️', scene: 'village' },
+  { word: 'beac', zh: '信', emoji: '🔵', scene: 'village' },
+  { word: 'wate', zh: '水', emoji: '💧', scene: 'village' }
 ]
 
 // L5: 探险 - 短句（含空格），高难度挑战
@@ -309,7 +307,7 @@ export const levelConfigs: LevelConfig[] = [
     subtitle: '认识键盘 · 种下希望',
     scene: 'plains',
     ageRange: '练气',
-    description: '按下对应字母键，把种子种进土地里！',
+    description: '每个方块1个字母，按下对应键消除！',
     wordPool: level1Words,
     targetCount: 20,
     fallSpeed: 50,
@@ -324,7 +322,7 @@ export const levelConfigs: LevelConfig[] = [
     subtitle: '挖矿冒险 · 收集宝石',
     scene: 'cave',
     ageRange: '筑基期',
-    description: '打出单词，挖出矿石，收集宝藏！',
+    description: '每个方块2个字母，连续打出完成单词！',
     wordPool: level2Words,
     targetCount: 25,
     fallSpeed: 65,
@@ -339,7 +337,7 @@ export const levelConfigs: LevelConfig[] = [
     subtitle: '搭建家园 · 亲手造屋',
     scene: 'cabin',
     ageRange: '结丹期',
-    description: '打出单词，方块自动拼上小屋，造出你的家！',
+    description: '每个方块3个字母，连续打出完成单词！',
     wordPool: level3Words,
     targetCount: 30,
     fallSpeed: 80,
@@ -354,7 +352,7 @@ export const levelConfigs: LevelConfig[] = [
     subtitle: '建设村庄 · 结交好友',
     scene: 'village',
     ageRange: '元婴期',
-    description: '打出更长的单词，美化你的村庄！',
+    description: '每个方块4个字母，连续打出完成单词！',
     wordPool: level4Words,
     targetCount: 35,
     fallSpeed: 95,

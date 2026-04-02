@@ -148,14 +148,14 @@
     <!-- 底部面板 -->
     <div class="bottom-panel">
       <div class="finger-hint">
-        <template v-if="nextFingerInfo">
-          <span class="finger-dot" :style="{ background: nextFingerInfo.color }"></span>
-          <span class="finger-text">{{ nextFingerInfo.name }}</span>
-          <span class="finger-key">{{ nextChar?.toUpperCase() }}</span>
+        <template v-if="activeNextChars.length > 0">
+          <span class="finger-dot" :style="{ background: nextFingerInfo?.color || 'rgba(255,255,255,0.3)' }"></span>
+          <span class="finger-text">{{ nextFingerInfo?.name || '按键盘输入' }}</span>
+          <span class="finger-key">{{ activeNextChars[0].toUpperCase() }}</span>
         </template>
         <template v-else>
           <span class="finger-dot" style="background: rgba(255,255,255,0.3)"></span>
-          <span class="finger-text">点击方块开始打字</span>
+          <span class="finger-text">等待方块出现</span>
           <span class="finger-key" style="opacity: 0.5">?</span>
         </template>
       </div>
@@ -165,7 +165,10 @@
             v-for="k in row"
             :key="k"
             class="vkb-key"
-            :class="{ highlight: k === nextChar, pressed: pressedKey === k }"
+            :class="{
+              highlight: activeNextChars.includes(k.toLowerCase()) || k === nextChar,
+              pressed: pressedKey === k
+            }"
             :style="{ '--fc': fingerColorHex[fingerMap[k] ?? 'space'] }"
           >
             {{ k.toUpperCase() }}
@@ -223,7 +226,7 @@
         <div class="logo-section">
           <div class="logo-icon">⛏️</div>
           <h1 class="game-title">我的世界打字冒险</h1>
-          <p class="game-subtitle">6-10岁儿童专属像素冒险</p>
+          <p class="game-subtitle">儿童专属像素冒险</p>
         </div>
 
         <!-- Steve角色 -->
@@ -618,6 +621,14 @@ function createEliminationEffect(x: number, y: number, points: number, isGolden:
   }, 1000)
 }
 
+// 获取屏幕上所有未完成方块的下一个字母（去重）
+const activeNextChars = computed(() => {
+  const chars = activeBlocks.value
+    .filter(b => !b.done)
+    .map(b => b.word[b.typedCount].toLowerCase())
+  return [...new Set(chars)]
+})
+
 const nextChar = computed<string | null>(() => {
   if (focusedBlockId.value === null) return null
   return (
@@ -682,28 +693,31 @@ function onInput() {
 
 function handleChar(ch: string) {
   totalKeys.value++
-  if (focusedBlockId.value === null) {
-    const match = activeBlocks.value.find(b => !b.done && b.word[b.typedCount] === ch)
-    focusedBlockId.value = match?.id ?? activeBlocks.value.find(b => !b.done)?.id ?? null
-  }
-  const blk =
-    focusedBlockId.value !== null
+  // 查找屏幕上未完成且下一个字母是 ch 的方块
+  const targetBlock = activeBlocks.value.find(b => !b.done && b.word[b.typedCount] === ch)
+  if (!targetBlock) {
+    // 没有匹配的方块，检查当前焦点方块是否错误
+    const currentBlk = focusedBlockId.value !== null
       ? activeBlocks.value.find(b => b.id === focusedBlockId.value && !b.done)
       : null
-  if (!blk) return
-  if (blk.word[blk.typedCount] === ch) {
-    correctKeys.value++
-    blk.typedCount++
-    blk.error = false
-    if (blk.typedCount >= blk.word.length) finishBlock(blk)
-  } else {
-    blk.error = true
-    combo.value = 0
-    spawnErrorFx(blk.x + 50, blk.y)
-    setTimeout(() => {
-      blk.error = false
-    }, 500)
+    if (currentBlk && currentBlk.word[currentBlk.typedCount] !== ch) {
+      // 输入错误
+      currentBlk.error = true
+      combo.value = 0
+      spawnErrorFx(currentBlk.x + 50, currentBlk.y)
+      setTimeout(() => {
+        currentBlk.error = false
+      }, 500)
+    }
+    return
   }
+  // 设置焦点为匹配的方块
+  focusedBlockId.value = targetBlock.id
+  // 正确输入
+  correctKeys.value++
+  targetBlock.typedCount++
+  targetBlock.error = false
+  if (targetBlock.typedCount >= targetBlock.word.length) finishBlock(targetBlock)
 }
 
 function finishBlock(blk: WordBlock) {
@@ -717,14 +731,24 @@ function finishBlock(blk: WordBlock) {
   coins.value += scoreInfo.stars + Math.floor(combo.value / 5)
   score.value += scoreInfo.stars * 10
   showComboLabel(combo.value)
-  spawnSuccessFx(blk.x + 90, blk.y + 60, blk.emoji)
-  createEliminationEffect(blk.x + 90, blk.y + 60, scoreInfo.stars * 10, false)
+  spawnSuccessFx(blk.x + 45, blk.y + 30, blk.emoji)
+  createEliminationEffect(blk.x + 45, blk.y + 30, scoreInfo.stars * 10, false)
   setTimeout(() => {
     activeBlocks.value = activeBlocks.value.filter(b => b.id !== blk.id)
     if (focusedBlockId.value === blk.id)
       focusedBlockId.value = activeBlocks.value.find(b => !b.done)?.id ?? null
   }, 400)
   checkLevelComplete()
+}
+
+function handleBlockMiss(blk: WordBlock) {
+  // 方块掉出屏幕，连击中断
+  combo.value = 0
+  // 如果是当前焦点方块，切换到下一个
+  if (focusedBlockId.value === blk.id) {
+    focusedBlockId.value = activeBlocks.value.find(b => !b.done && b.id !== blk.id)?.id ?? null
+  }
+  // 不做其他处理，方块已被 filter 移除
 }
 
 function showComboLabel(c: number) {
@@ -780,7 +804,7 @@ function spawnBlock() {
     word: w.word,
     zh: w.zh,
     emoji: w.emoji,
-    x: 40 + Math.random() * Math.max(100, fieldWidth.value - 400),
+    x: 20 + Math.random() * Math.max(50, fieldWidth.value - 200),
     y: 0,
     typedCount: 0,
     done: false,
@@ -797,13 +821,22 @@ function updateFall() {
   if (paused.value) return
   const now = Date.now()
   const h = fieldHeight.value - 80
-  activeBlocks.value = activeBlocks.value.map(blk => {
-    if (blk.done) return blk
+  activeBlocks.value = activeBlocks.value.filter(blk => {
+    // 如果方块已完成或掉出屏幕，过滤掉
+    if (blk.done) return false
     const newY = ((now - blk.fallStartTime) / (blk.landTime - blk.fallStartTime)) * h
     const ratio = newY / h
     const warningLevel: 0 | 1 | 2 = ratio >= 0.85 ? 2 : ratio >= 0.6 ? 1 : 0
-    if (newY >= h) return { ...blk, y: h, warningLevel: 2 as const }
-    return { ...blk, y: newY, warningLevel }
+    // 如果方块掉出屏幕，不保留
+    if (newY > h + 100) {
+      // 方块掉出屏幕，触发失败或扣分
+      handleBlockMiss(blk)
+      return false
+    }
+    // 更新方块位置
+    blk.y = newY
+    blk.warningLevel = warningLevel
+    return true
   })
 }
 
@@ -1547,23 +1580,23 @@ onUnmounted(() => {
   top: 100px;
   left: 0;
   width: 100%;
-  height: calc(100% - 200px);
+  height: 100%;
   pointer-events: auto;
   overflow: hidden;
 }
 
 .word-block {
   position: absolute;
-  min-width: 180px;
-  max-width: 360px;
+  min-width: 90px;
+  max-width: 180px;
   cursor: pointer;
   background-color: rgba(101, 67, 33, 0.85);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  border: 3px solid rgba(255, 255, 255, 0.4);
-  border-radius: 24px;
-  padding: 48px 28px 16px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  padding: 24px 14px 8px;
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.3),
     0 8px 24px rgba(0, 0, 0, 0.2),
@@ -1615,10 +1648,10 @@ onUnmounted(() => {
   }
 
   &:hover {
-    transform: scale(1.08) translateY(-8px) rotateX(5deg);
+    transform: scale(1.08) translateY(-4px) rotateX(5deg);
     box-shadow:
-      0 30px 80px rgba(0, 0, 0, 0.35),
-      0 12px 32px rgba(0, 0, 0, 0.25),
+      0 15px 40px rgba(0, 0, 0, 0.35),
+      0 6px 16px rgba(0, 0, 0, 0.25),
       inset 0 2px 4px rgba(255, 255, 255, 0.3);
     border-color: rgba(255, 255, 255, 0.6);
   }
@@ -1626,11 +1659,11 @@ onUnmounted(() => {
   &.active {
     border-color: #ffd32a;
     box-shadow:
-      0 0 30px rgba(255, 211, 42, 0.6),
-      0 0 60px rgba(255, 211, 42, 0.3),
-      0 20px 60px rgba(0, 0, 0, 0.3);
+      0 0 15px rgba(255, 211, 42, 0.6),
+      0 0 30px rgba(255, 211, 42, 0.3),
+      0 10px 30px rgba(0, 0, 0, 0.3);
     z-index: 15;
-    transform: scale(1.1) translateY(-10px);
+    transform: scale(1.1) translateY(-5px);
     animation: activePulse 1.5s ease-in-out infinite;
 
     &::after {
@@ -1674,9 +1707,9 @@ onUnmounted(() => {
     background-color: rgba(39, 174, 96, 0.9);
     border-color: #0be881;
     box-shadow:
-      0 0 30px rgba(11, 232, 129, 0.6),
-      0 0 60px rgba(11, 232, 129, 0.3),
-      0 20px 60px rgba(0, 0, 0, 0.25);
+      0 0 15px rgba(11, 232, 129, 0.6),
+      0 0 30px rgba(11, 232, 129, 0.3),
+      0 10px 30px rgba(0, 0, 0, 0.25);
     animation: successPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     &::after {
@@ -1702,17 +1735,17 @@ onUnmounted(() => {
 
 .block-word {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   justify-content: center;
   flex-wrap: wrap;
 }
 
 .block-char {
-  font-size: clamp(48px, 8vw, 64px);
+  font-size: clamp(24px, 4vw, 32px);
   font-weight: 900;
   color: rgba(255, 255, 255, 0.6);
   transition: all 0.15s ease;
-  letter-spacing: 3px;
+  letter-spacing: 1.5px;
   font-family: 'Arial Black', 'Helvetica Black', sans-serif;
   position: relative;
   display: inline-block;
@@ -1731,9 +1764,9 @@ onUnmounted(() => {
   &::after {
     content: attr(data-case);
     position: absolute;
-    bottom: 2px;
+    bottom: 1px;
     right: 0;
-    font-size: 14px;
+    font-size: 7px;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.5);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -1758,7 +1791,7 @@ onUnmounted(() => {
   }
 
   &.next {
-    font-size: clamp(52px, 9vw, 72px);
+    font-size: clamp(26px, 4.5vw, 36px);
     color: #fff;
     text-shadow:
       0 0 10px currentColor,
@@ -1770,7 +1803,7 @@ onUnmounted(() => {
 
     &::after {
       color: rgba(255, 255, 255, 0.8);
-      font-size: 16px;
+      font-size: 8px;
     }
   }
 
@@ -1791,26 +1824,26 @@ onUnmounted(() => {
 
 .block-zh {
   text-align: center;
-  font-size: 18px;
+  font-size: 9px;
   color: rgba(255, 255, 255, 0.8);
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .block-stars {
   position: absolute;
-  top: 8px;
+  top: 4px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 28px;
+  font-size: 14px;
   animation: starPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 10;
 }
 
 .block-progress {
-  height: 8px;
+  height: 4px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  margin-top: 12px;
+  border-radius: 2px;
+  margin-top: 6px;
   overflow: hidden;
 }
 
@@ -2052,9 +2085,10 @@ onUnmounted(() => {
 
 .bottom-panel {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 500px;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(12px);
   border-top: 2px solid rgba(255, 255, 255, 0.3);
@@ -2064,6 +2098,7 @@ onUnmounted(() => {
   gap: 8px;
   z-index: 10;
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
 }
 
 .finger-hint {
@@ -2073,7 +2108,6 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.25);
   border-radius: 20px;
   padding: 6px 16px;
-  width: fit-content;
   margin: 0 auto;
   border: 1px solid rgba(255, 255, 255, 0.4);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -2281,19 +2315,19 @@ onUnmounted(() => {
     rgba(250, 250, 255, 0.95) 50%,
     rgba(255, 255, 255, 0.98) 100%
   );
-  padding: 45px 50px;
-  border-radius: 40px;
+  padding: 30px 35px;
+  border-radius: 30px;
   box-sizing: border-box;
   box-shadow:
-    0 40px 80px rgba(0, 0, 0, 0.2),
-    0 0 100px rgba(99, 102, 241, 0.4),
+    0 25px 50px rgba(0, 0, 0, 0.2),
+    0 0 60px rgba(99, 102, 241, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.8),
     inset 0 2px 4px rgba(255, 255, 255, 1);
   animation: bounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 8px;
   max-height: 92vh;
   overflow-y: auto;
   position: relative;
@@ -2328,20 +2362,20 @@ onUnmounted(() => {
 }
 
 .logo-section {
-  margin-bottom: 10px;
+  margin-bottom: 4px;
 
   .logo-icon {
-    font-size: 64px;
-    margin-bottom: 10px;
+    font-size: 48px;
+    margin-bottom: 4px;
     animation: logoBounce 1.5s ease-in-out infinite;
-    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.1));
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.1));
   }
 }
 
 .game-title {
-  font-size: 42px;
+  font-size: 28px;
   font-weight: 900;
-  margin: 0 0 10px 0;
+  margin: 0 0 4px 0;
   background: linear-gradient(
     135deg,
     #f472b6 0%,
@@ -2355,7 +2389,7 @@ onUnmounted(() => {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: titleGradient 4s ease infinite;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.1));
 
   &.game-over {
     background: linear-gradient(
@@ -2383,7 +2417,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 10px 0;
+  margin: 6px 0;
 }
 
 .steve {
@@ -2400,9 +2434,9 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.95);
   color: #333;
   font-size: 14px;
-  padding: 8px 18px;
+  padding: 6px 14px;
   border-radius: 18px;
-  margin-top: 8px;
+  margin-top: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   max-width: 260px;
   text-align: center;
@@ -2411,13 +2445,13 @@ onUnmounted(() => {
 
 .level-select {
   width: 100%;
-  margin: 10px 0;
+  margin: 6px 0;
 }
 
 .selector-title {
   font-size: 22px;
   font-weight: 800;
-  margin: 0 0 16px 0;
+  margin: 0 0 10px 0;
   background: linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6366f1 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -2429,7 +2463,7 @@ onUnmounted(() => {
 .level-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
-  gap: 14px;
+  gap: 10px;
 }
 
 .level-card {
@@ -2437,7 +2471,7 @@ onUnmounted(() => {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
   border: 3px solid rgba(168, 85, 247, 0.25);
   border-radius: 18px;
-  padding: 16px 10px;
+  padding: 12px 8px;
   color: #1e293b;
   cursor: pointer;
   text-align: center;
@@ -2478,18 +2512,18 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: 700;
   color: #7c3aed;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .lv-age {
   font-size: 11px;
   color: #64748b;
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 .lv-stars {
   font-size: 14px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .star-on {
@@ -2510,9 +2544,9 @@ onUnmounted(() => {
 .pet-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
-  padding: 12px 24px;
+  padding: 8px 18px;
   border-radius: 22px;
   border: 2px solid rgba(168, 85, 247, 0.25);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
@@ -2525,7 +2559,7 @@ onUnmounted(() => {
 }
 
 .pet-badge {
-  font-size: 26px;
+  font-size: 22px;
   cursor: pointer;
   transition: transform 0.15s;
 
@@ -2539,7 +2573,7 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 700;
   background: linear-gradient(135deg, #fef9c3 0%, #fef08a 50%, #fde047 100%);
-  padding: 10px 28px;
+  padding: 8px 20px;
   border-radius: 22px;
   border: 2px solid rgba(251, 191, 36, 0.4);
   box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
@@ -2550,8 +2584,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 22px 75px;
-  font-size: 24px;
+  padding: 14px 50px;
+  font-size: 18px;
   font-weight: 900;
   color: white;
   background: linear-gradient(
@@ -2759,26 +2793,26 @@ onUnmounted(() => {
 
 .sub-btns {
   display: flex;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
   justify-content: center;
 }
 
 .result-stars-row {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   justify-content: center;
-  margin: 10px 0;
+  margin: 4px 0;
 }
 
 .result-star-big {
-  font-size: 52px;
+  font-size: 36px;
   color: #d1d5db;
   transition: color 0.3s;
 
   &.on {
     color: #fbbf24;
-    text-shadow: 0 0 25px #fbbf24;
+    text-shadow: 0 0 18px #fbbf24;
   }
 
   &.bounce {
@@ -2788,24 +2822,24 @@ onUnmounted(() => {
 
 .game-stats {
   width: 100%;
-  margin: 10px 0;
+  margin: 4px 0;
 }
 
 .main-stat {
   background: linear-gradient(135deg, #fef9c3 0%, #fcd34d 50%, #f59e0b 100%);
-  border: 4px solid rgba(255, 255, 255, 0.8);
-  margin-bottom: 18px;
-  padding: 24px 28px;
+  border: 3px solid rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
-  gap: 22px;
-  border-radius: 22px;
+  gap: 14px;
+  border-radius: 16px;
   box-shadow:
-    0 12px 30px rgba(251, 191, 36, 0.28),
-    inset 0 4px 0 rgba(255, 255, 255, 0.4);
+    0 8px 20px rgba(251, 191, 36, 0.28),
+    inset 0 3px 0 rgba(255, 255, 255, 0.4);
 
   .stat-icon {
-    font-size: 48px;
+    font-size: 32px;
     animation: trophyWiggle 1.2s ease-in-out infinite;
   }
 
@@ -2815,24 +2849,24 @@ onUnmounted(() => {
 
     .stat-label {
       display: block;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 700;
       color: #92400e;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       text-transform: uppercase;
-      letter-spacing: 2px;
+      letter-spacing: 1.5px;
     }
 
     .stat-value {
       display: block;
-      font-size: 56px;
+      font-size: 36px;
       font-weight: 900;
       color: #78350f;
     }
 
     .gold-text {
       color: #78350f;
-      font-size: 56px;
+      font-size: 36px;
       font-weight: 900;
       display: block;
     }
@@ -2842,27 +2876,27 @@ onUnmounted(() => {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  gap: 10px;
 }
 
 .stat-card {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.88) 100%);
-  padding: 22px 16px;
-  border-radius: 20px;
+  padding: 14px 12px;
+  border-radius: 14px;
   backdrop-filter: blur(10px);
-  border: 3px solid rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.8);
   box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.07),
+    0 5px 12px rgba(0, 0, 0, 0.07),
     inset 0 2px 0 rgba(255, 255, 255, 1);
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   &:hover {
-    transform: translateY(-4px) scale(1.04);
+    transform: translateY(-3px) scale(1.04);
   }
 
   .stat-icon {
-    font-size: 36px;
-    margin-bottom: 10px;
+    font-size: 24px;
+    margin-bottom: 6px;
     display: block;
   }
 
@@ -2893,20 +2927,20 @@ onUnmounted(() => {
   background: rgba(255, 211, 42, 0.12);
   border: 1px solid rgba(255, 211, 42, 0.35);
   border-radius: 14px;
-  padding: 12px 18px;
+  padding: 8px 12px;
 }
 
 .ach-title {
   color: #d97706;
   font-size: 14px;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .ach-item {
   color: #374151;
-  font-size: 15px;
-  margin: 3px 0;
+  font-size: 13px;
+  margin: 2px 0;
 }
 
 .new-pets-wrap {
@@ -2918,12 +2952,12 @@ onUnmounted(() => {
   color: #7c3aed;
   font-size: 14px;
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .new-pets {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -2931,22 +2965,22 @@ onUnmounted(() => {
 .pet-card {
   background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%);
   border-radius: 14px;
-  padding: 12px 18px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   animation: petPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   border: 2px solid rgba(168, 85, 247, 0.25);
 }
 
 .pet-emoji-big {
-  font-size: 36px;
+  font-size: 28px;
 }
 
 .pet-name {
   color: #374151;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -3321,7 +3355,7 @@ onUnmounted(() => {
     transform: translateY(0) rotate(0deg);
   }
   50% {
-    transform: translateY(-6px) rotate(1deg);
+    transform: translateY(-3px) rotate(1deg);
   }
 }
 
@@ -3329,38 +3363,38 @@ onUnmounted(() => {
   0%,
   100% {
     box-shadow:
-      0 0 30px rgba(255, 211, 42, 0.6),
-      0 0 60px rgba(255, 211, 42, 0.3),
-      0 20px 60px rgba(0, 0, 0, 0.3);
-    transform: scale(1.1) translateY(-10px);
+      0 0 15px rgba(255, 211, 42, 0.6),
+      0 0 30px rgba(255, 211, 42, 0.3),
+      0 10px 30px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1) translateY(-5px);
   }
   50% {
     box-shadow:
-      0 0 40px rgba(255, 211, 42, 0.8),
-      0 0 80px rgba(255, 211, 42, 0.4),
-      0 25px 70px rgba(0, 0, 0, 0.35);
-    transform: scale(1.12) translateY(-12px);
+      0 0 20px rgba(255, 211, 42, 0.8),
+      0 0 40px rgba(255, 211, 42, 0.4),
+      0 12px 35px rgba(0, 0, 0, 0.35);
+    transform: scale(1.12) translateY(-6px);
   }
 }
 
 @keyframes warningPulse {
   0%,
   100% {
-    box-shadow: 0 0 20px rgba(255, 159, 67, 0.4);
+    box-shadow: 0 0 10px rgba(255, 159, 67, 0.4);
   }
   50% {
-    box-shadow: 0 0 40px rgba(255, 159, 67, 0.7);
+    box-shadow: 0 0 20px rgba(255, 159, 67, 0.7);
   }
 }
 
 @keyframes dangerPulse {
   0%,
   100% {
-    box-shadow: 0 0 25px rgba(255, 107, 107, 0.5);
+    box-shadow: 0 0 12px rgba(255, 107, 107, 0.5);
     filter: brightness(1);
   }
   50% {
-    box-shadow: 0 0 50px rgba(255, 107, 107, 0.8);
+    box-shadow: 0 0 25px rgba(255, 107, 107, 0.8);
     filter: brightness(1.2);
   }
 }

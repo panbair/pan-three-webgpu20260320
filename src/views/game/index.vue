@@ -105,8 +105,7 @@ function startGame(gameType: string) {
 <style scoped>
 /* ═══ 基础 ═══ */
 .game-menu {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
   background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
   display: flex;
   align-items: flex-start;
