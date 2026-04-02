@@ -361,9 +361,11 @@
         <!-- 新成就 -->
         <div v-if="newAchievements.length > 0" class="new-achievements">
           <div class="ach-title">🎉 新成就解锁！</div>
-          <div v-for="a in newAchievements" :key="a.id" class="ach-item">
-            {{ a.emoji }} {{ a.name }}
-          </div>
+            <div class="ach-list">
+              <div v-for="a in newAchievements" :key="a.id" class="ach-item">
+                {{ a.emoji }} {{ a.name }}
+              </div>
+            </div>
         </div>
 
         <!-- 新宠物 -->
@@ -2955,10 +2957,16 @@ onUnmounted(() => {
   margin-bottom: 4px;
 }
 
+.ach-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .ach-item {
   color: #374151;
   font-size: 13px;
-  margin: 2px 0;
+  margin: 0;
 }
 
 .new-pets-wrap {
