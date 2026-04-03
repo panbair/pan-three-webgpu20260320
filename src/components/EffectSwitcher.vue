@@ -50,7 +50,8 @@ const effects: Effect[] = [
   { id: 'quantumFluidHybrid', name: '量子流体-混合', icon: '⚡' },
   { id: 'quantumFluidTaichi', name: '量子流体-Taichi', icon: '🔬' },
   { id: 'quantumStorm', name: '量子风暴', icon: '⛈️' },
-  { id: 'stellarSupernova', name: '星际超新星', icon: '🌟' }
+  { id: 'stellarSupernova', name: '星际超新星', icon: '🌟' },
+  { id: 'chronoWeaver', name: '时空编织者', icon: '⏳' }
 ]
 
 const currentEffectId = ref('galaxyVortex')

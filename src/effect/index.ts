@@ -23,6 +23,7 @@ import { quantumFluidHybridEffect } from './quantum-fluid-hybrid-effect'
 import { quantumFluidTaichiEffect } from './quantum-fluid-taichi-effect'
 import { quantumStormEffect } from './quantum-storm-effect'
 import { stellarSupernovaEffect } from './stellar-supernova-effect'
+import { chronoWeaverEffect } from './chrono-weaver-effect'
 
 // 导出模板文件 (用于参考，不直接使用)
 // import { EffectTemplate } from './templates/EffectTemplate'
@@ -53,5 +54,6 @@ export {
   quantumFluidHybridEffect,
   quantumFluidTaichiEffect,
   quantumStormEffect,
-  stellarSupernovaEffect
+  stellarSupernovaEffect,
+  chronoWeaverEffect
 }

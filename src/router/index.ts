@@ -77,6 +77,19 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/pinyin-game/index.vue'),
     meta: { title: '拼音小乐园' }
   },
+
+  {
+    path: '/web-plus',
+    name: 'web-plus',
+    component: () => import('@/views/web-plus/index.vue'),
+    meta: { title: 'web-plus' }
+  },
+  {
+    path: '/web-3d-text',
+    name: 'web-3d-text',
+    component: () => import('@/views/web-3d-text/index.vue'),
+    meta: { title: 'web-3d-text' }
+  },
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',

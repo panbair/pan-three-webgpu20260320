@@ -39,7 +39,8 @@ import {
   quantumFluidHybridEffect,
   quantumFluidTaichiEffect,
   quantumStormEffect,
-  stellarSupernovaEffect
+  stellarSupernovaEffect,
+  chronoWeaverEffect
 } from '@/effect'
 
 const effectRef = ref<HTMLDivElement>()
@@ -102,7 +103,8 @@ let effectList = {
   quantumFluidHybrid: quantumFluidHybridEffect,
   quantumFluidTaichi: quantumFluidTaichiEffect,
   quantumStorm: quantumStormEffect,
-  stellarSupernova: stellarSupernovaEffect
+  stellarSupernova: stellarSupernovaEffect,
+  chronoWeaver: chronoWeaverEffect
 }
 
 const switchEffect = async (effectId: string) => {
