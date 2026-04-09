@@ -68,6 +68,7 @@
         }"
         :style="{ left: blk.x + 'px', top: blk.y + 'px', backgroundImage: `url(${blk.imageUrl})` }"
         @click="focusBlock(blk.id)"
+        @touchstart.prevent="onBlockTouchStart(blk.id)"
       >
         <div class="block-content">
           <div class="block-word">
@@ -182,6 +183,8 @@
         ref="hiddenInput"
         v-model="inputBuf"
         class="hidden-input"
+        type="text"
+        inputmode="text"
         autocomplete="off"
         autocorrect="off"
         autocapitalize="off"
@@ -189,12 +192,9 @@
         @keydown="onKeyDown"
         @input="onInput"
         @compositionstart="composing = true"
-        @compositionend="
-          composing = false;
-          onInput()
-        "
+        @compositionend="onCompositionEnd"
       />
-      <div class="input-hint" @click="focusInput">
+      <div class="input-hint" @click="focusInput" @touchstart.prevent="focusInput">
         <span v-if="focusedBlockId !== null">
           <span class="typed-chars">{{ typedSoFar }}</span>
           <span class="caret blink">|</span>
@@ -678,6 +678,12 @@ function nextCharColor(blk: WordBlock): string {
 const inputBuf = ref('')
 const composing = ref(false)
 const pressedKey = ref<string | null>(null)
+
+// 用于防止重复处理的锁
+const processingKey = ref(false)
+const lastInputTime = ref(0)
+const lastInputChar = ref('')
+
 function onKeyDown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     if (phase.value === 'playing') togglePause()
@@ -689,29 +695,91 @@ function onKeyDown(e: KeyboardEvent) {
     return
   }
   if (composing.value || paused.value) return
+
   const key = e.key
+
+  // 处理功能键
+  if (key === 'Backspace') {
+    e.preventDefault()
+    // 可选：实现退格逻辑
+    return
+  }
+
   pressedKey.value = key.toLowerCase()
   setTimeout(() => {
     pressedKey.value = null
   }, 120)
-  if (key.length === 1) {
+
+  // 处理单个字符输入
+  if (key.length === 1 && !processingKey.value) {
     e.preventDefault()
-    handleChar(key.toLowerCase())
+    const char = key.toLowerCase()
+    // 去重检查：防止相同字符快速重复触发
+    const now = Date.now()
+    if (char === lastInputChar.value && now - lastInputTime.value < 50) {
+      return
+    }
+    lastInputChar.value = char
+    lastInputTime.value = now
+    handleChar(char)
   }
+
+  // 处理空格
   if (key === ' ') {
     e.preventDefault()
+    const now = Date.now()
+    if (now - lastInputTime.value < 50) return
+    lastInputTime.value = now
     handleChar(' ')
   }
 }
-function onInput() {
-  if (composing.value) return
+
+// 处理 input 事件（针对平板虚拟键盘兼容性）
+function onInput(e: Event) {
+  if (composing.value || paused.value || phase.value !== 'playing') return
+
+  const target = e.target as HTMLInputElement
+  const value = target.value
+
+  // 获取最后一个输入的字符
+  if (value.length > 0) {
+    const lastChar = value.slice(-1).toLowerCase()
+
+    // 去重检查
+    const now = Date.now()
+    if (lastChar === lastInputChar.value && now - lastInputTime.value < 50) {
+      inputBuf.value = ''
+      target.value = ''
+      return
+    }
+
+    lastInputChar.value = lastChar
+    lastInputTime.value = now
+
+    // 只处理字母和空格
+    if (/^[a-z\s]$/.test(lastChar)) {
+      handleChar(lastChar)
+    }
+  }
+
+  // 清空输入框
   inputBuf.value = ''
+  target.value = ''
 }
 
 function handleChar(ch: string) {
+  // 确保在游戏进行中且未暂停
+  if (phase.value !== 'playing' || paused.value) return
+
+  // 防止重复处理同一个字符
+  if (processingKey.value) return
+  processingKey.value = true
+
   totalKeys.value++
+
   // 查找屏幕上未完成且下一个字母是 ch 的方块
   const targetBlock = activeBlocks.value.find(b => !b.done && b.word[b.typedCount] === ch)
+
   if (!targetBlock) {
     // 没有匹配的方块，检查当前焦点方块是否错误
     const currentBlk =
@@ -727,15 +795,25 @@ function handleChar(ch: string) {
         currentBlk.error = false
       }, 500)
     }
+    processingKey.value = false
     return
   }
+
   // 设置焦点为匹配的方块
   focusedBlockId.value = targetBlock.id
+
   // 正确输入
   correctKeys.value++
   targetBlock.typedCount++
   targetBlock.error = false
-  if (targetBlock.typedCount >= targetBlock.word.length) finishBlock(targetBlock)
+
+  // 检查是否完成单词
+  if (targetBlock.typedCount >= targetBlock.word.length) {
+    finishBlock(targetBlock)
+  }
+
+  // 释放处理锁
+  processingKey.value = false
 }
 
 function finishBlock(blk: WordBlock) {
@@ -789,8 +867,39 @@ function focusBlock(id: number) {
   focusedBlockId.value = id
   focusInput()
 }
+function onCompositionEnd(e: Event) {
+  composing.value = false
+  // 组合输入结束后，检查是否有输入内容
+  const target = e.target as HTMLInputElement
+  const value = target.value
+  if (value.length > 0) {
+    const lastChar = value.slice(-1).toLowerCase()
+    if (/^[a-z\s]$/.test(lastChar)) {
+      handleChar(lastChar)
+    }
+  }
+  // 清空输入框
+  inputBuf.value = ''
+  target.value = ''
+}
+
+// 处理方块触摸事件（平板设备优化）
+function onBlockTouchStart(id: number) {
+  focusBlock(id)
+  // 确保输入框获得焦点以调出虚拟键盘
+  focusInput()
+}
+
 function focusInput() {
-  nextTick(() => hiddenInput.value?.focus())
+  nextTick(() => {
+    if (hiddenInput.value) {
+      hiddenInput.value.focus()
+      // 在移动设备上确保键盘弹出
+      if ('scrollIntoView' in hiddenInput.value) {
+        hiddenInput.value.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }
+  })
 }
 
 let spawnTimer: ReturnType<typeof setInterval> | null = null
